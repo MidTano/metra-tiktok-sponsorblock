@@ -11,7 +11,6 @@ import android.view.ViewGroup;
 
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.Utils;
-import app.morphe.extension.tiktok.blockauthor.BlockAuthorOverlay;
 import app.morphe.extension.tiktok.blockauthor.Reflect;
 import app.morphe.extension.tiktok.settings.L10n;
 import app.morphe.extension.tiktok.settings.Settings;
@@ -188,7 +187,7 @@ public final class AdSkip {
                         if (advance()) {
                             AdSegmentStore.recordSkip(match.segment);
                             AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
-                            notice(L10n.f("Skipped an ad video: %1$s", match.segment.name), null);
+                            notice(match.segment.name, null);
                         } else {
                             AdSkipLog.add(aid, "whole video is an ad, but the feed could not move on");
                         }
@@ -235,7 +234,7 @@ public final class AdSkip {
             AdSegmentStore.recordSkip(match.segment);
             long seconds = Math.max(1, Math.round((landing - Math.max(positionMs, match.startMs)) / 1000.0));
             AdSkipLog.add(aid, "skipped " + match.segment.name + " to " + landing + "ms");
-            notice(L10n.f("Skipped %1$s s of ad: %2$s", String.valueOf(seconds), match.segment.name), () -> {
+            notice(match.segment.name, () -> {
                 long back = Math.max(0, match.startMs);
                 synchronized (AdSkip.class) {
                     allowed.add(match.startMs);
@@ -247,14 +246,10 @@ public final class AdSkip {
         }
     }
 
-    private static void notice(String message, Runnable undo) {
+    private static void notice(String name, Runnable undo) {
+        AdSkipBar.refresh();
         if (!Settings.AD_SKIP_NOTICE.get()) return;
-        try {
-            if (undo != null) BlockAuthorOverlay.showActionBanner(message, L10n.t("Watch it"), undo);
-            else BlockAuthorOverlay.showActionBanner(message, null, null);
-        } catch (Throwable failure) {
-            Utils.showToastShort(message);
-        }
+        AdSkipToast.show(name, undo);
     }
 
     /** Seeks the player that last reported progress. Main thread. */
@@ -329,7 +324,24 @@ public final class AdSkip {
         return null;
     }
 
-    // region state for the editor
+    // region state for the editor and the bar
+
+    static String playingAid() {
+        return playingAid;
+    }
+
+    static long playingPosition() {
+        return positionMs;
+    }
+
+    static long playingDuration() {
+        return durationMs;
+    }
+
+    /** Whether this ad of this video was already skipped this play; drawn dimmer on the bar. */
+    static synchronized boolean wasSkipped(String aid, long startMs) {
+        return aid != null && aid.equals(sessionAid) && skipped.contains(startMs);
+    }
 
     static long playingPositionFor(String aid) {
         return aid != null && aid.equals(playingAid) ? positionMs : -1;

@@ -95,7 +95,7 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
                 "Also looks for the ad played slightly faster or slower.",
                 Settings.AD_SKIP_RETIMED));
         addPreference(new TogglePreference(context, "Show a notice when skipping",
-                "A short banner says what was skipped, with Watch it to go back.",
+                "Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back.",
                 Settings.AD_SKIP_NOTICE));
         addPreference(new ChoicePreference(context, "Match strictness", Settings.AD_SKIP_STRICTNESS,
                 new String[]{"Loose: finds more, may skip by mistake", "Normal", "Strict: only clear matches"},

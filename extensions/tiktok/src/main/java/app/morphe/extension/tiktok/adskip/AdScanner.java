@@ -197,6 +197,7 @@ final class AdScanner {
                     : "found " + matches + " in " + took + "ms");
             Listener l = listener;
             if (l != null) l.scanned(job.aid, result);
+            if (!matches.isEmpty()) Utils.runOnMainThread(AdSkipBar::refresh);
         } catch (Throwable failure) {
             long took = System.currentTimeMillis() - started;
             store(job.aid, new Result(State.FAILED, generation, Collections.emptyList(), 0, took,

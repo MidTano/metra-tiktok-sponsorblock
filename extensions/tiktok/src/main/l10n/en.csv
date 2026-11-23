@@ -154,6 +154,7 @@ A press on Share under a video copies its link instead of opening the share shee
 A tap on Home or on the For You tab while For You is showing no longer reloads it. The video you're on stays.,A tap on Home or on the For You tab while For You is showing no longer reloads it. The video you're on stays.
 A video you paused stays paused when you come back to the app instead of starting again. One you left playing starts as usual. It works on Android 10 and newer.,A video you paused stays paused when you come back to the app instead of starting again. One you left playing starts as usual. It works on Android 10 and newer.
 A web address someone left in a comment can be tapped instead of copied out by hand. Tapping anywhere else in the comment still does what it did.,A web address someone left in a comment can be tapped instead of copied out by hand. Tapping anywhere else in the comment still does what it did.
+AD,AD
 AI Self,AI Self
 AI-generated posts,AI-generated posts
 About,About
@@ -195,6 +196,7 @@ Added to this account.,Added to this account.
 Adds a Record button to LIVE rooms. A recording starts when you tap it and ends when you tap Stop or leave the room. Nothing before that is saved.,Adds a Record button to LIVE rooms. A recording starts when you tap it and ends when you tap Stop or leave the room. Nothing before that is saved.
 "Adds a search box that finds comments already loaded on this video, by words or username. It doesn't search all of TikTok.","Adds a search box that finds comments already loaded on this video, by words or username. It doesn't search all of TikTok."
 Ads,Ads
+"Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back.","Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back."
 Advanced,Advanced
 Advanced JSON value,Advanced JSON value
 Advanced. Find and force the hidden switches TikTok uses to test features.,Advanced. Find and force the hidden switches TikTok uses to test features.
