@@ -7,6 +7,7 @@ package app.morphe.extension.tiktok.adskip;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -28,14 +29,18 @@ import app.morphe.extension.tiktok.settings.L10n;
 import java.lang.ref.WeakReference;
 
 /**
- * The skip notice: a small pill high on the left of the feed, above the caption and the
- * creator's name, so it covers neither. It shows an AD badge, the ad's name and "Watch it",
- * and goes by itself after a few seconds.
+ * The skip notice: a small pill centred across the screen, 20 px above the creator's name, so
+ * it sits clear of the name, the caption and the buttons. In it the green AD badge, the ad's
+ * name and "Watch it". It goes by itself after a few seconds.
  */
 final class AdSkipToast {
     private static final long VISIBLE_MS = 3500;
-    /** How far up from the bottom: above the caption, the name and the music line. */
-    private static final float BOTTOM_FRACTION = 0.34f;
+    /** The gap between the pill and the creator's name. */
+    private static final int ABOVE_NAME_PX = 20;
+    /** Where it sits when the name can't be found: about 200 px above the bottom bar's line. */
+    private static final int FALLBACK_BOTTOM_PX = 200;
+    private static final String NAME_ID = "title";
+    private static final String BAR_ID = "video_seek_bar";
 
     private static WeakReference<View> shown = new WeakReference<>(null);
     private static int generation;
@@ -51,15 +56,14 @@ final class AdSkipToast {
                 if (root == null) return;
                 dismiss();
                 View pill = build(activity, name, watch);
-                FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.START);
-                int height = root.getHeight() > 0 ? root.getHeight() : activity.getResources().getDisplayMetrics().heightPixels;
-                params.leftMargin = dp(activity, 12);
-                params.rightMargin = dp(activity, 88); // clear of the buttons on the right
-                params.bottomMargin = Math.round(height * BOTTOM_FRACTION);
+                FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2,
+                        Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+                params.bottomMargin = bottomMargin(activity, root);
                 root.addView(pill, params);
                 pill.setAlpha(0f);
-                pill.setTranslationY(dp(activity, 8));
-                pill.animate().alpha(1f).translationY(0).setDuration(180).start();
+                pill.setScaleX(0.92f);
+                pill.setScaleY(0.92f);
+                pill.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(170).start();
                 shown = new WeakReference<>(pill);
                 int token = ++generation;
                 Utils.runOnMainThreadDelayed(() -> {
@@ -71,13 +75,68 @@ final class AdSkipToast {
         });
     }
 
+    /** From the root's bottom to 20 px above the playing video's creator name. */
+    private static int bottomMargin(Activity activity, ViewGroup root) {
+        int[] rootAt = new int[2];
+        root.getLocationOnScreen(rootAt);
+        int rootBottom = rootAt[1] + root.getHeight();
+        View name = shownNamed(root, id(activity, NAME_ID));
+        if (name != null) {
+            int[] at = new int[2];
+            name.getLocationOnScreen(at);
+            int margin = rootBottom - at[1] + ABOVE_NAME_PX;
+            if (margin > 0 && margin < root.getHeight() * 0.8f) return margin;
+        }
+        View bar = shownNamed(root, id(activity, BAR_ID));
+        if (bar != null) {
+            int[] at = new int[2];
+            bar.getLocationOnScreen(at);
+            int margin = rootBottom - at[1] + FALLBACK_BOTTOM_PX;
+            if (margin > 0 && margin < root.getHeight() * 0.8f) return margin;
+        }
+        return Math.round(root.getHeight() * 0.25f);
+    }
+
+    private static int id(Activity activity, String name) {
+        return activity.getResources().getIdentifier(name, "id", activity.getPackageName());
+    }
+
+    /**
+     * The view with this id that is on screen now. The feed keeps the cells either side bound, each
+     * with its own name, so the one wanted is the one actually visible in the middle of the screen.
+     */
+    @Nullable
+    private static View shownNamed(ViewGroup root, int id) {
+        if (id == 0) return null;
+        int width = root.getResources().getDisplayMetrics().widthPixels;
+        int height = root.getResources().getDisplayMetrics().heightPixels;
+        return find(root, id, width, height, new Rect());
+    }
+
+    @Nullable
+    private static View find(View view, int id, int width, int height, Rect rect) {
+        if (view.getVisibility() != View.VISIBLE) return null;
+        if (view.getId() == id && view.getGlobalVisibleRect(rect)
+                && rect.left >= 0 && rect.right <= width && rect.top >= 0 && rect.bottom <= height) {
+            return view;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View found = find(group.getChildAt(i), id, width, height, rect);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
     private static View build(Activity activity, String name, @Nullable Runnable watch) {
         LinearLayout pill = new LinearLayout(activity);
         pill.setOrientation(LinearLayout.HORIZONTAL);
-        pill.setGravity(Gravity.CENTER_VERTICAL);
-        pill.setPadding(dp(activity, 5), dp(activity, 4), dp(activity, watch == null ? 10 : 4), dp(activity, 4));
+        pill.setGravity(Gravity.CENTER);
+        pill.setPadding(dp(activity, 5), dp(activity, 4), dp(activity, watch == null ? 11 : 5), dp(activity, 4));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(0xCC161618);
+        background.setColor(0xD9161618);
         background.setCornerRadius(dp(activity, 16));
         pill.setBackground(background);
         pill.setElevation(dp(activity, 4));
@@ -86,7 +145,7 @@ final class AdSkipToast {
         badge.setText(L10n.t("AD"));
         badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
         badge.setTypeface(Typeface.DEFAULT_BOLD);
-        badge.setTextColor(Color.BLACK);
+        badge.setTextColor(0xFF06210F);
         badge.setLetterSpacing(0.06f);
         badge.setIncludeFontPadding(false);
         badge.setGravity(Gravity.CENTER);
@@ -95,7 +154,7 @@ final class AdSkipToast {
         badgeFill.setColor(AdSkipBar.MARK);
         badgeFill.setCornerRadius(dp(activity, 10));
         badge.setBackground(badgeFill);
-        pill.addView(badge);
+        pill.addView(badge, centred());
 
         TextView label = new TextView(activity);
         label.setText(name);
@@ -103,10 +162,11 @@ final class AdSkipToast {
         label.setTextColor(0xF2FFFFFF);
         label.setMaxLines(1);
         label.setEllipsize(TextUtils.TruncateAt.END);
-        label.setMaxWidth(dp(activity, 170));
+        label.setMaxWidth(dp(activity, 180));
         label.setIncludeFontPadding(false);
-        label.setPadding(dp(activity, 7), 0, dp(activity, 6), 0);
-        pill.addView(label);
+        label.setGravity(Gravity.CENTER);
+        label.setPadding(dp(activity, 7), 0, dp(activity, 7), 0);
+        pill.addView(label, centred());
 
         if (watch != null) {
             TextView action = new TextView(activity);
@@ -117,10 +177,10 @@ final class AdSkipToast {
             action.setIncludeFontPadding(false);
             action.setGravity(Gravity.CENTER);
             action.setPadding(dp(activity, 10), dp(activity, 6), dp(activity, 10), dp(activity, 6));
-            GradientDrawable mask = new GradientDrawable();
-            mask.setColor(Color.WHITE);
-            mask.setCornerRadius(dp(activity, 12));
-            action.setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), null, mask));
+            GradientDrawable fill = new GradientDrawable();
+            fill.setColor(0x262BD96B);
+            fill.setCornerRadius(dp(activity, 12));
+            action.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), fill, null));
             action.setOnClickListener(v -> {
                 dismiss();
                 try {
@@ -129,9 +189,15 @@ final class AdSkipToast {
                     Logger.printException(() -> "Ad skip: could not go back to the ad", failure);
                 }
             });
-            pill.addView(action);
+            pill.addView(action, centred());
         }
         return pill;
+    }
+
+    private static LinearLayout.LayoutParams centred() {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);
+        params.gravity = Gravity.CENTER_VERTICAL;
+        return params;
     }
 
     static void dismiss() {

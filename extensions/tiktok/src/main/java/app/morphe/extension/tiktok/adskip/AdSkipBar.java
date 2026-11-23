@@ -4,6 +4,7 @@
  */
 package app.morphe.extension.tiktok.adskip;
 
+import android.animation.ValueAnimator;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
@@ -13,6 +14,7 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 
@@ -26,21 +28,58 @@ import java.util.List;
 import java.util.WeakHashMap;
 
 /**
- * The found ads drawn on TikTok's own progress bar, the way SponsorBlock marks sponsor parts:
- * a yellow stretch of the line where each ad plays. Every ad in the video gets its own mark.
+ * The found ads drawn inside TikTok's own progress line, the way SponsorBlock colours sponsor
+ * parts: the stretch of the line where each ad plays turns green. Every ad in the video gets
+ * its own stretch.
  *
- * <p>The marks are a drawable in the seek bar's overlay, so TikTok's layout and touch handling
- * are untouched. They are drawn over the bar's own track, read from its progress drawable on
- * every frame, so they follow the bar when it grows while paused or dragged.
+ * <p>The marks sit in the seek bar's overlay, so TikTok's layout and touch handling are
+ * untouched, and they are drawn exactly over TikTok's line: same left and right ends (the
+ * seek bar's own padding), the same centre and the same thickness. The thickness comes from
+ * TikTok itself: its style method hands the seek bar a line height for every style (2dp at
+ * rest, 4dp paused, 3dp while dragging) and that value is read on its way in, so the marks
+ * grow and shrink with the line, animated the same way.
  */
 public final class AdSkipBar {
-    static final int MARK = 0xFFFFC400;
-    static final int MARK_SKIPPED = 0x99FFC400;
+    static final int MARK = 0xFF2BD96B;
+    static final int MARK_SKIPPED = 0x8C2BD96B;
 
-    /** Each bar's mark drawable, and which video that bar was last seen showing. */
     private static final WeakHashMap<LinearLayout, Marks> BARS = new WeakHashMap<>();
+    /** The bar whose style method is running; its line height arrives inside it. */
+    private static WeakReference<LinearLayout> styling = new WeakReference<>(null);
 
     private AdSkipBar() {}
+
+    /** TikTok's bar style method begins, for this bar. Main thread. */
+    public static void beginStyle(@Nullable LinearLayout bar, int style) {
+        styling = new WeakReference<>(bar);
+    }
+
+    /** The line height TikTok is handing the seek bar, in pixels. Main thread. */
+    public static void lineHeight(@Nullable Float height) {
+        LinearLayout bar = styling.get();
+        if (bar == null || height == null || height <= 0) return;
+        Marks marks = BARS.get(bar);
+        if (marks != null) marks.animateLine(height);
+        else PENDING.put(bar, height);
+    }
+
+    /** TikTok's handle width in pixels, as its style method hands it over. */
+    static float handle;
+
+    /** The handle's side on its way to the seek bar. Main thread. */
+    public static void handleSide(@Nullable Float side) {
+        if (side != null && side > 0) handle = side;
+        refresh();
+    }
+
+    /** Where the bar's handle is, 0 to 100, from the seek bar itself so a drag is followed. */
+    static float percent(ProgressBar bar) {
+        int max = bar.getMax();
+        return max <= 0 ? 0f : bar.getProgress() * 100f / max;
+    }
+
+    /** Line heights seen before the bar had marks. */
+    private static final WeakHashMap<LinearLayout, Float> PENDING = new WeakHashMap<>();
 
     /** The bar's progress method, on the main thread, with the percent it is about to draw. */
     public static void onBar(@Nullable LinearLayout bar, float percent) {
@@ -55,6 +94,8 @@ public final class AdSkipBar {
                 ProgressBar seekBar = findSeekBar(bar);
                 if (seekBar == null) return;
                 marks = new Marks(seekBar);
+                Float pending = PENDING.remove(bar);
+                if (pending != null) marks.line = pending;
                 seekBar.getOverlay().add(marks);
                 BARS.put(bar, marks);
             }
@@ -77,7 +118,7 @@ public final class AdSkipBar {
         return null;
     }
 
-    /** Redraws every bar, after a scan found ads in a video. */
+    /** Redraws every bar, after a scan found ads in a video or an ad was skipped. */
     static void refresh() {
         for (Marks marks : BARS.values()) {
             if (marks != null) marks.invalidateSelf();
@@ -89,6 +130,9 @@ public final class AdSkipBar {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF rect = new RectF();
         @Nullable private String aid;
+        /** TikTok's current line height in pixels; 0 until its style method has said. */
+        float line;
+        @Nullable private ValueAnimator animator;
 
         Marks(ProgressBar seekBar) {
             this.seekBar = new WeakReference<>(seekBar);
@@ -101,16 +145,32 @@ public final class AdSkipBar {
             invalidateSelf();
         }
 
-        /**
-         * Which video this bar shows. The bar whose percent is the playing video's own is that
-         * video's; a bar that has gone back to its start without playing is a recycled cell
-         * whose old marks must go.
-         */
+        /** TikTok animates its line between styles over about 200 ms; the marks follow. */
+        void animateLine(float target) {
+            if (animator != null) animator.cancel();
+            if (line <= 0) {
+                line = target;
+                invalidateSelf();
+                return;
+            }
+            ValueAnimator grow = ValueAnimator.ofFloat(line, target);
+            grow.setDuration(200);
+            grow.setInterpolator(new DecelerateInterpolator());
+            grow.addUpdateListener(a -> {
+                line = (float) a.getAnimatedValue();
+                invalidateSelf();
+            });
+            animator = grow;
+            grow.start();
+        }
+
         void follow(float percent) {
             ProgressBar bar = seekBar.get();
             if (bar != null) {
                 Rect b = getBounds();
-                if (b.width() != bar.getWidth() || b.height() != bar.getHeight()) fit(bar, this);
+                if (b.width() != bar.getWidth() || b.height() != bar.getHeight()) {
+                    setBounds(0, 0, bar.getWidth(), bar.getHeight());
+                }
             }
             String playing = AdSkip.playingAid();
             long duration = AdSkip.playingDuration();
@@ -128,34 +188,37 @@ public final class AdSkipBar {
         public void draw(@NonNull Canvas canvas) {
             String shown = aid;
             ProgressBar bar = seekBar.get();
-            if (shown == null || bar == null || !bar.isShown()) return;
+            if (shown == null || bar == null || !bar.isShown() || bar.getAlpha() <= 0f) return;
             AdScanner.Result result = AdScanner.result(shown);
             if (result == null || result.state != AdScanner.State.DONE || result.matches.isEmpty()) return;
             long duration = shown.equals(AdSkip.playingAid()) ? AdSkip.playingDuration() : 0;
             if (duration <= 0) duration = result.scannedMs;
             if (duration <= 0) return;
 
-            // The track: the progress drawable's bounds, inside the bar's padding.
-            Drawable track = bar.getProgressDrawable();
-            Rect bounds = track != null ? track.getBounds() : null;
-            float left = bar.getPaddingLeft(), right = bar.getWidth() - bar.getPaddingRight();
-            float top, bottom;
-            if (bounds != null && !bounds.isEmpty()) {
-                left = bar.getPaddingLeft() + bounds.left;
-                right = bar.getPaddingLeft() + bounds.right;
-                float centre = bar.getPaddingTop() + bounds.exactCenterY();
-                float half = Math.max(bounds.height() / 2f, 1.5f * density(bar));
-                top = centre - half;
-                bottom = centre + half;
-            } else {
-                float centre = bar.getHeight() / 2f;
-                top = centre - 1.5f * density(bar);
-                bottom = centre + 1.5f * density(bar);
-            }
+            float density = bar.getResources().getDisplayMetrics().density;
+            // TikTok's line runs between the seek bar's paddings, centred in its height.
+            float left = bar.getPaddingLeft();
+            float right = bar.getWidth() - bar.getPaddingRight();
             if (right <= left) return;
+            float thickness = line > 0 ? line : 2 * density;
+            float centre = bar.getPaddingTop() + (bar.getHeight() - bar.getPaddingTop() - bar.getPaddingBottom()) / 2f;
+            float top = centre - thickness / 2f, bottom = centre + thickness / 2f;
+            float radius = thickness / 2f;
             float width = right - left;
-            float radius = (bottom - top) / 2f;
-            float minWidth = 3 * density(bar);
+            float minWidth = Math.max(thickness, 2 * density);
+
+            // TikTok's handle stays on top: the marks leave a gap where it sits.
+            int saved = canvas.save();
+            float handle = AdSkipBar.handle > 0 ? AdSkipBar.handle : 4 * density;
+            float handleX = left + width * Math.max(0f, Math.min(100f, AdSkipBar.percent(bar))) / 100f;
+            float gap = handle / 2f + 0.5f * density;
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                canvas.clipOutRect(handleX - gap, 0, handleX + gap, bar.getHeight());
+            } else {
+                //noinspection deprecation
+                canvas.clipRect(handleX - gap, 0, handleX + gap, bar.getHeight(), android.graphics.Region.Op.DIFFERENCE);
+            }
+
             List<AdMatcher.Match> matches = result.matches;
             for (AdMatcher.Match match : matches) {
                 float x0 = left + width * Math.max(0, match.startMs) / duration;
@@ -168,10 +231,7 @@ public final class AdSkipBar {
                 rect.set(x0, top, x1, bottom);
                 canvas.drawRoundRect(rect, radius, radius, paint);
             }
-        }
-
-        private static float density(View view) {
-            return view.getResources().getDisplayMetrics().density;
+            canvas.restoreToCount(saved);
         }
 
         @Override
@@ -188,15 +248,5 @@ public final class AdSkipBar {
         public int getOpacity() {
             return PixelFormat.TRANSLUCENT;
         }
-
-        @Override
-        protected void onBoundsChange(@NonNull Rect bounds) {
-            invalidateSelf();
-        }
-    }
-
-    /** The overlay drawable has to span the seek bar; it is resized on every progress tick. */
-    static void fit(ProgressBar bar, Drawable marks) {
-        marks.setBounds(0, 0, bar.getWidth(), bar.getHeight());
     }
 }

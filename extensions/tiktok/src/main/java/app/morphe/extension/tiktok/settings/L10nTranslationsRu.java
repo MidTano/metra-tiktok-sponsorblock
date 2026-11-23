@@ -687,7 +687,7 @@ final class L10nTranslationsRu {
         table.put("Ads",
                 "Реклама");
         table.put("Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back.",
-                "Реклама отмечается жёлтым на полосе прокрутки. Короткая плашка показывает её название, а «Смотреть» вернёт назад.");
+                "Реклама отмечается зелёным на полосе прокрутки. Короткая плашка показывает её название, а «Смотреть» вернёт назад.");
         table.put("Advanced",
                 "Дополнительно");
         table.put("Advanced JSON value",
