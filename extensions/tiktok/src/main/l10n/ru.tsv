@@ -2406,3 +2406,59 @@ Top tabs and search	Верхние вкладки и поиск
 Bottom tabs and bars	Нижние вкладки и панели
 Dims: %1$s	Затемняются: %1$s
 Nothing is dimmed.	Ничего не затемняется.
+%1$s ads, skipped %2$s times	Реклам: %1$s, пропущено раз: %2$s
+%1$s ads, skipped %2$s times. Tap to manage them.	Реклам: %1$s, пропущено раз: %2$s. Нажмите, чтобы управлять ими.
+%1$s s · skipped %2$s times · %3$s	%1$s с · пропущено раз: %2$s · %3$s
+A short banner says what was skipped, with Watch it to go back.	Короткая плашка скажет, что пропущено, а кнопка «Смотреть» вернёт назад.
+Ad	Реклама
+Adds Mark ad to a video's share sheet, where you cut the ad out of the video.	Добавляет «Отметить рекламу» в меню «Поделиться», где вы вырезаете рекламу из видео.
+Also looks for the ad played slightly faster or slower.	Ищет и ту же рекламу, ускоренную или замедленную.
+Check on mobile data	Проверять по мобильной сети
+Check upcoming videos	Проверять следующие видео заранее
+Choose where the ad starts and ends	Выберите, где реклама начинается и заканчивается
+Couldn't load this video. Check the connection and try again.	Не удалось загрузить видео. Проверьте соединение и попробуйте ещё раз.
+Couldn't open the ad editor	Не удалось открыть редактор рекламы
+Couldn't play this video.	Не удалось воспроизвести это видео.
+Delete	Удалить
+Delete "%1$s"?	Удалить «%1$s»?
+Delete all	Удалить все
+Delete every marked ad?	Удалить все отмеченные рекламы?
+Downloading the sound…	Загружается звук…
+Downloading the video…	Загружается видео…
+Each check downloads the video's sound, usually a few hundred kilobytes.	Каждая проверка скачивает звук видео, обычно несколько сотен килобайт.
+End here	Конец здесь
+Find sped up copies	Находить ускоренные копии
+For example, the brand	Например, бренд
+Listens to the next videos in the feed before you reach them, so an ad is skipped from its first second.	Слушает следующие видео ленты до того, как вы до них дойдёте, чтобы реклама пропускалась с первой секунды.
+Loading the video and its sound…	Загружаются видео и звук…
+Loose: finds more, may skip by mistake	Мягко: находит больше, может ошибиться
+Strict: only clear matches	Строго: только явные совпадения
+Mark ad	Отметить рекламу
+Mark ad in the share sheet	«Отметить рекламу» в меню «Поделиться»
+Mark an ad	Отметить рекламу
+Mark an ad once in any video, and wherever its sound plays again, even under music or noise, Metra skips past it.	Отметьте рекламу один раз в любом видео, и где бы её звук ни зазвучал снова, даже под музыкой или шумом, Metra её пропустит.
+Marked ads	Отмеченная реклама
+Match strictness	Строгость совпадения
+Move on from ad-only videos	Пролистывать видео целиком из рекламы
+Name	Название
+No ads marked yet. Open a video's share sheet and tap Mark ad.	Реклама ещё не отмечена. Откройте меню «Поделиться» у видео и нажмите «Отметить рекламу».
+None yet. In a video, tap Share, then Mark ad, and choose where the ad starts and ends.	Пока нет. В видео нажмите «Поделиться», затем «Отметить рекламу» и выберите начало и конец рекламы.
+Open a video first	Сначала откройте видео
+Play ad	Слушать рекламу
+Reading the sound…	Анализируется звук…
+Recent checks	Последние проверки
+Rename	Переименовать
+Saved "%1$s", but its sound is weak. A longer or louder cut is found more reliably.	«%1$s» сохранена, но звук слабый. Более длинный или громкий отрезок находится надёжнее.
+Saved "%1$s". This ad will be skipped in other videos.	«%1$s» сохранена. Эта реклама будет пропускаться в других видео.
+Show a notice when skipping	Показывать уведомление о пропуске
+Skip ads by sound	Пропуск рекламы по звуку
+Skip marked ads	Пропускать отмеченную рекламу
+Skipped %1$s s of ad: %2$s	Пропущено %1$s с рекламы: %2$s
+Skipped an ad video: %1$s	Пропущено рекламное видео: %1$s
+Start here	Начало здесь
+The ad must be at least 2 seconds long.	Реклама должна длиться не меньше 2 секунд.
+There's too little sound here to recognise. Choose a louder part.	Здесь слишком мало звука для распознавания. Выберите часть погромче.
+Tip: mark only the ad itself. Its sound is what gets matched, even under music or noise.	Совет: отмечайте только саму рекламу. Распознаётся её звук, даже под музыкой или шумом.
+Watch it	Смотреть
+When the ad is the whole video, go to the next one instead of jumping to its end.	Если реклама занимает всё видео, перейти к следующему, а не прыгать в конец.
+Zoom	Масштаб

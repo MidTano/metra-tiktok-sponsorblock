@@ -49,8 +49,19 @@ public final class AdSkip {
     private static final Set<Long> allowed = new HashSet<>();
     private static long lastTick = -1;
     private static boolean advancedAway;
+    /** Where the last skip seeked to and when, until the player reports it got there. */
+    private static long seekTarget = -1;
+    private static long seekAt;
+    private static int seeksThisPlay;
+    private static final long SEEK_SETTLE_MS = 2500;
+    /** A safety stop: no video gets more automatic seeks than this in one play. */
+    private static final int MAX_SEEKS_PER_PLAY = 6;
+    private static volatile boolean seekInFlight;
 
     private static volatile boolean paused;
+
+    /** How far from the end a skip may land. */
+    private static final long END_GUARD_MS = 600;
 
     private static Class<?> seekOwner;
     private static Method seekMethod;
@@ -119,10 +130,14 @@ public final class AdSkip {
     }
 
     private static synchronized void tick(String aid, long position, long duration) {
+        long now = android.os.SystemClock.uptimeMillis();
         if (!aid.equals(sessionAid)) {
             sessionAid = aid;
             skipped.clear();
             allowed.clear();
+            seeksThisPlay = 0;
+            seekTarget = -1;
+            seekAt = 0;
             lastTick = -1;
             advancedAway = false;
             // A video that started before the play hook saw it, a resumed one for instance.
@@ -131,9 +146,23 @@ public final class AdSkip {
                 AdScanner.request(aweme, true);
             }
         }
-        // Played round to the start again, or the reader dragged back: the ads may go again.
-        if (lastTick >= 0 && position + 1500 < lastTick) skipped.clear();
+        // After a seek the player keeps reporting the old position for a moment. Until it
+        // reports the new one, or a while has passed, nothing else happens: reading those
+        // late ticks as a rewind used to clear the skips and seek again, over and over.
+        if (seekTarget >= 0) {
+            boolean landed = Math.abs(position - seekTarget) < 1500;
+            if (!landed && now - seekAt < SEEK_SETTLE_MS) return;
+            seekTarget = -1;
+            lastTick = position;
+            return;
+        }
+        // Played round to the start again, or the reader dragged back before an ad: it may
+        // be skipped again. Only a real jump back counts, never a tick right after a seek.
+        if (lastTick >= 0 && position + 3000 < lastTick && now - seekAt > SEEK_SETTLE_MS) {
+            skipped.removeIf(start -> position < start - 500);
+        }
         lastTick = position;
+        if (seeksThisPlay >= MAX_SEEKS_PER_PLAY) return;
 
         AdScanner.Result result = AdScanner.result(aid);
         if (result == null || result.state != AdScanner.State.DONE || result.matches.isEmpty()) return;
@@ -144,20 +173,29 @@ public final class AdSkip {
             long end = Math.min(match.endMs, duration);
             if (position < match.startMs - LEAD_MS || position >= end - TAIL_MS) continue;
             skipped.add(key);
+            // The whole video, or an ad that runs into its last second: there is nothing after it
+            // to seek to, so the feed moves on instead.
             boolean whole = (end - Math.max(0, match.startMs)) >= duration * WHOLE_VIDEO
-                    || end >= duration - 700;
-            if (whole && Settings.AD_SKIP_WHOLE_VIDEO.get()) {
-                if (advancedAway) return;
+                    || end >= duration - END_GUARD_MS - 400;
+            if (whole) {
+                if (!Settings.AD_SKIP_WHOLE_VIDEO.get() || advancedAway) return;
                 advancedAway = true;
-                Utils.runOnMainThread(() -> {
-                    if (advance()) {
-                        AdSegmentStore.recordSkip(match.segment);
-                        AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
-                        notice(L10n.f("Skipped an ad video: %1$s", match.segment.name), null);
-                    } else {
-                        seekPast(aid, match, Math.max(0, duration - 1), duration);
+                seeksThisPlay = MAX_SEEKS_PER_PLAY;
+                // A moment later, outside TikTok's progress callback, as a swipe would be.
+                Utils.runOnMainThreadDelayed(() -> {
+                    try {
+                        if (!aid.equals(playingAid)) return;
+                        if (advance()) {
+                            AdSegmentStore.recordSkip(match.segment);
+                            AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
+                            notice(L10n.f("Skipped an ad video: %1$s", match.segment.name), null);
+                        } else {
+                            AdSkipLog.add(aid, "whole video is an ad, but the feed could not move on");
+                        }
+                    } catch (Throwable failure) {
+                        Logger.printException(() -> "Ad skip: could not move past an ad video", failure);
                     }
-                });
+                }, 350);
                 return;
             }
             seekPast(aid, match, end, duration);
@@ -166,23 +204,47 @@ public final class AdSkip {
     }
 
     private static void seekPast(String aid, AdMatcher.Match match, long target, long duration) {
-        long landing = Math.min(target, duration - 1);
+        // Never onto the very end: landing there finishes the video inside TikTok's engine while
+        // its own completion is still running, which is what took the app down.
+        long landing = Math.min(target, duration - END_GUARD_MS);
+        if (landing <= positionMs + 500) {
+            AdSkipLog.add(aid, "ad runs to the end, nothing to seek past");
+            return;
+        }
+        if (seekInFlight) return;
+        seekInFlight = true;
+        seeksThisPlay++;
+        seekTarget = landing;
+        seekAt = android.os.SystemClock.uptimeMillis();
         Utils.runOnMainThread(() -> {
-            if (!aid.equals(playingAid)) return;
-            if (!seekTo(landing, duration)) {
-                AdSkipLog.add(aid, "could not seek");
-                return;
+            try {
+                if (!aid.equals(playingAid)) return;
+                if (!seekTo(landing, duration)) {
+                    AdSkipLog.add(aid, "could not seek");
+                    return;
+                }
+                skippedOnce(aid, match, landing, duration);
+            } finally {
+                seekInFlight = false;
             }
+        });
+    }
+
+    private static void skippedOnce(String aid, AdMatcher.Match match, long landing, long duration) {
+        {
             AdSegmentStore.recordSkip(match.segment);
             long seconds = Math.max(1, Math.round((landing - Math.max(positionMs, match.startMs)) / 1000.0));
             AdSkipLog.add(aid, "skipped " + match.segment.name + " to " + landing + "ms");
             notice(L10n.f("Skipped %1$s s of ad: %2$s", String.valueOf(seconds), match.segment.name), () -> {
+                long back = Math.max(0, match.startMs);
                 synchronized (AdSkip.class) {
                     allowed.add(match.startMs);
+                    seekTarget = back;
+                    seekAt = android.os.SystemClock.uptimeMillis();
                 }
-                seekTo(Math.max(0, match.startMs), duration);
+                seekTo(back, duration);
             });
-        });
+        }
     }
 
     private static void notice(String message, Runnable undo) {
