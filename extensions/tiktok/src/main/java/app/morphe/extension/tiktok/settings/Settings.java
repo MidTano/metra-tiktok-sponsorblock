@@ -379,6 +379,22 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting HIDE_SHARE_ACTIONS = new BooleanSetting("hide_share_actions", FALSE);
     public static final BooleanSetting SHARE_BLOCK_AUTHOR = new BooleanSetting("share_block_author", FALSE);
     public static final BooleanSetting REMOVE_ADS = new BooleanSetting("remove_ads", TRUE, true);
+    /** Skips ads the reader marked, by their sound, inside any feed video (Shazam-style). */
+    public static final BooleanSetting AD_SKIP = new BooleanSetting("ad_skip", TRUE);
+    public static final BooleanSetting AD_SKIP_SHARE_BUTTON = new BooleanSetting(
+            "ad_skip_share_button", TRUE, false, Setting.parent(AD_SKIP));
+    public static final BooleanSetting AD_SKIP_PRESCAN = new BooleanSetting(
+            "ad_skip_prescan", TRUE, false, Setting.parent(AD_SKIP));
+    public static final BooleanSetting AD_SKIP_MOBILE_DATA = new BooleanSetting(
+            "ad_skip_mobile_data", TRUE, false, Setting.parent(AD_SKIP));
+    public static final BooleanSetting AD_SKIP_WHOLE_VIDEO = new BooleanSetting(
+            "ad_skip_whole_video", TRUE, false, Setting.parent(AD_SKIP));
+    public static final BooleanSetting AD_SKIP_RETIMED = new BooleanSetting(
+            "ad_skip_retimed", TRUE, false, Setting.parent(AD_SKIP));
+    public static final BooleanSetting AD_SKIP_NOTICE = new BooleanSetting(
+            "ad_skip_notice", TRUE, false, Setting.parent(AD_SKIP));
+    public static final StringSetting AD_SKIP_STRICTNESS = new StringSetting(
+            "ad_skip_strictness", "normal", false, Setting.parent(AD_SKIP));
     public static final BooleanSetting HIDE_LIVE = new BooleanSetting("hide_live", FALSE, true);
     public static final BooleanSetting HIDE_SHOP = new BooleanSetting("hide_shop", FALSE, true);
     /** TikTok Shop cards in search results: the Products block and single product cards (issue #21). */

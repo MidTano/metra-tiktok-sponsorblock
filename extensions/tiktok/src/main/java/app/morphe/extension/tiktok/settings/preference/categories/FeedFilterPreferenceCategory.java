@@ -26,6 +26,8 @@ import app.morphe.extension.tiktok.settings.preference.CreatorListPreference;
 import app.morphe.extension.tiktok.settings.preference.CalmFeedPresetPreference;
 import app.morphe.extension.tiktok.settings.preference.SectionHeadingPreference;
 import app.morphe.extension.tiktok.settings.preference.TogglePreference;
+import app.morphe.extension.tiktok.settings.preference.AdSegmentsPreference;
+import app.morphe.extension.tiktok.settings.preference.ChoicePreference;
 import app.morphe.extension.tiktok.feedfilter.AdvancedFeedRules;
 import app.morphe.extension.tiktok.feedfilter.CreatorExceptions;
 
@@ -45,7 +47,8 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
     /** Whether this page has anything on it. The row into it asks the same question. */
     public static boolean isAvailable() {
         return SettingsStatus.feedFilterEnabled
-                || SettingsStatus.seenVideoFilterEnabled;
+                || SettingsStatus.seenVideoFilterEnabled
+                || SettingsStatus.adSkipEnabled;
     }
 
     @Override
@@ -60,6 +63,7 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
         // others' settings, which would sit there doing nothing.
         if (SettingsStatus.feedFilterEnabled) addQuickSetup(context);
         if (SettingsStatus.feedFilterEnabled) addAds(context);
+        if (SettingsStatus.adSkipEnabled) addAdSkip(context);
         if (SettingsStatus.feedFilterEnabled) addKindsOfPost(context);
         if (SettingsStatus.feedFilterEnabled) addLimits(context);
         if (SettingsStatus.feedFilterEnabled) addCreatorsAndSounds(context);
@@ -67,6 +71,35 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
         if (SettingsStatus.feedFilterEnabled && SettingsStatus.liveFeedFilterEnabled) addLiveFeed(context);
         if (SettingsStatus.seenVideoFilterEnabled) addSeenVideoRules(context);
         if (SettingsStatus.feedFilterEnabled) addAdvanced(context);
+    }
+
+    private void addAdSkip(Context context) {
+        addPreference(new SectionHeadingPreference(context, "Skip ads by sound"));
+        addPreference(new TogglePreference(context, "Skip marked ads",
+                "Mark an ad once in any video, and wherever its sound plays again, even under music or noise, Metra skips past it.",
+                Settings.AD_SKIP));
+        addPreference(new AdSegmentsPreference(context));
+        addPreference(new TogglePreference(context, "Mark ad in the share sheet",
+                "Adds Mark ad to a video's share sheet, where you cut the ad out of the video.",
+                Settings.AD_SKIP_SHARE_BUTTON));
+        addPreference(new TogglePreference(context, "Check upcoming videos",
+                "Listens to the next videos in the feed before you reach them, so an ad is skipped from its first second.",
+                Settings.AD_SKIP_PRESCAN));
+        addPreference(new TogglePreference(context, "Check on mobile data",
+                "Each check downloads the video's sound, usually a few hundred kilobytes.",
+                Settings.AD_SKIP_MOBILE_DATA));
+        addPreference(new TogglePreference(context, "Move on from ad-only videos",
+                "When the ad is the whole video, go to the next one instead of jumping to its end.",
+                Settings.AD_SKIP_WHOLE_VIDEO));
+        addPreference(new TogglePreference(context, "Find sped up copies",
+                "Also looks for the ad played slightly faster or slower.",
+                Settings.AD_SKIP_RETIMED));
+        addPreference(new TogglePreference(context, "Show a notice when skipping",
+                "A short banner says what was skipped, with Watch it to go back.",
+                Settings.AD_SKIP_NOTICE));
+        addPreference(new ChoicePreference(context, "Match strictness", Settings.AD_SKIP_STRICTNESS,
+                new String[]{"Loose: finds more, may skip by mistake", "Normal", "Strict: only clear matches"},
+                new String[]{"loose", "normal", "strict"}));
     }
 
     private void addQuickSetup(Context context) {
