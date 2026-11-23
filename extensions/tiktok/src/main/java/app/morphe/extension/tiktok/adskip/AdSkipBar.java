@@ -52,7 +52,14 @@ public final class AdSkipBar {
     /** TikTok's bar style method begins, for this bar. Main thread. */
     public static void beginStyle(@Nullable LinearLayout bar, int style) {
         styling = new WeakReference<>(bar);
+        Marks marks = bar == null ? null : BARS.get(bar);
+        // TikTok moves its line as well as thickening it; where it ends up is measured once its
+        // own animation has settled.
+        if (marks != null) marks.measureSoon(MEASURE_AFTER_STYLE_MS);
     }
+
+    /** TikTok's line animates for about 200 ms after a style change. */
+    private static final long MEASURE_AFTER_STYLE_MS = 260;
 
     /** The line height TikTok is handing the seek bar, in pixels. Main thread. */
     public static void lineHeight(@Nullable Float height) {
@@ -98,6 +105,7 @@ public final class AdSkipBar {
                 if (pending != null) marks.line = pending;
                 seekBar.getOverlay().add(marks);
                 BARS.put(bar, marks);
+                marks.measureSoon(50);
             }
             marks.follow(percent);
         } catch (Throwable failure) {
@@ -133,6 +141,85 @@ public final class AdSkipBar {
         /** TikTok's current line height in pixels; 0 until its style method has said. */
         float line;
         @Nullable private ValueAnimator animator;
+        /** How far TikTok's line centre sits from the seek bar's middle, measured; NaN before. */
+        float centreShift = Float.NaN;
+        @Nullable private ValueAnimator shiftAnimator;
+        /** Set while the bar is drawn into a bitmap to measure it, so the marks stay out. */
+        boolean measuring;
+        private final Runnable measure = this::measure;
+
+        void measureSoon(long delayMs) {
+            ProgressBar bar = seekBar.get();
+            if (bar == null) return;
+            bar.removeCallbacks(measure);
+            bar.postDelayed(measure, delayMs);
+        }
+
+        /**
+         * Draws the seek bar into a bitmap and reads, in one column away from the handle, which
+         * rows TikTok's line covers. Its centre there is where the marks go. Done only after a
+         * style change, never per frame.
+         */
+        private void measure() {
+            ProgressBar bar = seekBar.get();
+            if (bar == null) return;
+            int w = bar.getWidth(), h = bar.getHeight();
+            if (w <= 0 || h <= 0) return;
+            float left = bar.getPaddingLeft(), right = w - bar.getPaddingRight();
+            if (right - left < 20) return;
+            float handleX = left + (right - left) * AdSkipBar.percent(bar) / 100f;
+            int column = Math.round(handleX > (left + right) / 2f
+                    ? left + (right - left) * 0.12f
+                    : right - (right - left) * 0.12f);
+            column = Math.max(0, Math.min(w - 1, column));
+            android.graphics.Bitmap bitmap = null;
+            try {
+                bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+                measuring = true;
+                try {
+                    bar.draw(new Canvas(bitmap));
+                } finally {
+                    measuring = false;
+                }
+                int top = -1, bottom = -1;
+                for (int y = 0; y < h; y++) {
+                    int alpha = bitmap.getPixel(column, y) >>> 24;
+                    if (alpha > 24) {
+                        if (top < 0) top = y;
+                        bottom = y;
+                    }
+                }
+                if (top < 0) return;
+                float lineCentre = (top + bottom + 1) / 2f;
+                float shift = lineCentre - geometricCentre(bar);
+                animateShift(shift);
+            } catch (Throwable failure) {
+                Logger.printDebug(() -> "Ad skip: could not measure the progress line");
+            } finally {
+                if (bitmap != null) bitmap.recycle();
+            }
+        }
+
+        private void animateShift(float target) {
+            if (shiftAnimator != null) shiftAnimator.cancel();
+            if (Float.isNaN(centreShift) || Math.abs(centreShift - target) < 0.5f) {
+                centreShift = target;
+                invalidateSelf();
+                return;
+            }
+            ValueAnimator move = ValueAnimator.ofFloat(centreShift, target);
+            move.setDuration(120);
+            move.addUpdateListener(a -> {
+                centreShift = (float) a.getAnimatedValue();
+                invalidateSelf();
+            });
+            shiftAnimator = move;
+            move.start();
+        }
+
+        private static float geometricCentre(ProgressBar bar) {
+            return bar.getPaddingTop() + (bar.getHeight() - bar.getPaddingTop() - bar.getPaddingBottom()) / 2f;
+        }
 
         Marks(ProgressBar seekBar) {
             this.seekBar = new WeakReference<>(seekBar);
@@ -188,7 +275,7 @@ public final class AdSkipBar {
         public void draw(@NonNull Canvas canvas) {
             String shown = aid;
             ProgressBar bar = seekBar.get();
-            if (shown == null || bar == null || !bar.isShown() || bar.getAlpha() <= 0f) return;
+            if (measuring || shown == null || bar == null || !bar.isShown() || bar.getAlpha() <= 0f) return;
             AdScanner.Result result = AdScanner.result(shown);
             if (result == null || result.state != AdScanner.State.DONE || result.matches.isEmpty()) return;
             long duration = shown.equals(AdSkip.playingAid()) ? AdSkip.playingDuration() : 0;
@@ -201,7 +288,7 @@ public final class AdSkipBar {
             float right = bar.getWidth() - bar.getPaddingRight();
             if (right <= left) return;
             float thickness = line > 0 ? line : 2 * density;
-            float centre = bar.getPaddingTop() + (bar.getHeight() - bar.getPaddingTop() - bar.getPaddingBottom()) / 2f;
+            float centre = geometricCentre(bar) + (Float.isNaN(centreShift) ? 0f : centreShift);
             float top = centre - thickness / 2f, bottom = centre + thickness / 2f;
             float radius = thickness / 2f;
             float width = right - left;
