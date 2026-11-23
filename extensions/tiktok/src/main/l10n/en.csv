@@ -425,6 +425,7 @@ Copy the video link,Copy the video link
 Copy user ID,Copy user ID
 Copy username,Copy username
 Copy video ID,Copy video ID
+Correct,Correct
 Couldn't add the older seen videos. Try again.,Couldn't add the older seen videos. Try again.
 Couldn't change the Lab settings. Try again.,Couldn't change the Lab settings. Try again.
 Couldn't clear seen videos. Try again.,Couldn't clear seen videos. Try again.
@@ -552,6 +553,7 @@ Download original photos,Download original photos
 Downloading the sound…,Downloading the sound…
 Downloading the video…,Downloading the video…
 Downloads,Downloads
+Downloads marks from other users and skips their ads too. Your own marks are shared back.,Downloads marks from other users and skips their ads too. Your own marks are shared back.
 "Drag to move, release to place","Drag to move, release to place"
 Drag up or down along the left or right edge of a video to change what that edge strip is set to below. By default that's the screen brightness on the left and the volume on the right. Swiping anywhere else still scrolls the feed.,Drag up or down along the left or right edge of a video to change what that edge strip is set to below. By default that's the screen brightness on the left and the volume on the right. Swiping anywhere else still scrolls the feed.
 Drama and Series,Drama and Series
@@ -1105,6 +1107,7 @@ Network proxy,Network proxy
 Never from these countries,Never from these countries
 New comment emoji,New comment emoji
 New device identity,New device identity
+New marks you save are sent to the shared base so others benefit right away.,New marks you save are sent to the shared base so others benefit right away.
 New value,New value
 Next message: today at %1$s.,Next message: today at %1$s.
 Next message: tomorrow at %1$s.,Next message: tomorrow at %1$s.
@@ -1608,7 +1611,10 @@ Settings restored. Restart TikTok to apply all changes.,Settings restored. Resta
 Settings restored. The Feature Gate Lab rules were for another TikTok version and were left out. Restart TikTok to apply all changes.,Settings restored. The Feature Gate Lab rules were for another TikTok version and were left out. Restart TikTok to apply all changes.
 Several photos in one comment,Several photos in one comment
 Share,Share
+Share new marks automatically,Share new marks automatically
 Share sheet,Share sheet
+Share with everyone,Share with everyone
+Shared base,Shared base
 Shares range,Shares range
 Shop,Shop
 Shop order updates and coupon messages no longer take up rows in the Inbox. Your orders are unchanged.,Shop order updates and coupon messages no longer take up rows in the Inbox. Your orders are unchanged.
@@ -2135,6 +2141,7 @@ Use a default playback speed,Use a default playback speed
 Use an imported font,Use an imported font
 Use non-personalized search,Use non-personalized search
 Use screen lock,Use screen lock
+Use shared ad database,Use shared ad database
 Use system emoji,Use system emoji
 Use system font,Use system font
 Use the preset for the region TikTok reports for your account and its shop too. May affect search.,Use the preset for the region TikTok reports for your account and its shop too. May affect search.
@@ -2225,6 +2232,7 @@ Write the username and caption on the video,Write the username and caption on th
 Writing,Writing
 Writing the caption on the video,Writing the caption on the video
 Writing the caption on the video: %1$s,Writing the caption on the video: %1$s
+Wrong,Wrong
 YTDLnis background mode,YTDLnis background mode
 YTDLnis download type,YTDLnis download type
 Yes,Yes

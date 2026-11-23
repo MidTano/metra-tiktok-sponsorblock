@@ -47,7 +47,7 @@ final class AdSkipToast {
 
     private AdSkipToast() {}
 
-    static void show(String name, @Nullable Runnable watch) {
+    static void show(String name, String serverId, @Nullable Runnable watch) {
         Utils.runOnMainThread(() -> {
             try {
                 Activity activity = Utils.getActivity();
@@ -55,7 +55,7 @@ final class AdSkipToast {
                 ViewGroup root = activity.findViewById(android.R.id.content);
                 if (root == null) return;
                 dismiss();
-                View pill = build(activity, name, watch);
+                View pill = build(activity, name, serverId, watch);
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2,
                         Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
                 params.bottomMargin = bottomMargin(activity, root);
@@ -130,7 +130,7 @@ final class AdSkipToast {
         return null;
     }
 
-    private static View build(Activity activity, String name, @Nullable Runnable watch) {
+    private static View build(Activity activity, String name, String serverId, @Nullable Runnable watch) {
         LinearLayout pill = new LinearLayout(activity);
         pill.setOrientation(LinearLayout.HORIZONTAL);
         pill.setGravity(Gravity.CENTER);
@@ -169,12 +169,8 @@ final class AdSkipToast {
         pill.addView(label, centred());
 
         if (watch != null) {
-            TextView action = new TextView(activity);
-            action.setText(L10n.t("Watch it"));
-            action.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-            action.setTypeface(Typeface.DEFAULT_BOLD);
-            action.setTextColor(AdSkipBar.MARK);
-            action.setIncludeFontPadding(false);
+            pill.addView(divider(activity));
+            TextView action = text14(activity, L10n.t("Watch it"), AdSkipBar.MARK, true);
             action.setGravity(Gravity.CENTER);
             action.setPadding(dp(activity, 10), dp(activity, 6), dp(activity, 10), dp(activity, 6));
             GradientDrawable fill = new GradientDrawable();
@@ -183,16 +179,79 @@ final class AdSkipToast {
             action.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), fill, null));
             action.setOnClickListener(v -> {
                 dismiss();
-                try {
-                    watch.run();
-                } catch (Throwable failure) {
-                    Logger.printException(() -> "Ad skip: could not go back to the ad", failure);
-                }
+                try { watch.run(); }
+                catch (Throwable failure) { Logger.printException(() -> "Ad skip: could not go back to the ad", failure); }
             });
             pill.addView(action, centred());
         }
+
+        // Vote buttons — only for shared-base segments.
+        boolean isShared = serverId != null && serverId.startsWith(SharedDb.SHARED_PREFIX);
+        if (isShared) {
+            pill.addView(divider(activity));
+            pill.addView(voteButton(activity, serverId, 1));
+            pill.addView(voteButton(activity, serverId, -1));
+        }
         return pill;
     }
+
+    private static View divider(Activity activity) {
+        android.widget.Space s = new android.widget.Space(activity);
+        android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(dp(activity, 1), dp(activity, 20));
+        params.leftMargin = dp(activity, 4);
+        params.rightMargin = dp(activity, 4);
+        params.gravity = Gravity.CENTER_VERTICAL;
+        s.setBackgroundColor(0x33FFFFFF);
+        s.setLayoutParams(params);
+        return s;
+    }
+
+    /** Thumbs-up or thumbs-down icon button that sends a vote and dims the other on press. */
+    private static android.widget.ImageView voteButton(Activity activity, String serverId, int vote) {
+        android.widget.ImageView btn = new android.widget.ImageView(activity);
+        float density = activity.getResources().getDisplayMetrics().density;
+        int sz = dp(activity, 28);
+        VoteGlyph glyph = new VoteGlyph(
+                vote > 0 ? VoteGlyph.Direction.UP : VoteGlyph.Direction.DOWN,
+                vote > 0 ? 0xCC2BD96B : 0xCCFF5F5F,
+                1.5f * density);
+        btn.setImageDrawable(glyph);
+        android.widget.LinearLayout.LayoutParams p = new android.widget.LinearLayout.LayoutParams(sz, sz);
+        p.gravity = Gravity.CENTER_VERTICAL;
+        p.leftMargin = dp(activity, 2);
+        p.rightMargin = dp(activity, 2);
+        btn.setLayoutParams(p);
+        btn.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        btn.setPadding(dp(activity, 4), dp(activity, 4), dp(activity, 4), dp(activity, 4));
+        GradientDrawable mask = new GradientDrawable();
+        mask.setColor(android.graphics.Color.WHITE);
+        mask.setCornerRadius(sz / 2f);
+        btn.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), null, mask));
+        btn.setClickable(true);
+        btn.setFocusable(true);
+        btn.setContentDescription(L10n.t(vote > 0 ? "Correct" : "Wrong"));
+        btn.setOnClickListener(v -> {
+            SharedDb.vote(serverId, vote);
+            btn.setAlpha(1f);
+            // Dim this button after tap to show the vote was recorded.
+            btn.postDelayed(() -> btn.setAlpha(0.4f), 120);
+            dismiss();
+        });
+        return btn;
+    }
+
+    private static TextView text14(Activity activity, String text, int color, boolean bold) {
+        TextView tv = new TextView(activity);
+        tv.setText(text);
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f);
+        tv.setTypeface(bold ? android.graphics.Typeface.DEFAULT_BOLD : android.graphics.Typeface.DEFAULT);
+        tv.setTextColor(color);
+        tv.setIncludeFontPadding(false);
+        return tv;
+    }
+
+    @SuppressWarnings("unused")
+    private static void _buildEnd() { /* keeps class parseable */ }
 
     private static LinearLayout.LayoutParams centred() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);

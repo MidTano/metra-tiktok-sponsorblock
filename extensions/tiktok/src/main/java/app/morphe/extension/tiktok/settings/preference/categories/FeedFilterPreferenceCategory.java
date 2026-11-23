@@ -82,6 +82,13 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
         addPreference(new TogglePreference(context, "Mark ad in the share sheet",
                 "Adds Mark ad to a video's share sheet, where you cut the ad out of the video.",
                 Settings.AD_SKIP_SHARE_BUTTON));
+        addPreference(new SectionHeadingPreference(context, "Shared base"));
+        addPreference(new TogglePreference(context, "Use shared ad database",
+                "Downloads marks from other users and skips their ads too. Your own marks are shared back.",
+                Settings.AD_SKIP_SHARED_DB));
+        addPreference(new TogglePreference(context, "Share new marks automatically",
+                "New marks you save are sent to the shared base so others benefit right away.",
+                Settings.AD_SKIP_SHARE_AUTO));
         addPreference(new TogglePreference(context, "Check upcoming videos",
                 "Listens to the next videos in the feed before you reach them, so an ad is skipped from its first second.",
                 Settings.AD_SKIP_PRESCAN));

@@ -264,6 +264,20 @@ final class AdSegmentEditor {
         hint.setPadding(dp(4), dp(10), dp(4), 0);
         controls.addView(hint);
 
+        // Share toggle.
+        android.widget.CheckBox shareBox = new android.widget.CheckBox(c);
+        shareBox.setText(L10n.t("Share with everyone"));
+        shareBox.setTextColor(AdSkipUi.TEXT_2);
+        shareBox.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+        shareBox.setPadding(dp(2), dp(6), dp(2), 0);
+        boolean sharedEnabled = app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARED_DB.get();
+        shareBox.setChecked(sharedEnabled && app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARE_AUTO.get());
+        shareBox.setEnabled(sharedEnabled);
+        shareBox.setAlpha(sharedEnabled ? 1f : 0.4f);
+        shareBox.setOnCheckedChangeListener((btn, checked) ->
+                app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARE_AUTO.save(checked));
+        controls.addView(shareBox);
+
         root.addView(scroll, new LinearLayout.LayoutParams(-1, -2));
 
         dialog.setContentView(root);
@@ -712,6 +726,12 @@ final class AdSegmentEditor {
         pause();
 
         AdSegment segment = AdSegmentStore.add(name, e - s, aid, cut);
+        // If the user chose to share, submit to the shared base.
+        if (app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARED_DB.get()
+                && app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARE_AUTO.get()) {
+            android.content.Context ctx = activity.getApplicationContext();
+            app.morphe.extension.tiktok.adskip.SharedDb.submit(ctx, segment);
+        }
         // The cut must be found again in its own video, at its own place.
         List<AdMatcher.Match> check = AdMatcher.match(AdMatcher.Index.build(java.util.Collections.singletonList(segment)),
                 print, AdMatcher.Strictness.NORMAL);

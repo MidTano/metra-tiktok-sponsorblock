@@ -2464,3 +2464,11 @@ When the ad is the whole video, go to the next one instead of jumping to its end
 Zoom	Масштаб
 AD	РЕКЛ
 Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back.	Реклама отмечается зелёным на полосе прокрутки. Короткая плашка показывает её название, а «Смотреть» вернёт назад.
+Use shared ad database	Использовать общую базу реклам
+Downloads marks from other users and skips their ads too. Your own marks are shared back.	Скачивает метки других пользователей и тоже пропускает их рекламу. Ваши метки отправляются обратно.
+Share new marks automatically	Делиться новыми метками автоматически
+New marks you save are sent to the shared base so others benefit right away.	Новые метки отправляются в общую базу, чтобы другие сразу получали пользу.
+Share with everyone	Поделиться со всеми
+Correct	Верно
+Wrong	Неверно
+Shared base	Общая база

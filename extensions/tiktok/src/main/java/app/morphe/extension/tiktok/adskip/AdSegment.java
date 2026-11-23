@@ -20,6 +20,9 @@ final class AdSegment {
     volatile int skips;
     volatile long lastSkipAt;
 
+    /** Server-side id if this came from the shared base, null for private. */
+    volatile String sharedServerId;
+
     AdSegment(long id, String name, long createdAt, long durationMs, String sourceAid,
             int[] hashes, int[] times, int frames, boolean enabled, int skips, long lastSkipAt) {
         this.id = id;

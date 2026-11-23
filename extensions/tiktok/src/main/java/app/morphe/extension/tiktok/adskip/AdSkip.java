@@ -187,7 +187,7 @@ public final class AdSkip {
                         if (advance()) {
                             AdSegmentStore.recordSkip(match.segment);
                             AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
-                            notice(match.segment.name, null);
+                            notice(match.segment.name, match.segment.sharedServerId, null);
                         } else {
                             AdSkipLog.add(aid, "whole video is an ad, but the feed could not move on");
                         }
@@ -234,7 +234,7 @@ public final class AdSkip {
             AdSegmentStore.recordSkip(match.segment);
             long seconds = Math.max(1, Math.round((landing - Math.max(positionMs, match.startMs)) / 1000.0));
             AdSkipLog.add(aid, "skipped " + match.segment.name + " to " + landing + "ms");
-            notice(match.segment.name, () -> {
+            notice(match.segment.name, match.segment.sharedServerId, () -> {
                 long back = Math.max(0, match.startMs);
                 synchronized (AdSkip.class) {
                     allowed.add(match.startMs);
@@ -246,10 +246,10 @@ public final class AdSkip {
         }
     }
 
-    private static void notice(String name, Runnable undo) {
+    private static void notice(String name, String serverId, Runnable undo) {
         AdSkipBar.refresh();
         if (!Settings.AD_SKIP_NOTICE.get()) return;
-        AdSkipToast.show(name, undo);
+        AdSkipToast.show(name, serverId, undo);
     }
 
     /** Seeks the player that last reported progress. Main thread. */

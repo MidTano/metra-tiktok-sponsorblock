@@ -381,6 +381,12 @@ public class Settings extends BaseSettings {
     public static final BooleanSetting REMOVE_ADS = new BooleanSetting("remove_ads", TRUE, true);
     /** Skips ads the reader marked, by their sound, inside any feed video (Shazam-style). */
     public static final BooleanSetting AD_SKIP = new BooleanSetting("ad_skip", TRUE);
+    /** Share marks with everyone and download marks from others. */
+    public static final BooleanSetting AD_SKIP_SHARED_DB = new BooleanSetting(
+            "ad_skip_shared_db", TRUE, false, Setting.parent(AD_SKIP));
+    /** Automatically share a newly marked ad. */
+    public static final BooleanSetting AD_SKIP_SHARE_AUTO = new BooleanSetting(
+            "ad_skip_share_auto", TRUE, false, Setting.parent(AD_SKIP_SHARED_DB));
     public static final BooleanSetting AD_SKIP_SHARE_BUTTON = new BooleanSetting(
             "ad_skip_share_button", TRUE, false, Setting.parent(AD_SKIP));
     public static final BooleanSetting AD_SKIP_PRESCAN = new BooleanSetting(

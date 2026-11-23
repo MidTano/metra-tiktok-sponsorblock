@@ -121,6 +121,25 @@ final class AdSegmentStore {
         }
     }
 
+    /** Merge a shared-base segment; skips if already present. */
+    static void mergeShared(String serverId, String defaultName, long durationMs,
+            int[] hashes, int[] times, int hashCount, int score) {
+        synchronized (LOCK) {
+            ensureLoaded();
+            for (AdSegment s : segments) if (s.id == serverId.hashCode() && s.name.startsWith(SharedDb.SHARED_PREFIX)) return;
+            // Check exact match by serverId stored as a prefix in the name.
+            for (AdSegment s : segments) if (serverId.equals(s.sourceAid)) return;
+            long id = System.currentTimeMillis();
+            for (AdSegment s : segments) if (s.id >= id) id = s.id + 1;
+            AdSegment segment = new AdSegment(id, defaultName, System.currentTimeMillis(), durationMs, serverId,
+                    java.util.Arrays.copyOf(hashes, hashCount),
+                    java.util.Arrays.copyOf(times, hashCount), hashCount, score > -2, 0, 0);
+            segment.sharedServerId = serverId;
+            segments.add(segment);
+            changed();
+        }
+    }
+
     static void clear() {
         synchronized (LOCK) {
             ensureLoaded();
@@ -194,8 +213,13 @@ final class AdSegmentStore {
                     int[] times = new int[n];
                     for (int k = 0; k < n; k++) hashes[k] = in.readInt();
                     for (int k = 0; k < n; k++) times[k] = in.readInt();
-                    segments.add(new AdSegment(id, name, created, duration, aid.isEmpty() ? null : aid,
-                            hashes, times, frames, enabled, skips, lastSkip));
+                    AdSegment seg = new AdSegment(id, name, created, duration, aid.isEmpty() ? null : aid,
+                            hashes, times, frames, enabled, skips, lastSkip);
+                    if (version >= VERSION) {
+                        try { String srvId = in.readUTF(); if (!srvId.isEmpty()) seg.sharedServerId = srvId; }
+                        catch (java.io.EOFException ignored) { }
+                    }
+                    segments.add(seg);
                 }
             } catch (Exception failure) {
                 Logger.printException(() -> "Ad skip: could not read the ad list", failure);
@@ -229,6 +253,7 @@ final class AdSegmentStore {
                 out.writeInt(s.hashes.length);
                 for (int h : s.hashes) out.writeInt(h);
                 for (int t : s.times) out.writeInt(t);
+                out.writeUTF(s.sharedServerId == null ? "" : s.sharedServerId);
             }
         } catch (IOException failure) {
             Logger.printException(() -> "Ad skip: could not save the ad list", failure);
