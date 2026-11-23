@@ -19,7 +19,21 @@
   <sub><em>If you are using these patches and want to support the work, it helps me keep testing, improving, and keeping the patches maintained.</em></sub>
 </p>
 
-# Metra TikTok Patches
+# Metra TikTok Patches + Skip ads by sound
+
+> **This is a fork** of [icysymmetra/tiktok-patches-for-morphe](https://github.com/icysymmetra/tiktok-patches-for-morphe) (GPL-3.0) that adds one patch: **Skip ads by sound**. Everything else is Metra as released upstream. Credit for the rest of the bundle goes to Metra, Hushfeed and their contributors.
+
+## Skip ads by sound
+
+TikTok creators read the same paid ad into many different videos. This patch lets you mark that ad once, then skips it in every video where its sound plays again. It works like SponsorBlock, but you mark the ad once instead of every video.
+
+- **Mark once.** Open a video's share sheet, tap **Mark ad**, and choose where the ad starts and ends. The editor shows the video, its frames and the waveform, so you can play back exactly the part you marked.
+- **Found by sound, Shazam style.** The patch stores the ad's audio landmarks: pairs of spectrogram peaks hashed together, matched by voting on time offset. It still finds the ad under music, over street noise, at a different volume, re-encoded, cut short, or sped up by about 5 to 10 percent.
+- **Skipped in place.** The upcoming feed videos are checked before you reach them. When a video reaches an ad, it jumps past the ad, and an ad that fills the whole video is swiped away. A video with several ads has each one skipped.
+- **Shown on the bar.** Found ads are coloured green inside TikTok's own progress line. A small notice shows the ad's name, with **Watch it** to go back.
+- **On your phone.** Matching runs on the phone, and nothing is uploaded. One ad takes about 1.5 KB per second of sound.
+
+Settings are in Metra settings > Feed filter > Skip ads by sound.
 
 <br>
 
