@@ -30,8 +30,12 @@ TikTok creators read the same paid ad into many different videos. This patch let
 - **Mark once.** Open a video's share sheet, tap **Mark ad**, and choose where the ad starts and ends. The editor shows the video, its frames and the waveform, so you can play back exactly the part you marked.
 - **Found by sound, Shazam style.** The patch stores the ad's audio landmarks: pairs of spectrogram peaks hashed together, matched by voting on time offset. It still finds the ad under music, over street noise, at a different volume, re-encoded, cut short, or sped up by about 5 to 10 percent.
 - **Skipped in place.** The upcoming feed videos are checked before you reach them. When a video reaches an ad, it jumps past the ad, and an ad that fills the whole video is swiped away. A video with several ads has each one skipped.
-- **Shown on the bar.** Found ads are coloured green inside TikTok's own progress line. A small notice shows the ad's name, with **Watch it** to go back.
-- **On your phone.** Matching runs on the phone, and nothing is uploaded. One ad takes about 1.5 KB per second of sound.
+- **Shown on the bar.** Found ads are coloured green inside TikTok's own progress line. A small notice shows the ad's name, with **Watch it** to go back and buttons to vote on the cut.
+- **Shared base.** With **Shared base** on, ads you mark are shared, and ads other people marked are downloaded once a day, so most ads are skipped before you ever mark one. Votes hide bad cuts for everyone. Turn it off to keep only your own marks.
+- **Statistics.** The list of marked ads shows how many ads were skipped and how much time that saved you, and, with the shared base on, how much your marks saved others.
+- **Private by design.** Matching runs on the phone; no audio or viewing history leaves it. With the shared base on, the phone sends only an ad's audio landmarks, its length and name, the video id it was cut from, your votes, daily skip counts and your TikTok account id. The server keeps network addresses only as salted hashes. One ad takes about 1.5 KB per second of sound.
+
+The library and the server live in [SponsorBlock for TikTok](https://github.com/MidTano/tiktok-sponsorblock), where other mods can reuse them; its [privacy page](https://github.com/MidTano/tiktok-sponsorblock/blob/main/docs/privacy.md) lists everything that is sent.
 
 Settings are in Metra settings > Feed filter > Skip ads by sound.
 
