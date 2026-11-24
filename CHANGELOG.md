@@ -1,3 +1,22 @@
+# [0.11.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.10.0...v0.11.0) (2026-11-24)
+
+
+### Bug Fixes
+
+* **tiktok:** translate ad skip statistics and Save traffic ([1a4419e](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/1a4419eae1494752f32cde6d612f70e3e916ab5b))
+
+
+### Features
+
+* **tiktok:** ad skip statistics, votes on the skip notice and editor rework ([9c0e74f](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/9c0e74f85bf316ae0a00ea8f9c92dcad08de59ca))
+* **tiktok:** sync token for the shared ad base, snapshot limits and Save traffic (beta) ([74d39e0](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/74d39e09f66ce7202a425eb117542c0c9f3220b4))
+
+
+
+
+
+## 0.11.0
+
 # [0.10.0](https://github.com/icysymmetra/tiktok-patches-for-morphe/compare/v0.9.0...v0.10.0) (2026-11-11)
 
 
