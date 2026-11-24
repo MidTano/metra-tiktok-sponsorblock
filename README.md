@@ -33,7 +33,7 @@ TikTok creators read the same paid ad into many different videos. This patch let
 - **Shown on the bar.** Found ads are coloured green inside TikTok's own progress line. A small notice shows the ad's name, with **Watch it** to go back and buttons to vote on the cut.
 - **Shared base.** With **Shared base** on, ads you mark are shared, and ads other people marked are downloaded once a day, so most ads are skipped before you ever mark one. Votes hide bad cuts for everyone. Turn it off to keep only your own marks.
 - **Statistics.** The list of marked ads shows how many ads were skipped and how much time that saved you, and, with the shared base on, how much your marks saved others.
-- **Private by design.** Matching runs on the phone; no audio or viewing history leaves it. With the shared base on, the phone sends only an ad's audio landmarks, its length and name, the video id it was cut from, your votes, daily skip counts and your TikTok account id. The server keeps network addresses only as salted hashes. One ad takes about 1.5 KB per second of sound.
+- **Private by design.** Matching runs on the phone; no audio or viewing history leaves it. With the shared base on, the phone sends only an ad's audio landmarks, its length and name, the video id it was cut from, your votes, daily skip counts and a random token made on the phone, not your TikTok account. The server keeps network addresses only as salted hashes. One ad takes about 1.5 KB per second of sound.
 
 The library and the server live in [SponsorBlock for TikTok](https://github.com/MidTano/tiktok-sponsorblock), where other mods can reuse them; its [privacy page](https://github.com/MidTano/tiktok-sponsorblock/blob/main/docs/privacy.md) lists everything that is sent.
 
@@ -57,7 +57,7 @@ Use Morphe Manager 2.0.0 or newer and enable prerelease source updates to test t
 
 Validation includes 1,084 passing host tests, strict fingerprint validation of the default and all-patch selections, and before/after DEX and resource audits. Android runtime testing is pending. Please report patching failures with the selected options and patching log.
 
-**[Add Metra with SponsorBlock for TikTok to Morphe](https://morphe.software/add-source?github=MidTano%2Fmetra-tiktok-sponsorblock)**. For the manual fallback, paste `https://github.com/MidTano/metra-tiktok-sponsorblock` in Manager.
+**[Add Metra with SponsorBlock for TikTok to Morphe](https://morphe.software/add-source?github=MidTano%2Fmetra-tiktok-sponsorblock)**. For the manual fallback, paste `https://github.com/MidTano/metra-tiktok-sponsorblock` in Manager. Step-by-step install guide: [English](docs/INSTALL.md) · [Русский](docs/INSTALL.ru.md).
 
 ## Save recovery
 
@@ -217,6 +217,8 @@ Region spoofing changes the country, SIM, carrier, and related region details th
 <br>
 
 ## Add Source
+
+New to Morphe? Follow the step-by-step guide: [English](docs/INSTALL.md) · [Русский](docs/INSTALL.ru.md).
 
 Open this link on the Android device where Morphe is installed:
 
