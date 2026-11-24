@@ -49,3 +49,6 @@ release-receipt-*.json
 
 # Local copy of upstream ReVanced sources (do not commit)
 revanced-patches/
+
+# The shared base server lives in MidTano/tiktok-sponsorblock.
+/server/

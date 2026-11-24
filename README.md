@@ -57,7 +57,7 @@ Use Morphe Manager 2.0.0 or newer and enable prerelease source updates to test t
 
 Validation includes 1,084 passing host tests, strict fingerprint validation of the default and all-patch selections, and before/after DEX and resource audits. Android runtime testing is pending. Please report patching failures with the selected options and patching log.
 
-**[Add Metra to Morphe](https://morphe.software/add-source?github=icysymmetra%2Ftiktok-patches-for-morphe)**. For the manual fallback, paste `https://github.com/icysymmetra/tiktok-patches-for-morphe` in Manager.
+**[Add Metra with SponsorBlock for TikTok to Morphe](https://morphe.software/add-source?github=MidTano%2Fmetra-tiktok-sponsorblock)**. For the manual fallback, paste `https://github.com/MidTano/metra-tiktok-sponsorblock` in Manager.
 
 ## Save recovery
 
@@ -220,11 +220,11 @@ Region spoofing changes the country, SIM, carrier, and related region details th
 
 Open this link on the Android device where Morphe is installed:
 
-[Add Metra TikTok Patches](https://morphe.software/add-source?github=icysymmetra/tiktok-patches-for-morphe)
+[Add Metra with SponsorBlock for TikTok](https://morphe.software/add-source?github=MidTano/metra-tiktok-sponsorblock)
 
 You can also copy this repository URL and paste it into Morphe's add source field:
 
-[https://github.com/icysymmetra/tiktok-patches-for-morphe](https://github.com/icysymmetra/tiktok-patches-for-morphe)
+[https://github.com/MidTano/metra-tiktok-sponsorblock](https://github.com/MidTano/metra-tiktok-sponsorblock)
 
 <br>
 
