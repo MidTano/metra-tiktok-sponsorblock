@@ -13,9 +13,20 @@ import app.morphe.extension.tiktok.blockauthor.Reflect;
 import app.morphe.extension.tiktok.download.AdAudioSource;
 import app.morphe.extension.tiktok.settings.Settings;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -68,6 +79,8 @@ final class AdScanner {
     private static final LinkedList<Job> QUEUE = new LinkedList<>();
     private static int workers;
     private static final int MAX_WORKERS = 2;
+    private static final String CACHE_FILE = "metra-adskip-scans.json";
+    private static boolean restored;
     private static volatile Listener listener;
 
     private static final class Job {
@@ -89,6 +102,7 @@ final class AdScanner {
 
     static Result result(String aid) {
         if (aid == null) return null;
+        restoreOnce();
         synchronized (RESULTS) {
             Result r = RESULTS.get(aid);
             if (r != null && r.generation != AdSegmentStore.generation() && r.state == State.DONE) return null;
@@ -107,6 +121,7 @@ final class AdScanner {
         String aid = Reflect.string(aweme, "getAid", "aid");
         if (aid == null) return;
         if (AdSegmentStore.index().isEmpty()) return;
+        restoreOnce();
         synchronized (RESULTS) {
             Result r = RESULTS.get(aid);
             if (r != null && (r.state == State.QUEUED || r.state == State.RUNNING)) {
@@ -192,9 +207,10 @@ final class AdScanner {
             long took = System.currentTimeMillis() - started;
             Result result = new Result(State.DONE, generation, matches, pcm.durationMs(), took, null);
             store(job.aid, result);
-            AdSkipLog.add(job.aid, matches.isEmpty()
-                    ? "no ad in " + pcm.durationMs() / 1000 + "s, " + took + "ms"
-                    : "found " + matches + " in " + took + "ms");
+            persist();
+            AdSkipLog.add(job.aid, (matches.isEmpty()
+                    ? "no ad in " + pcm.durationMs() / 1000 + "s"
+                    : "found " + matches) + ", " + pcm.downloadedBytes / 1024 + " KB " + (AdAudioSource.separateSound(aweme) ? "dash" : "muxed") + " in " + took + "ms");
             Listener l = listener;
             if (l != null) l.scanned(job.aid, result);
             if (!matches.isEmpty()) Utils.runOnMainThread(AdSkipBar::refresh);
@@ -251,6 +267,100 @@ final class AdScanner {
     private static void store(String aid, Result result) {
         synchronized (RESULTS) {
             RESULTS.put(aid, result);
+        }
+    }
+
+    /** With Save traffic on, loads the scans of earlier runs that still hold for the list of ads as it is now. */
+    private static void restoreOnce() {
+        if (!Settings.AD_SKIP_SAVE_TRAFFIC.get()) return;
+        Context context = Utils.getContext();
+        if (context == null) return;
+        synchronized (RESULTS) {
+            if (restored) return;
+            restored = true;
+        }
+        File file = new File(context.getFilesDir(), CACHE_FILE);
+        if (!file.isFile()) return;
+        Map<String, Result> loaded = new LinkedHashMap<>();
+        try {
+            JSONObject all = new JSONObject(new String(readFile(file), StandardCharsets.UTF_8));
+            String fingerprint = fingerprint();
+            int generation = AdSegmentStore.generation();
+            Iterator<String> aids = all.keys();
+            while (aids.hasNext()) {
+                String aid = aids.next();
+                JSONObject entry = all.getJSONObject(aid);
+                if (!fingerprint.equals(entry.optString("fp"))) continue;
+                List<AdMatcher.Match> matches = new ArrayList<>();
+                JSONArray found = entry.getJSONArray("m");
+                for (int i = 0; i < found.length(); i++) {
+                    JSONArray m = found.getJSONArray(i);
+                    AdSegment segment = segment(m.getLong(0));
+                    if (segment == null) continue;
+                    matches.add(new AdMatcher.Match(segment, m.getLong(1), m.getLong(2), m.getInt(3), m.getBoolean(4)));
+                }
+                loaded.put(aid, new Result(State.DONE, generation, matches, entry.getLong("s"), 0, null));
+            }
+        } catch (Exception unreadable) {
+            //noinspection ResultOfMethodCallIgnored
+            file.delete();
+            return;
+        }
+        synchronized (RESULTS) {
+            RESULTS.putAll(loaded);
+        }
+    }
+
+    /** Writes every finished scan of the current list, so a restart does not download them again. */
+    private static void persist() {
+        if (!Settings.AD_SKIP_SAVE_TRAFFIC.get()) return;
+        Context context = Utils.getContext();
+        if (context == null) return;
+        String fingerprint = fingerprint();
+        int generation = AdSegmentStore.generation();
+        try {
+            JSONObject all = new JSONObject();
+            synchronized (RESULTS) {
+                for (Map.Entry<String, Result> entry : RESULTS.entrySet()) {
+                    Result result = entry.getValue();
+                    if (result.state != State.DONE || result.generation != generation) continue;
+                    JSONArray found = new JSONArray();
+                    for (AdMatcher.Match m : result.matches) {
+                        found.put(new JSONArray().put(m.segment.id).put(m.startMs).put(m.endMs).put(m.votes).put(m.partial));
+                    }
+                    all.put(entry.getKey(), new JSONObject().put("fp", fingerprint).put("s", result.scannedMs).put("m", found));
+                }
+            }
+            try (FileOutputStream out = new FileOutputStream(new File(context.getFilesDir(), CACHE_FILE))) {
+                out.write(all.toString().getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (Exception failure) {
+            Logger.printDebug(() -> "Ad skip: could not save scans: " + failure);
+        }
+    }
+
+    private static String fingerprint() {
+        StringBuilder text = new StringBuilder();
+        for (AdSegment segment : AdSegmentStore.index().segments) {
+            text.append(segment.id).append(':').append(segment.hashes.length).append(';');
+        }
+        return Integer.toHexString(text.toString().hashCode());
+    }
+
+    private static AdSegment segment(long id) {
+        for (AdSegment segment : AdSegmentStore.all()) {
+            if (segment.id == id) return segment;
+        }
+        return null;
+    }
+
+    private static byte[] readFile(File file) throws IOException {
+        try (InputStream in = new FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] chunk = new byte[8192];
+            int read;
+            while ((read = in.read(chunk)) != -1) out.write(chunk, 0, read);
+            return out.toByteArray();
         }
     }
 

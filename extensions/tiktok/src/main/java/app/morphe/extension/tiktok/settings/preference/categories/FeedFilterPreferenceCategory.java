@@ -90,11 +90,14 @@ public class FeedFilterPreferenceCategory extends ConditionalPreferenceCategory 
                 "New marks you save are sent to the shared base so others benefit right away.",
                 Settings.AD_SKIP_SHARE_AUTO));
         addPreference(new TogglePreference(context, "Check upcoming videos",
-                "Listens to the next videos in the feed before you reach them, so an ad is skipped from its first second.",
+                "Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.",
                 Settings.AD_SKIP_PRESCAN));
         addPreference(new TogglePreference(context, "Check on mobile data",
                 "Each check downloads the video's sound, usually a few hundred kilobytes.",
                 Settings.AD_SKIP_MOBILE_DATA));
+        addPreference(new TogglePreference(context, "Save traffic (beta)",
+                "Checks a video only after it has played for a moment. Upcoming videos are checked only on Wi-Fi and results are kept after a restart. Off is the tested mode.",
+                Settings.AD_SKIP_SAVE_TRAFFIC));
         addPreference(new TogglePreference(context, "Move on from ad-only videos",
                 "When the ad is the whole video, go to the next one instead of jumping to its end.",
                 Settings.AD_SKIP_WHOLE_VIDEO));

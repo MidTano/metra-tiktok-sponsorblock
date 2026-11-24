@@ -38,6 +38,8 @@ public final class AdAudioSource {
         public final short[] samples;
         public final int length;
         public final int sampleRate;
+        /** The size of the sound file it was decoded from. */
+        public long downloadedBytes;
 
         Pcm(short[] samples, int length, int sampleRate) {
             this.samples = samples;
@@ -301,7 +303,9 @@ public final class AdAudioSource {
             throws IOException {
         File file = fetch(context, aweme, "pcm");
         try {
-            return decode(file, outRate, maxMs, cancel);
+            Pcm pcm = decode(file, outRate, maxMs, cancel);
+            pcm.downloadedBytes = file.length();
+            return pcm;
         } finally {
             if (!file.delete()) Logger.printDebug(() -> "Ad skip: could not delete " + file.getName());
         }

@@ -58,9 +58,12 @@ public final class AdSkip {
     private static volatile boolean seekInFlight;
 
     private static volatile boolean paused;
+    private static boolean askedThisPlay;
 
     /** How far from the end a skip may land. */
     private static final long END_GUARD_MS = 600;
+    /** With Save traffic on, a video is scanned once it has played this long, so one swiped past costs no download. */
+    private static final long ON_SCREEN_MS = 1500;
 
     private static Class<?> seekOwner;
     private static Method seekMethod;
@@ -87,7 +90,7 @@ public final class AdSkip {
             playingAweme = new WeakReference<>(aweme);
             if (!active()) return;
             if (playerController != null) controller = new WeakReference<>(playerController);
-            if (!shouldScan()) return;
+            if (Settings.AD_SKIP_SAVE_TRAFFIC.get() || !shouldScan()) return;
             AdScanner.request(aweme, true);
         } catch (Throwable failure) {
             Logger.printException(() -> "Ad skip: play hook failed", failure);
@@ -98,6 +101,7 @@ public final class AdSkip {
     public static void onBind(Object videoItemParams) {
         try {
             if (!active() || !Settings.AD_SKIP_PRESCAN.get() || !shouldScan()) return;
+            if (Settings.AD_SKIP_SAVE_TRAFFIC.get() && Utils.getNetworkType() != Utils.NetworkType.OTHER) return;
             Object aweme = Reflect.property(videoItemParams, "getAweme", "aweme");
             if (aweme != null) AdScanner.request(aweme, false);
         } catch (Throwable failure) {
@@ -139,7 +143,10 @@ public final class AdSkip {
             seekAt = 0;
             lastTick = -1;
             advancedAway = false;
-            // A video that started before the play hook saw it, a resumed one for instance.
+            askedThisPlay = false;
+        }
+        if (!askedThisPlay && position >= (Settings.AD_SKIP_SAVE_TRAFFIC.get() ? ON_SCREEN_MS : 0)) {
+            askedThisPlay = true;
             Object aweme = playingAweme.get();
             if (aweme != null && aid.equals(Reflect.string(aweme, "getAid", "aid")) && shouldScan()) {
                 AdScanner.request(aweme, true);
@@ -185,7 +192,7 @@ public final class AdSkip {
                     try {
                         if (!aid.equals(playingAid)) return;
                         if (advance()) {
-                            AdSegmentStore.recordSkip(match.segment);
+                            AdSegmentStore.recordSkip(match.segment, Math.max(0, duration - positionMs));
                             AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
                             notice(match.segment.name, match.segment.sharedServerId, null);
                         } else {
@@ -215,6 +222,7 @@ public final class AdSkip {
         seeksThisPlay++;
         seekTarget = landing;
         seekAt = android.os.SystemClock.uptimeMillis();
+        long from = Math.max(positionMs, match.startMs);
         Utils.runOnMainThread(() -> {
             try {
                 if (!aid.equals(playingAid)) return;
@@ -222,28 +230,25 @@ public final class AdSkip {
                     AdSkipLog.add(aid, "could not seek");
                     return;
                 }
-                skippedOnce(aid, match, landing, duration);
+                skippedOnce(aid, match, landing - from, duration);
             } finally {
                 seekInFlight = false;
             }
         });
     }
 
-    private static void skippedOnce(String aid, AdMatcher.Match match, long landing, long duration) {
-        {
-            AdSegmentStore.recordSkip(match.segment);
-            long seconds = Math.max(1, Math.round((landing - Math.max(positionMs, match.startMs)) / 1000.0));
-            AdSkipLog.add(aid, "skipped " + match.segment.name + " to " + landing + "ms");
-            notice(match.segment.name, match.segment.sharedServerId, () -> {
-                long back = Math.max(0, match.startMs);
-                synchronized (AdSkip.class) {
-                    allowed.add(match.startMs);
-                    seekTarget = back;
-                    seekAt = android.os.SystemClock.uptimeMillis();
-                }
-                seekTo(back, duration);
-            });
-        }
+    private static void skippedOnce(String aid, AdMatcher.Match match, long savedMs, long duration) {
+        AdSegmentStore.recordSkip(match.segment, savedMs);
+        AdSkipLog.add(aid, "skipped " + match.segment.name + ", saved " + savedMs + "ms");
+        notice(match.segment.name, match.segment.sharedServerId, () -> {
+            long back = Math.max(0, match.startMs);
+            synchronized (AdSkip.class) {
+                allowed.add(match.startMs);
+                seekTarget = back;
+                seekAt = android.os.SystemClock.uptimeMillis();
+            }
+            seekTo(back, duration);
+        });
     }
 
     private static void notice(String name, String serverId, Runnable undo) {
