@@ -38,6 +38,6 @@ public final class AdSkipActions {
     }
 
     public static long skips() {
-        return AdSegmentStore.totalSkips();
+        return AdSkipStats.skips();
     }
 }

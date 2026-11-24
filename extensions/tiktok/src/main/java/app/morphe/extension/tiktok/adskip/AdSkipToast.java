@@ -17,6 +17,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -41,6 +42,8 @@ final class AdSkipToast {
     private static final int FALLBACK_BOTTOM_PX = 200;
     private static final String NAME_ID = "title";
     private static final String BAR_ID = "video_seek_bar";
+    private static final int UP_COLOR = 0xFF2BD96B;
+    private static final int DOWN_COLOR = 0xFFFF6B6B;
 
     private static WeakReference<View> shown = new WeakReference<>(null);
     private static int generation;
@@ -185,59 +188,70 @@ final class AdSkipToast {
             pill.addView(action, centred());
         }
 
-        // Vote buttons — only for shared-base segments.
-        boolean isShared = serverId != null && serverId.startsWith(SharedDb.SHARED_PREFIX);
-        if (isShared) {
+        if (serverId != null && serverId.startsWith(SharedDb.SHARED_PREFIX)) {
             pill.addView(divider(activity));
-            pill.addView(voteButton(activity, serverId, 1));
-            pill.addView(voteButton(activity, serverId, -1));
+            ImageView up = voteButton(activity);
+            ImageView down = voteButton(activity);
+            showVote(activity, up, down, SharedDb.myVote(serverId));
+            up.setOnClickListener(v -> castVote(activity, serverId, 1, up, down));
+            down.setOnClickListener(v -> castVote(activity, serverId, -1, up, down));
+            up.setContentDescription(L10n.t("Correct"));
+            down.setContentDescription(L10n.t("Wrong"));
+            pill.addView(up);
+            pill.addView(down);
         }
         return pill;
     }
 
+    /** A hairline between the pill's parts. Space draws nothing, not even its background. */
     private static View divider(Activity activity) {
-        android.widget.Space s = new android.widget.Space(activity);
-        android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(dp(activity, 1), dp(activity, 20));
-        params.leftMargin = dp(activity, 4);
-        params.rightMargin = dp(activity, 4);
+        View line = new View(activity);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(activity, 1), dp(activity, 18));
+        params.leftMargin = dp(activity, 5);
+        params.rightMargin = dp(activity, 5);
         params.gravity = Gravity.CENTER_VERTICAL;
-        s.setBackgroundColor(0x33FFFFFF);
-        s.setLayoutParams(params);
-        return s;
+        line.setBackgroundColor(0x33FFFFFF);
+        line.setLayoutParams(params);
+        return line;
     }
 
-    /** Thumbs-up or thumbs-down icon button that sends a vote and dims the other on press. */
-    private static android.widget.ImageView voteButton(Activity activity, String serverId, int vote) {
-        android.widget.ImageView btn = new android.widget.ImageView(activity);
-        float density = activity.getResources().getDisplayMetrics().density;
-        int sz = dp(activity, 28);
-        VoteGlyph glyph = new VoteGlyph(
-                vote > 0 ? VoteGlyph.Direction.UP : VoteGlyph.Direction.DOWN,
-                vote > 0 ? 0xCC2BD96B : 0xCCFF5F5F,
-                1.5f * density);
-        btn.setImageDrawable(glyph);
-        android.widget.LinearLayout.LayoutParams p = new android.widget.LinearLayout.LayoutParams(sz, sz);
-        p.gravity = Gravity.CENTER_VERTICAL;
-        p.leftMargin = dp(activity, 2);
-        p.rightMargin = dp(activity, 2);
-        btn.setLayoutParams(p);
-        btn.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        btn.setPadding(dp(activity, 4), dp(activity, 4), dp(activity, 4), dp(activity, 4));
+    private static ImageView voteButton(Activity activity) {
+        ImageView button = new ImageView(activity);
+        int size = dp(activity, 30);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+        params.gravity = Gravity.CENTER_VERTICAL;
+        params.leftMargin = dp(activity, 1);
+        params.rightMargin = dp(activity, 1);
+        button.setLayoutParams(params);
+        button.setScaleType(ImageView.ScaleType.CENTER);
         GradientDrawable mask = new GradientDrawable();
-        mask.setColor(android.graphics.Color.WHITE);
-        mask.setCornerRadius(sz / 2f);
-        btn.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), null, mask));
-        btn.setClickable(true);
-        btn.setFocusable(true);
-        btn.setContentDescription(L10n.t(vote > 0 ? "Correct" : "Wrong"));
-        btn.setOnClickListener(v -> {
-            SharedDb.vote(serverId, vote);
-            btn.setAlpha(1f);
-            // Dim this button after tap to show the vote was recorded.
-            btn.postDelayed(() -> btn.setAlpha(0.4f), 120);
-            dismiss();
-        });
-        return btn;
+        mask.setColor(Color.WHITE);
+        mask.setCornerRadius(size / 2f);
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), null, mask));
+        return button;
+    }
+
+    /** The chosen vote filled and bright, the other one outlined; both plain before a vote. */
+    private static void showVote(Activity activity, ImageView up, ImageView down, int vote) {
+        up.setImageDrawable(AdIcons.of(activity, vote > 0 ? AdIcons.Icon.THUMB_UP_FILLED : AdIcons.Icon.THUMB_UP,
+                UP_COLOR, 18));
+        down.setImageDrawable(AdIcons.of(activity, vote < 0 ? AdIcons.Icon.THUMB_DOWN_FILLED : AdIcons.Icon.THUMB_DOWN,
+                DOWN_COLOR, 18));
+        up.setAlpha(vote < 0 ? 0.4f : 1f);
+        down.setAlpha(vote > 0 ? 0.4f : 1f);
+    }
+
+    private static void castVote(Activity activity, String serverId, int vote,
+            ImageView up, ImageView down) {
+        if (!SharedDb.vote(serverId, vote)) return;
+        showVote(activity, up, down, vote);
+        ImageView chosen = vote > 0 ? up : down;
+        chosen.animate().scaleX(1.25f).scaleY(1.25f).setDuration(120)
+                .withEndAction(() -> chosen.animate().scaleX(1f).scaleY(1f).setDuration(120).start()).start();
+        int token = generation;
+        Utils.runOnMainThreadDelayed(() -> {
+            if (token == generation) dismiss();
+        }, 900);
     }
 
     private static TextView text14(Activity activity, String text, int color, boolean bold) {
@@ -249,9 +263,6 @@ final class AdSkipToast {
         tv.setIncludeFontPadding(false);
         return tv;
     }
-
-    @SuppressWarnings("unused")
-    private static void _buildEnd() { /* keeps class parseable */ }
 
     private static LinearLayout.LayoutParams centred() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, -2);

@@ -14,6 +14,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
@@ -51,9 +52,9 @@ final class AdSegmentList {
         LinearLayout bar = new LinearLayout(c);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(8), dp(8), dp(12), dp(8));
-        TextView close = AdSkipUi.chip(c, "✕", false);
+        ImageView close = AdSkipUi.iconButton(c, AdIcons.Icon.CLOSE, L10n.t("Close"), 40);
         close.setOnClickListener(v -> dialog.dismiss());
-        bar.addView(close);
+        bar.addView(close, new LinearLayout.LayoutParams(dp(40), dp(40)));
         TextView title = AdSkipUi.text(c, L10n.t("Marked ads"), 18, AdSkipUi.TEXT, true);
         title.setPadding(dp(12), 0, 0, 0);
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -65,6 +66,7 @@ final class AdSegmentList {
         list.setPadding(dp(12), dp(4), dp(12), dp(24));
         scroll.addView(list);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        AdSkipUi.padForSystemBars(root);
 
         dialog.setContentView(root);
         Window window = dialog.getWindow();
@@ -82,13 +84,13 @@ final class AdSegmentList {
         list.removeAllViews();
         List<AdSegment> segments = AdSegmentStore.all();
 
-        TextView summary = AdSkipUi.text(c, segments.isEmpty()
-                        ? L10n.t("No ads marked yet. Open a video's share sheet and tap Mark ad.")
-                        : L10n.f("%1$s ads, skipped %2$s times", String.valueOf(segments.size()),
-                                String.valueOf(AdSegmentStore.totalSkips())),
-                13, AdSkipUi.TEXT_2, false);
-        summary.setPadding(dp(4), dp(4), dp(4), dp(12));
-        list.addView(summary);
+        list.addView(statistics());
+        if (segments.isEmpty()) {
+            TextView empty = AdSkipUi.text(c, L10n.t("No ads marked yet. Open a video's share sheet and tap Mark ad."),
+                    13, AdSkipUi.TEXT_2, false);
+            empty.setPadding(dp(4), dp(4), dp(4), dp(12));
+            list.addView(empty);
+        }
 
         for (int i = segments.size() - 1; i >= 0; i--) list.addView(card(segments.get(i)));
 
@@ -122,6 +124,121 @@ final class AdSegmentList {
         }
     }
 
+    /**
+     * What skipping has given back, as SponsorBlock shows it: ads skipped and time saved on this
+     * phone, then, once the shared base answers, what the reader's own cuts saved everyone else
+     * and what the base holds as a whole.
+     */
+    private View statistics() {
+        Context c = activity;
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setBackground(AdSkipUi.round(AdSkipUi.SURFACE, dp(16)));
+        box.setPadding(dp(16), dp(16), dp(16), dp(16));
+        LinearLayout.LayoutParams boxParams = new LinearLayout.LayoutParams(-1, -2);
+        boxParams.bottomMargin = dp(12);
+        box.setLayoutParams(boxParams);
+
+        LinearLayout tiles = new LinearLayout(c);
+        tiles.setOrientation(LinearLayout.HORIZONTAL);
+        tiles.addView(tile(String.valueOf(AdSkipStats.skips()), L10n.t("Ads skipped")),
+                new LinearLayout.LayoutParams(0, -2, 1f));
+        tiles.addView(tile(AdSkipStats.duration(AdSkipStats.savedMs()), L10n.t("Time saved")),
+                new LinearLayout.LayoutParams(0, -2, 1f));
+        box.addView(tiles);
+
+        if (!app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARED_DB.get()) return box;
+
+        View divider = new View(c);
+        divider.setBackgroundColor(AdSkipUi.SURFACE_HI);
+        LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(-1, dp(1));
+        dividerParams.topMargin = dp(16);
+        dividerParams.bottomMargin = dp(14);
+        box.addView(divider, dividerParams);
+
+        TextView heading = AdSkipUi.text(c, L10n.t("Shared base"), 14, AdSkipUi.TEXT, true);
+        heading.setCompoundDrawablesRelative(AdIcons.of(c, AdIcons.Icon.CLOUD, AdSkipBar.MARK, 18), null, null, null);
+        heading.setCompoundDrawablePadding(dp(8));
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        box.addView(heading);
+
+        TextView status = AdSkipUi.text(c, L10n.t("Loading the shared base…"), 12, AdSkipUi.TEXT_2, false);
+        status.setPadding(0, dp(10), 0, 0);
+        box.addView(status);
+
+        LinearLayout groups = new LinearLayout(c);
+        groups.setOrientation(LinearLayout.VERTICAL);
+        groups.setVisibility(View.GONE);
+        box.addView(groups);
+
+        Utils.runOnOwnThread("metra-adskip-stats", () -> {
+            SharedDb.Stats stats = SharedDb.fetchStats();
+            Utils.runOnMainThread(() -> {
+                if (stats == null) {
+                    status.setText(L10n.t("The shared base can't be reached right now."));
+                    return;
+                }
+                status.setVisibility(View.GONE);
+                groups.setVisibility(View.VISIBLE);
+                if (stats.mine) {
+                    groups.addView(group(L10n.t("Your contribution"),
+                            String.valueOf(stats.mySegments), L10n.t("Your marks"),
+                            String.valueOf(stats.mySkips), L10n.t("Skipped for others"),
+                            AdSkipStats.duration(stats.mySavedMs), L10n.t("Saved others")));
+                }
+                groups.addView(group(L10n.t("All users"),
+                        String.valueOf(stats.segments), L10n.t("Ads in the base"),
+                        String.valueOf(stats.contributors), L10n.t("Contributors"),
+                        AdSkipStats.duration(stats.savedMs), L10n.t("Saved everyone")));
+            });
+        });
+        return box;
+    }
+
+    private View tile(String value, String label) {
+        LinearLayout tile = new LinearLayout(activity);
+        tile.setOrientation(LinearLayout.VERTICAL);
+        tile.addView(AdSkipUi.text(activity, value, 26, AdSkipBar.MARK, true));
+        TextView caption = AdSkipUi.text(activity, label, 12, AdSkipUi.TEXT_2, false);
+        caption.setPadding(0, dp(2), dp(8), 0);
+        tile.addView(caption);
+        return tile;
+    }
+
+    /** A captioned row of three small figures, each on its own raised cell. */
+    private View group(String caption, String v1, String l1, String v2, String l2, String v3, String l3) {
+        Context c = activity;
+        LinearLayout group = new LinearLayout(c);
+        group.setOrientation(LinearLayout.VERTICAL);
+        group.setPadding(0, dp(12), 0, 0);
+        TextView title = AdSkipUi.text(c, caption, 12, AdSkipUi.TEXT_2, true);
+        title.setPadding(dp(2), 0, 0, dp(6));
+        group.addView(title);
+
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        String[][] cells = {{v1, l1}, {v2, l2}, {v3, l3}};
+        for (int i = 0; i < cells.length; i++) {
+            LinearLayout cell = new LinearLayout(c);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setBackground(AdSkipUi.round(AdSkipUi.SURFACE_HI, dp(12)));
+            cell.setPadding(dp(10), dp(10), dp(10), dp(10));
+            TextView value = AdSkipUi.text(c, cells[i][0], 17, AdSkipUi.TEXT, true);
+            value.setSingleLine(true);
+            value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            cell.addView(value);
+            TextView label = AdSkipUi.text(c, cells[i][1], 11, AdSkipUi.TEXT_2, false);
+            label.setMaxLines(2);
+            label.setPadding(0, dp(2), 0, 0);
+            cell.addView(label);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -1, 1f);
+            if (i > 0) params.leftMargin = dp(8);
+            row.addView(cell, params);
+        }
+        group.addView(row);
+        return group;
+    }
+
     private View card(AdSegment segment) {
         Context c = activity;
         LinearLayout card = new LinearLayout(c);
@@ -140,7 +257,13 @@ final class AdSegmentList {
         String details = L10n.f("%1$s s · skipped %2$s times · %3$s",
                 AdSkipUi.seconds(segment.durationMs), String.valueOf(segment.skips),
                 DateFormat.getDateInstance(DateFormat.SHORT).format(new Date(segment.createdAt)));
-        text.addView(AdSkipUi.text(c, details, 12, AdSkipUi.TEXT_2, false));
+        TextView detailsView = AdSkipUi.text(c, details, 12, AdSkipUi.TEXT_2, false);
+        if (segment.sharedServerId != null) {
+            detailsView.setCompoundDrawablesRelative(AdIcons.of(c, AdIcons.Icon.CLOUD, AdSkipBar.MARK, 14), null, null, null);
+            detailsView.setCompoundDrawablePadding(dp(6));
+            card.setContentDescription(L10n.t("In the shared base"));
+        }
+        text.addView(detailsView);
         card.addView(text, new LinearLayout.LayoutParams(0, -2, 1f));
 
         Switch toggle = new Switch(c);
@@ -151,9 +274,9 @@ final class AdSegmentList {
         });
         card.addView(toggle);
 
-        TextView more = AdSkipUi.chip(c, "⋯", false);
+        ImageView more = AdSkipUi.iconButton(c, AdIcons.Icon.MORE, L10n.t("More options"), 36);
         more.setOnClickListener(v -> menu(segment));
-        LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(-2, -2);
+        LinearLayout.LayoutParams moreParams = new LinearLayout.LayoutParams(dp(36), dp(36));
         moreParams.leftMargin = dp(6);
         card.addView(more, moreParams);
         card.setOnClickListener(v -> menu(segment));

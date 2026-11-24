@@ -20,13 +20,16 @@ import android.view.View;
 /**
  * The editor's timeline: a strip of frames over the sound's waveform, the chosen part lit and
  * the rest dimmed, a handle at each end and the play head. Drag a handle to move that end, drag
- * inside to move the play head, pinch-free: a long video is zoomed by the editor's own buttons.
+ * the frames inside to move the whole part, drag elsewhere to move the play head. Zoomed in, a
+ * handle or the part held near either edge scrolls the view on, the way TikTok's trimmer does.
  */
 @SuppressLint("ViewConstructor")
 final class SegmentRangeView extends View {
     interface Listener {
         void rangeChanged(long startMs, long endMs, boolean fromUser, boolean dragging);
         void seekRequested(long ms, boolean dragging);
+
+        void zoomChanged(boolean zoomed);
     }
 
     private final float density;
@@ -55,9 +58,15 @@ final class SegmentRangeView extends View {
 
     private static final int NONE = 0, START = 1, END = 2, HEAD = 3, MOVE = 4;
     private int dragging = NONE;
-    private float downX;
-    private long downStart, downEnd;
+    private float downX, lastX;
+    private long downMs, downStart, downEnd;
     private boolean moved;
+    private boolean panning;
+    /** How fast the view scrolls with a finger held at the edge: this share of the view per frame. */
+    private static final float PAN_PER_FRAME = 0.025f;
+    /** The part can't be dragged shorter or longer than the shared base takes. */
+    static final long MIN_LENGTH_MS = 1000;
+    static final long MAX_LENGTH_MS = 30_000;
 
     SegmentRangeView(Context context, int accent) {
         super(context);
@@ -82,7 +91,7 @@ final class SegmentRangeView extends View {
         tick.setTextSize(10 * density);
         thumbBg.setColor(0xFF1C1C1E);
         setLayerType(LAYER_TYPE_SOFTWARE, null);
-        setContentDescription("Ad range");
+        setContentDescription(app.morphe.extension.tiktok.settings.L10n.t("Ad range"));
     }
 
     void setListener(Listener listener) {
@@ -141,7 +150,29 @@ final class SegmentRangeView extends View {
             viewStart = 0;
             viewEnd = durationMs;
         }
+        if (listener != null) listener.zoomChanged(zoomed());
         invalidate();
+    }
+
+    /** Scrolls a zoomed view just enough to show this moment. */
+    void reveal(long ms) {
+        long span = viewEnd - viewStart;
+        long margin = span / 10;
+        long shift = 0;
+        if (ms < viewStart + margin) shift = ms - margin - viewStart;
+        else if (ms > viewEnd - margin) shift = ms + margin - viewEnd;
+        shiftView(shift);
+    }
+
+    /** Moves the view by this much, kept inside the video; returns how far it really moved. */
+    private long shiftView(long by) {
+        long span = viewEnd - viewStart;
+        long start = clamp(viewStart + by, 0, Math.max(0, durationMs - span));
+        long moved = start - viewStart;
+        viewStart = start;
+        viewEnd = start + span;
+        if (moved != 0) invalidate();
+        return moved;
     }
 
     boolean zoomed() {
@@ -151,7 +182,7 @@ final class SegmentRangeView extends View {
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {
         int width = MeasureSpec.getSize(widthSpec);
-        setMeasuredDimension(width, Math.round(112 * density));
+        setMeasuredDimension(width, Math.round(100 * density));
     }
 
     private float pad() {
@@ -184,9 +215,12 @@ final class SegmentRangeView extends View {
             canvas.save();
             canvas.clipRect(left, thumbTop, right, thumbBottom);
             for (int i = 0; i < thumbs.length; i++) {
-                Bitmap b = thumbs[i];
+                // The frame for this cell's time in the current view, so a zoomed strip shows
+                // the frames of the part it shows.
+                long at = viewStart + (viewEnd - viewStart) * (2L * i + 1) / (2L * thumbs.length);
+                int which = (int) Math.min(thumbs.length - 1, at * thumbs.length / Math.max(1, durationMs));
+                Bitmap b = thumbs[which];
                 if (b == null || b.isRecycled()) continue;
-                // The frame for this cell's time in the current view.
                 rect.set(left + i * cell, thumbTop, left + (i + 1) * cell + 1, thumbBottom);
                 float ar = b.getWidth() / (float) b.getHeight();
                 float cellAr = rect.width() / rect.height();
@@ -276,6 +310,8 @@ final class SegmentRangeView extends View {
                 else if (x > xs && x < xe && event.getY() < getHeight() * 0.52f) dragging = MOVE;
                 else dragging = HEAD;
                 downX = x;
+                lastX = x;
+                downMs = msOf(x);
                 downStart = startMs;
                 downEnd = endMs;
                 moved = false;
@@ -285,34 +321,22 @@ final class SegmentRangeView extends View {
             }
             case MotionEvent.ACTION_MOVE: {
                 if (Math.abs(x - downX) > 3 * density) moved = true;
-                long ms = msOf(x);
-                long minimum = 500;
-                if (dragging == START) {
-                    startMs = clamp(ms, 0, endMs - minimum);
-                    notifyRange(true);
-                    seek(startMs, true);
-                } else if (dragging == END) {
-                    endMs = clamp(ms, startMs + minimum, durationMs);
-                    notifyRange(true);
-                    seek(endMs, true);
-                } else if (dragging == MOVE) {
-                    long delta = msOf(x) - msOf(downX);
-                    long len = downEnd - downStart;
-                    long s = clamp(downStart + delta, 0, durationMs - len);
-                    startMs = s;
-                    endMs = s + len;
-                    notifyRange(true);
-                } else if (dragging == HEAD) {
-                    seek(ms, true);
+                lastX = x;
+                drag(x);
+                if (moved && !panning && edgeDepth(x) != 0) {
+                    panning = true;
+                    postOnAnimation(panner);
                 }
-                invalidate();
                 return true;
             }
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL: {
                 int was = dragging;
                 dragging = NONE;
+                panning = false;
+                removeCallbacks(panner);
                 if (was == START || was == END || was == MOVE) {
+                    settle();
                     if (listener != null) listener.rangeChanged(startMs, endMs, true, false);
                     if (was == MOVE && !moved) seek(msOf(x), false);
                     else seek(was == END ? endMs : startMs, false);
@@ -326,6 +350,89 @@ final class SegmentRangeView extends View {
                 return super.onTouchEvent(event);
         }
     }
+
+    /** Applies the drag under way to a finger at x in the current view. */
+    private void drag(float x) {
+        long ms = msOf(x);
+        if (dragging == START) {
+            startMs = clamp(ms, Math.max(0, endMs - MAX_LENGTH_MS), endMs - MIN_LENGTH_MS);
+            notifyRange(true);
+            seek(startMs, true);
+        } else if (dragging == END) {
+            endMs = clamp(ms, startMs + MIN_LENGTH_MS, Math.min(durationMs, startMs + MAX_LENGTH_MS));
+            notifyRange(true);
+            seek(endMs, true);
+        } else if (dragging == MOVE) {
+            long len = downEnd - downStart;
+            long s = clamp(downStart + ms - downMs, 0, durationMs - len);
+            startMs = s;
+            endMs = s + len;
+            notifyRange(true);
+        } else if (dragging == HEAD) {
+            seek(ms, true);
+        }
+        invalidate();
+    }
+
+    /**
+     * -1..1: how hard the view should scroll left or right, 0 for not at all. A handle or the play
+     * head scrolls it when the finger is in the zone at either edge; the whole part scrolls it when
+     * its leading edge reaches that zone, so it never slides out of sight.
+     */
+    private float edgeDepth(float x) {
+        if (!zoomed() || dragging == NONE) return 0;
+        float zone = 36 * density, left = pad(), right = getWidth() - pad();
+        if (dragging == MOVE) {
+            float xs = xOf(startMs), xe = xOf(endMs);
+            if (x < downX && xs < left + zone) return -Math.min(1f, (left + zone - xs) / zone);
+            if (x > downX && xe > right - zone) return Math.min(1f, (xe - (right - zone)) / zone);
+            return 0;
+        }
+        if (x < left + zone) return -Math.min(1f, (left + zone - x) / zone);
+        if (x > right - zone) return Math.min(1f, (x - (right - zone)) / zone);
+        return 0;
+    }
+
+    /**
+     * After a drag, a part left partly out of sight is brought back to the middle, zooming out
+     * just enough when it is wider than the view, the way TikTok's trimmer settles.
+     */
+    private void settle() {
+        if (!zoomed() || (startMs >= viewStart && endMs <= viewEnd)) return;
+        long length = endMs - startMs;
+        long span = Math.min(durationMs, Math.max(viewEnd - viewStart, length + length / 2));
+        long from = clamp((startMs + endMs) / 2 - span / 2, 0, durationMs - span);
+        long fromStart = viewStart, fromEnd = viewEnd;
+        android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        animator.setDuration(220);
+        animator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        animator.addUpdateListener(a -> {
+            float f = (float) a.getAnimatedValue();
+            viewStart = fromStart + Math.round((from - fromStart) * f);
+            viewEnd = fromEnd + Math.round((from + span - fromEnd) * f);
+            invalidate();
+        });
+        animator.start();
+    }
+
+    private final Runnable panner = new Runnable() {
+        @Override
+        public void run() {
+            float depth = edgeDepth(lastX);
+            if (!panning || depth == 0) {
+                panning = false;
+                return;
+            }
+            long step = Math.round(depth * (viewEnd - viewStart) * PAN_PER_FRAME);
+            if (step == 0) step = depth < 0 ? -1 : 1;
+            if (shiftView(step) == 0) {
+                panning = false;
+                return;
+            }
+            drag(lastX);
+            postOnAnimation(this);
+        }
+    };
 
     private void notifyRange(boolean dragging) {
         if (listener != null) listener.rangeChanged(startMs, endMs, true, dragging);

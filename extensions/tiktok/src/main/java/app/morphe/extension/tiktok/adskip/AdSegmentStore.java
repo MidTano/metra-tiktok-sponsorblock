@@ -56,6 +56,16 @@ final class AdSegmentStore {
         }
     }
 
+    /** Segments marked on this phone, leaving out those only the shared base sent. */
+    static int ownCount() {
+        synchronized (LOCK) {
+            ensureLoaded();
+            int n = 0;
+            for (AdSegment s : segments) if (!isSharedOnly(s)) n++;
+            return n;
+        }
+    }
+
     static int enabledCount() {
         synchronized (LOCK) {
             ensureLoaded();
@@ -121,23 +131,159 @@ final class AdSegmentStore {
         }
     }
 
-    /** Merge a shared-base segment; skips if already present. */
-    static void mergeShared(String serverId, String defaultName, long durationMs,
-            int[] hashes, int[] times, int hashCount, int score) {
+    /** One segment of the shared base as the server sent it. */
+    static final class Shared {
+        final String serverId;
+        final int number;
+        final boolean hidden;
+        final long durationMs;
+        final int frames;
+        final int[] hashes;
+        final int[] times;
+        final int score;
+
+        Shared(String serverId, int number, boolean hidden, long durationMs, int frames, int[] hashes, int[] times,
+                int score) {
+            this.serverId = serverId;
+            this.number = number;
+            this.hidden = hidden;
+            this.durationMs = durationMs;
+            this.frames = frames > 0 ? frames : Landmarks.msToFrame(durationMs);
+            this.hashes = hashes;
+            this.times = times;
+            this.score = score;
+        }
+    }
+
+    /**
+     * Brings the shared base's segments into the list, in one write.
+     *
+     * <p>A segment this phone sent itself comes back with the very same hashes, so it is matched
+     * by its sound, not added twice: the local one keeps its name and only learns its server id,
+     * which is what lets it be voted on. A segment only the base has is named by its number in the
+     * base, ad12, which is the same on every phone. One the votes hid is taken off again.
+     */
+    static int mergeShared(List<Shared> incoming) {
         synchronized (LOCK) {
             ensureLoaded();
-            for (AdSegment s : segments) if (s.id == serverId.hashCode() && s.name.startsWith(SharedDb.SHARED_PREFIX)) return;
-            // Check exact match by serverId stored as a prefix in the name.
-            for (AdSegment s : segments) if (serverId.equals(s.sourceAid)) return;
-            long id = System.currentTimeMillis();
-            for (AdSegment s : segments) if (s.id >= id) id = s.id + 1;
-            AdSegment segment = new AdSegment(id, defaultName, System.currentTimeMillis(), durationMs, serverId,
-                    java.util.Arrays.copyOf(hashes, hashCount),
-                    java.util.Arrays.copyOf(times, hashCount), hashCount, score > -2, 0, 0);
-            segment.sharedServerId = serverId;
-            segments.add(segment);
-            changed();
+            int added = 0;
+            boolean dirty = false;
+            for (Shared entry : incoming) {
+                AdSegment known = null;
+                for (AdSegment s : segments) {
+                    if (entry.serverId.equals(s.sharedServerId) || entry.serverId.equals(s.sourceAid)) {
+                        known = s;
+                        break;
+                    }
+                }
+                if (known == null) {
+                    for (AdSegment s : segments) {
+                        if (sameSound(s, entry.hashes, entry.times)) {
+                            known = s;
+                            break;
+                        }
+                    }
+                }
+                if (entry.hidden) {
+                    if (known == null) continue;
+                    if (isSharedOnly(known)) segments.remove(known);
+                    else if (entry.serverId.equals(known.sharedServerId)) known.sharedServerId = null;
+                    dirty = true;
+                    continue;
+                }
+                if (known != null && isSharedOnly(known) && known.frames != entry.frames) {
+                    // Earlier versions stored the hash count as the length in frames, which made
+                    // a skip run far past the ad's end.
+                    AdSegment fixed = new AdSegment(known.id, known.name, known.createdAt, entry.durationMs, null,
+                            entry.hashes, entry.times, entry.frames, known.enabled, known.skips, known.lastSkipAt);
+                    fixed.sharedServerId = entry.serverId;
+                    segments.set(segments.indexOf(known), fixed);
+                    known = fixed;
+                    dirty = true;
+                }
+                if (known != null) {
+                    if (known.sharedServerId == null) {
+                        known.sharedServerId = entry.serverId;
+                        dirty = true;
+                    }
+                    if (isSharedOnly(known) && entry.number > 0 && !sharedName(entry.number).equals(known.name)
+                            && isDefaultSharedName(known.name)) {
+                        known.name = sharedName(entry.number);
+                        dirty = true;
+                    }
+                    continue;
+                }
+                long id = System.currentTimeMillis();
+                for (AdSegment s : segments) if (s.id >= id) id = s.id + 1;
+                String name = entry.number > 0 ? sharedName(entry.number) : sharedName(sharedCount() + 1);
+                AdSegment segment = new AdSegment(id, name, System.currentTimeMillis(), entry.durationMs, null,
+                        entry.hashes, entry.times, entry.frames, entry.score > -2, 0, 0);
+                segment.sharedServerId = entry.serverId;
+                segments.add(segment);
+                added++;
+                dirty = true;
+            }
+            if (dirty) changed();
+            return added;
         }
+    }
+
+    /** The server took this segment; it can be voted on from now. */
+    static void linkShared(long id, String serverId) {
+        synchronized (LOCK) {
+            ensureLoaded();
+            for (AdSegment s : segments) {
+                if (s.id == id && s.sharedServerId == null) {
+                    s.sharedServerId = serverId;
+                    save();
+                }
+            }
+        }
+    }
+
+    /** Came from the shared base and was never marked on this phone. */
+    static boolean isSharedOnly(AdSegment s) {
+        return s.sharedServerId != null && (s.sourceAid == null || s.sourceAid.equals(s.sharedServerId));
+    }
+
+    static String sharedName(int number) {
+        return "ad" + number;
+    }
+
+    private static boolean isDefaultSharedName(String name) {
+        return name == null || name.isEmpty() || name.equals("Ad (shared)") || name.matches("ad\\d+");
+    }
+
+    private static int sharedCount() {
+        int n = 0;
+        for (AdSegment s : segments) if (isSharedOnly(s)) n++;
+        return n;
+    }
+
+    private static boolean sameSound(AdSegment s, int[] hashes, int[] times) {
+        return java.util.Arrays.equals(s.hashes, hashes) && java.util.Arrays.equals(s.times, times);
+    }
+
+    /**
+     * Earlier versions added a phone's own segment a second time when the base sent it back.
+     * The copy goes, and its server id moves to the original, which keeps its name.
+     */
+    private static boolean dropSharedCopies() {
+        boolean dirty = false;
+        for (int i = segments.size() - 1; i >= 0; i--) {
+            AdSegment copy = segments.get(i);
+            if (!isSharedOnly(copy)) continue;
+            for (AdSegment own : segments) {
+                if (own == copy || isSharedOnly(own) || !sameSound(own, copy.hashes, copy.times)) continue;
+                if (own.sharedServerId == null) own.sharedServerId = copy.sharedServerId;
+                own.skips += copy.skips;
+                own.lastSkipAt = Math.max(own.lastSkipAt, copy.lastSkipAt);
+                segments.remove(i);
+                dirty = true;
+                break;
+            }
+        }
+        return dirty;
     }
 
     static void clear() {
@@ -148,13 +294,14 @@ final class AdSegmentStore {
         }
     }
 
-    /** Counts a skip. Saved later with the next change or by {@link #flushStats}. */
-    static void recordSkip(AdSegment segment) {
+    /** Counts a skip and the time it saved. Saved later with the next change or by {@link #flushStats}. */
+    static void recordSkip(AdSegment segment, long savedMs) {
         synchronized (LOCK) {
             segment.skips++;
             segment.lastSkipAt = System.currentTimeMillis();
             statsDirty = true;
         }
+        AdSkipStats.record(segment.sharedServerId, savedMs);
         Utils.runOnMainThreadDelayed(AdSegmentStore::flushStats, 5_000);
     }
 
@@ -170,15 +317,6 @@ final class AdSegmentStore {
                 save();
             }
         });
-    }
-
-    static long totalSkips() {
-        synchronized (LOCK) {
-            ensureLoaded();
-            long n = 0;
-            for (AdSegment s : segments) n += s.skips;
-            return n;
-        }
     }
 
     private static void changed() {
@@ -229,6 +367,7 @@ final class AdSegmentStore {
                 segments.clear();
             }
         }
+        if (dropSharedCopies()) save();
         index = AdMatcher.Index.build(segments);
     }
 
