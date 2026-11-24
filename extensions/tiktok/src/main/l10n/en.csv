@@ -23,16 +23,17 @@ source,target
 "%1$s (custom, unverified)","%1$s (custom, unverified)"
 %1$s (override returned),%1$s (override returned)
 %1$s (will be returned when requested),%1$s (will be returned when requested)
-"%1$s ads, skipped %2$s times","%1$s ads, skipped %2$s times"
 "%1$s ads, skipped %2$s times. Tap to manage them.","%1$s ads, skipped %2$s times. Tap to manage them."
 %1$s and above,%1$s and above
 %1$s appears more than once in this file.,%1$s appears more than once in this file.
+%1$s d %2$s h,%1$s d %2$s h
 %1$s day,%1$s day
 %1$s days,%1$s days
 %1$s destinations must start with %2$s,%1$s destinations must start with %2$s
 %1$s dp,%1$s dp
 %1$s entries skipped.,%1$s entries skipped.
 %1$s entry skipped.,%1$s entry skipped.
+%1$s h %2$s min,%1$s h %2$s min
 "%1$s has type %2$s, but the file says %3$s.","%1$s has type %2$s, but the file says %3$s."
 "%1$s hid everything TikTok sent, %2$d times in a row. Turn it off if that's not what you wanted.","%1$s hid everything TikTok sent, %2$d times in a row. Turn it off if that's not what you wanted."
 %1$s is a kind of value the Lab can't override.,%1$s is a kind of value the Lab can't override.
@@ -51,6 +52,7 @@ source,target
 %1$s left,%1$s left
 %1$s millisecond,%1$s millisecond
 %1$s milliseconds,%1$s milliseconds
+%1$s min,%1$s min
 %1$s min left,%1$s min left
 %1$s minute,%1$s minute
 %1$s minutes,%1$s minutes
@@ -149,7 +151,6 @@ A port is a whole number from 1 to 65535,A port is a whole number from 1 to 6553
 A press on Share under a video copies its link instead of opening the share sheet. Press Share again right after to open the sheet.,A press on Share under a video copies its link instead of opening the share sheet. Press Share again right after to open the sheet.
 "A profile's share sheet gets an Account facts button. It shows what TikTok already sent about the account: when it joined, its region and language, when its username and display name last changed, whether it's private and whether its liked videos are public. Nothing extra is fetched.","A profile's share sheet gets an Account facts button. It shows what TikTok already sent about the account: when it joined, its region and language, when its username and display name last changed, whether it's private and whether its liked videos are public. Nothing extra is fetched."
 "A screen's layout is recorded. Export the diagnostic report to send it, or tap to record another.","A screen's layout is recorded. Export the diagnostic report to send it, or tap to record another."
-"A short banner says what was skipped, with Watch it to go back.","A short banner says what was skipped, with Watch it to go back."
 "A small label on the feed shows the minutes or videos left of today's budget, whichever is closer to running out.","A small label on the feed shows the minutes or videos left of today's budget, whichever is closer to running out."
 A tap on Home or on the For You tab while For You is showing no longer reloads it. The video you're on stays.,A tap on Home or on the For You tab while For You is showing no longer reloads it. The video you're on stays.
 A video you paused stays paused when you come back to the app instead of starting again. One you left playing starts as usual. It works on Android 10 and newer.,A video you paused stays paused when you come back to the app instead of starting again. One you left playing starts as usual. It works on Android 10 and newer.
@@ -169,6 +170,7 @@ Active,Active
 Activity,Activity
 Activity center (PIA),Activity center (PIA)
 Ad,Ad
+Ad range,Ad range
 Add,Add
 Add a button beside the block control that turns the feed's sound off and on.,Add a button beside the block control that turns the feed's sound off and on.
 Add a button beside the block control to send feedback about the current video.,Add a button beside the block control to send feedback about the current video.
@@ -196,7 +198,9 @@ Added to this account.,Added to this account.
 Adds a Record button to LIVE rooms. A recording starts when you tap it and ends when you tap Stop or leave the room. Nothing before that is saved.,Adds a Record button to LIVE rooms. A recording starts when you tap it and ends when you tap Stop or leave the room. Nothing before that is saved.
 "Adds a search box that finds comments already loaded on this video, by words or username. It doesn't search all of TikTok.","Adds a search box that finds comments already loaded on this video, by words or username. It doesn't search all of TikTok."
 Ads,Ads
-"Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back.","Ads are marked in yellow on the progress bar. A short notice shows the ad's name, with Watch it to go back."
+"Ads are marked in green on the progress bar. A short notice shows the ad's name, with Watch it to go back.","Ads are marked in green on the progress bar. A short notice shows the ad's name, with Watch it to go back."
+Ads in the base,Ads in the base
+Ads skipped,Ads skipped
 Advanced,Advanced
 Advanced JSON value,Advanced JSON value
 Advanced. Find and force the hidden switches TikTok uses to test features.,Advanced. Find and force the hidden switches TikTok uses to test features.
@@ -207,6 +211,7 @@ All,All
 All available languages,All available languages
 All events,All events
 All loaded tabs,All loaded tabs
+All users,All users
 Allow Duet and Stitch anyway,Allow Duet and Stitch anyway
 Allow screenshots and Circle to Search,Allow screenshots and Circle to Search
 Allow storage for TikTok in Android settings to record LIVEs,Allow storage for TikTok in Android settings to record LIVEs
@@ -350,6 +355,7 @@ Changes to %1$s at %2$s,Changes to %1$s at %2$s
 Check for already-saved videos,Check for already-saved videos
 Check on mobile data,Check on mobile data
 Check upcoming videos,Check upcoming videos
+Checks a video only after it has played for a moment. Upcoming videos are checked only on Wi-Fi and results are kept after a restart. Off is the tested mode.,Checks a video only after it has played for a moment. Upcoming videos are checked only on Wi-Fi and results are kept after a restart. Off is the tested mode.
 Choose %1$d to %2$d videos. Values outside this range use the nearest valid limit. Restart TikTok to apply this.,Choose %1$d to %2$d videos. Values outside this range use the nearest valid limit. Restart TikTok to apply this.
 Choose a backup file. Your current settings are kept for Undo.,Choose a backup file. Your current settings are kept for Undo.
 Choose a folder on internal storage. SD cards aren't supported.,Choose a folder on internal storage. SD cards aren't supported.
@@ -357,7 +363,6 @@ Choose a preset to fill the SIM details.,Choose a preset to fill the SIM details
 Choose a subfolder under %1$s.,Choose a subfolder under %1$s.
 Choose counts for this signed-in account. Leave a field empty to use TikTok's count. Zero shows zero. Choices stay on this phone.,Choose counts for this signed-in account. Leave a field empty to use TikTok's count. Zero shows zero. Choices stay on this phone.
 Choose what reaches your feed,Choose what reaches your feed
-Choose where the ad starts and ends,Choose where the ad starts and ends
 Choose which bottom tabs stay visible.,Choose which bottom tabs stay visible.
 "Choose which feed tabs stay visible. If only For You is left, its tab name is hidden.","Choose which feed tabs stay visible. If only For You is left, its tab name is hidden."
 Choose which posts appear in your feeds,Choose which posts appear in your feeds
@@ -407,6 +412,7 @@ Confirm before liking,Confirm before liking
 Confirm before liking a comment,Confirm before liking a comment
 Confirm before liking a story,Confirm before liking a story
 Continue supported videos from where you stopped when you scroll back to them.,Continue supported videos from where you stopped when you scroll back to them.
+Contributors,Contributors
 Controls,Controls
 Conversations,Conversations
 Copy,Copy
@@ -441,10 +447,10 @@ Couldn't list your apps. Tap here to try again.,Couldn't list your apps. Tap her
 Couldn't load this video. Check the connection and try again.,Couldn't load this video. Check the connection and try again.
 Couldn't open settings search. Reopen settings and try again.,Couldn't open settings search. Reopen settings and try again.
 Couldn't open that settings section. Reopen settings and try again.,Couldn't open that settings section. Reopen settings and try again.
-Couldn't open the ad editor,Couldn't open the ad editor
+Couldn't open the ad editor. Close the share sheet and try again.,Couldn't open the ad editor. Close the share sheet and try again.
 Couldn't open the file picker to export. Try again.,Couldn't open the file picker to export. Try again.
 Couldn't open the file picker to import. Try again.,Couldn't open the file picker to import. Try again.
-Couldn't play this video.,Couldn't play this video.
+Couldn't play this video. Close the editor and try again.,Couldn't play this video. Close the editor and try again.
 Couldn't put back the diagnostic data. Try again.,Couldn't put back the diagnostic data. Try again.
 Couldn't put the saved videos back. Try again.,Couldn't put the saved videos back. Try again.
 Couldn't reach the proxy at %1$s. TikTok may not load until it's back or you turn the proxy off.,Couldn't reach the proxy at %1$s. TikTok may not load until it's back or you turn the proxy off.
@@ -567,7 +573,6 @@ Empty,Empty
 "Empty the menu that opens when you press and hold TikTok's icon on the home screen. Turning this off asks TikTok to build them again. Tapping the icon still opens the app, and a shortcut you pinned yourself stays where you put it.","Empty the menu that opens when you press and hold TikTok's icon on the home screen. Turning this off asks TikTok to build them again. Tapping the icon still opens the app, and a shortcut you pinned yourself stays where you put it."
 Enable,Enable
 Enabled,Enabled
-End here,End here
 Enter a JSON object or array.,Enter a JSON object or array.
 Enter a creator handle or id,Enter a creator handle or id
 Enter a finite number.,Enter a finite number.
@@ -648,7 +653,6 @@ For You,For You
 "For You, Following and the other feed tabs stay behind a calm panel and won't swipe. Messages, profiles and search work as usual, a link to one video still opens that video, and the app opens on Inbox instead of the feed.","For You, Following and the other feed tabs stay behind a calm panel and won't swipe. Messages, profiles and search work as usual, a link to one video still opens that video, and the app opens on Inbox instead of the feed."
 "For accounts TikTok took translation away from. Brings back See translation under video descriptions and in captions, and the translation rows on the Language page in Settings and privacy. Restart TikTok to see it on videos.","For accounts TikTok took translation away from. Brings back See translation under video descriptions and in captions, and the translation rows on the Language page in Settings and privacy. Restart TikTok to see it on videos."
 For accounts TikTok took translation away from. Brings back See translation under video descriptions and in captions. Restart TikTok to see the change.,For accounts TikTok took translation away from. Brings back See translation under video descriptions and in captions. Restart TikTok to see the change.
-"For example, the brand","For example, the brand"
 Forced %1$d gates of %2$d. The rest don't take a true or false value. Restart TikTok to apply this.,Forced %1$d gates of %2$d. The rest don't take a true or false value. Restart TikTok to apply this.
 Forced %1$d gates. Restart TikTok to apply this.,Forced %1$d gates. Restart TikTok to apply this.
 Forced 1 gate of %2$d. The rest don't take a true or false value. Restart TikTok to apply this.,Forced 1 gate of %2$d. The rest don't take a true or false value. Restart TikTok to apply this.
@@ -914,6 +918,7 @@ Imported: %1$s. Pick another file to replace it.,Imported: %1$s. Pick another fi
 Importing new history ended Undo for the earlier clear. You can clear the imported history.,Importing new history ended Undo for the earlier clear. You can clear the imported history.
 Importing watch history,Importing watch history
 In a chat,In a chat
+In the shared base,In the shared base
 Inbox,Inbox
 Inbox tab name,Inbox tab name
 Include diagnostic events,Include diagnostic events
@@ -1005,7 +1010,7 @@ Limits,Limits
 Link copied,Link copied
 Links,Links
 Links in comments open,Links in comments open
-"Listens to the next videos in the feed before you reach them, so an ad is skipped from its first second.","Listens to the next videos in the feed before you reach them, so an ad is skipped from its first second."
+"Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.","Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second."
 Live photo clip,Live photo clip
 Live photo clip saved to %1$s,Live photo clip saved to %1$s
 Live photo clips: %1$s,Live photo clips: %1$s
@@ -1017,6 +1022,7 @@ Loading cancelled. The list is incomplete.,Loading cancelled. The list is incomp
 Loading gates…,Loading gates…
 Loading page %1$s...,Loading page %1$s...
 Loading the gate list and TikTok's current values…,Loading the gate list and TikTok's current values…
+Loading the shared base…,Loading the shared base…
 Loading the video and its sound…,Loading the video and its sound…
 Local profile counts,Local profile counts
 Local verified badge,Local verified badge
@@ -1490,6 +1496,7 @@ Save the video's cover,Save the video's cover
 "Save the video's cover picture at the largest size TikTok has, each time you tap Download. It goes to your photo folder, named after the video.","Save the video's cover picture at the largest size TikTok has, each time you tap Download. It goes to your photo folder, named after the video."
 "Save the videos @%1$s has seen, and when, to a JSON file. Anyone who opens the file can see that viewing history.","Save the videos @%1$s has seen, and when, to a JSON file. Anyone who opens the file can see that viewing history."
 "Save this account's seen videos, and when they were watched, to a JSON file. Anyone who opens the file can see that viewing history.","Save this account's seen videos, and when they were watched, to a JSON file. Anyone who opens the file can see that viewing history."
+Save traffic (beta),Save traffic (beta)
 Save videos without sound,Save videos without sound
 "Save, restore, reset and undo your settings","Save, restore, reset and undo your settings"
 Saved,Saved
@@ -1507,8 +1514,10 @@ Saved %1$s original photos,Saved %1$s original photos
 Saved %1$s seen videos to the file,Saved %1$s seen videos to the file
 Saved %1$s videos,Saved %1$s videos
 Saved 1 seen video to the file,Saved 1 seen video to the file
+Saved everyone,Saved everyone
 Saved one original photo,Saved one original photo
 Saved one video,Saved one video
+Saved others,Saved others
 Saved post,Saved post
 Saved posts,Saved posts
 Saved the photos as a video in %1$s,Saved the photos as a video in %1$s
@@ -1711,9 +1720,8 @@ Skip marked ads,Skip marked ads
 "Skip the puzzle TikTok shows while you're just browsing. A puzzle right after you like, follow, comment or repost still shows, and so do sign-in, SMS and two-step checks. If something stops working, turn this off.","Skip the puzzle TikTok shows while you're just browsing. A puzzle right after you like, follow, comment or repost still shows, and so do sign-in, SMS and two-step checks. If something stops working, turn this off."
 Skip the splash ad,Skip the splash ad
 Skip update checks,Skip update checks
-Skipped %1$s s of ad: %2$s,Skipped %1$s s of ad: %2$s
-Skipped an ad video: %1$s,Skipped an ad video: %1$s
 "Skipped entries are invalid, expired, already recorded, or older than the newest %1$s videos.","Skipped entries are invalid, expired, already recorded, or older than the newest %1$s videos."
+Skipped for others,Skipped for others
 Skipping videos with %1$s,Skipping videos with %1$s
 Sleep timer off,Sleep timer off
 Some Calm feed settings changed. Restore still puts back your earlier setup.,Some Calm feed settings changed. Restore still puts back your earlier setup.
@@ -1735,7 +1743,6 @@ Spin the music disc,Spin the music disc
 Split comment minimum width,Split comment minimum width
 Start each new video at your default. A manual choice lasts until the video changes.,Start each new video at your default. A manual choice lasts until the video changes.
 Start feature gate recording,Start feature gate recording
-Start here,Start here
 Start recording,Start recording
 Start the day at,Start the day at
 Start today over,Start today over
@@ -1889,7 +1896,6 @@ The Tako assistant's conversation leaves the Inbox list. The Tako bubble on the 
 "The Translate comments button in a LIVE room also needs a Japanese SIM. Turn on Override SIM details in Metra settings > Region spoof, set SIM country preset to Japan, NTT DOCOMO (44010), then restart TikTok.","The Translate comments button in a LIVE room also needs a Japanese SIM. Turn on Override SIM details in Metra settings > Region spoof, set SIM country preset to Japan, NTT DOCOMO (44010), then restart TikTok."
 The accounts TikTok suggests you follow no longer take up rows in the Inbox.,The accounts TikTok suggests you follow no longer take up rows in the Inbox.
 The activity status control leaves the Inbox header. Whether others see you as active is unchanged.,The activity status control leaves the Inbox header. Whether others see you as active is unchanged.
-The ad must be at least 2 seconds long.,The ad must be at least 2 seconds long.
 "The add people icon leaves the Inbox header. Only the shortcut goes, so friend suggestions elsewhere are unchanged.","The add people icon leaves the Inbox header. Only the shortcut goes, so friend suggestions elsewhere are unchanged."
 The already-saved check failed. Try again.,The already-saved check failed. Try again.
 The backup didn't start and its partial file couldn't be removed. Delete it from the folder you chose.,The backup didn't start and its partial file couldn't be removed. Delete it from the folder you chose.
@@ -1949,6 +1955,7 @@ The saved-video choice is still open,The saved-video choice is still open
 The server asked us to wait. Try again later.,The server asked us to wait. Try again later.
 The setting couldn't finish updating. Its saved value is shown.,The setting couldn't finish updating. Its saved value is shown.
 The settings backup was rejected. Nothing was altered.,The settings backup was rejected. Nothing was altered.
+The shared base can't be reached right now.,The shared base can't be reached right now.
 The smallest value is above the largest,The smallest value is above the largest
 The sound couldn't be saved. Try again.,The sound couldn't be saved. Try again.
 The sticker couldn't be saved. Try again.,The sticker couldn't be saved. Try again.
@@ -2056,9 +2063,9 @@ TikTok's own value,TikTok's own value
 TikTok's size,TikTok's size
 TikTok's suggested reply cells and their intro banner stop showing in a chat. Messages you type or receive are untouched.,TikTok's suggested reply cells and their intro banner stop showing in a chat. Messages you type or receive are untouched.
 TikTok's total: %1$s. Filtered accounts: %2$s.,TikTok's total: %1$s. Filtered accounts: %2$s.
+Time saved,Time saved
 Timed logging stopped,Timed logging stopped
 Times you can open the feed anyway,Times you can open the feed anyway
-"Tip: mark only the ad itself. Its sound is what gets matched, even under music or noise.","Tip: mark only the ad itself. Its sound is what gets matched, even under music or noise."
 Today can't start over while Wait a day to loosen the budget is on. The day starts over at %1$s.,Today can't start over while Wait a day to loosen the budget is on. The day starts over at %1$s.
 "Today has moved on, so there's nothing to put back","Today has moved on, so there's nothing to put back"
 Today is back where it was,Today is back where it was
@@ -2243,12 +2250,14 @@ Your Long press choice runs only on the left and right thirds of the video. A pr
 Your TikTok account changed. Choose the file again for this account.,Your TikTok account changed. Choose the file again for this account.
 Your account changed. Close this list and open it again.,Your account changed. Close this list and open it again.
 Your account changed. Open the count editor again.,Your account changed. Open the count editor again.
+Your contribution,Your contribution
 Your current settings already match Calm feed.,Your current settings already match Calm feed.
 Your earlier settings are back,Your earlier settings are back
 Your feed,Your feed
 Your feed. Your rules.,Your feed. Your rules.
 Your filters hid everything TikTok just sent. Most were %1$s.,Your filters hid everything TikTok just sent. Most were %1$s.
 "Your filters hid everything TikTok sent, %1$d times in a row. Most were %2$s.","Your filters hid everything TikTok sent, %1$d times in a row. Most were %2$s."
+Your marks,Your marks
 "Your network proxy was kept, since a backup can't change it","Your network proxy was kept, since a backup can't change it"
 "Your operator's name, like T-Mobile.","Your operator's name, like T-Mobile."
 "Your operator's numeric code, like 310260.","Your operator's numeric code, like 310260."
