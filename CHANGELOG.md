@@ -1,3 +1,16 @@
+## [0.11.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.11.0...v0.11.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **tiktok:** hide Save traffic (beta) and switch it off for everyone until it is reliable ([f396c55](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/f396c55ccbf715c67cf1b2536eb64fc38293ed49))
+
+
+
+
+
+## 0.11.1
+
 # [0.11.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.10.0...v0.11.0) (2026-11-24)
 
 
