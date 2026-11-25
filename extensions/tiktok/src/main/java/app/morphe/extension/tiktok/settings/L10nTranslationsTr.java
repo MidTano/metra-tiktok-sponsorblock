@@ -15,7 +15,7 @@ final class L10nTranslationsTr {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4554);
+        Map<String, String> table = new HashMap<>(4558);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -4110,13 +4110,15 @@ final class L10nTranslationsTr {
                 "Ekranda kare kaydedilecek bir video yok");
         table.put("There's too little sound here to recognise. Choose a louder part.",
                 "Burada tanınacak kadar ses yok. Daha yüksek sesli bir kısım seç.");
+        table.put("These ads are not skipped for you. Tap Undo if you voted by mistake.",
+                "Bu reklamlar sizin için atlanmaz. Yanlışlıkla oy verdiyseniz Geri al'a dokunun.");
         table.put("These are posts saved by your signed-in account. Other Favorites categories aren't included.",
                 "Bunlar, giriş yaptığın hesabın kaydettiği gönderiler. Diğer Favoriler kategorileri dahil değil.");
-        table.put("These loaded values are for a different TikTok version.",
-                "Bu yüklenen değerler farklı bir TikTok sürümüne ait.");
     }
 
     private static void fill33(Map<String, String> table) {
+        table.put("These loaded values are for a different TikTok version.",
+                "Bu yüklenen değerler farklı bir TikTok sürümüne ait.");
         table.put("These notes are in English.",
                 "Bu notlar İngilizcedir.");
         table.put("This LIVE's stream can't be saved",
@@ -4235,11 +4237,11 @@ final class L10nTranslationsTr {
                 "TikTok takibi %1$s koduyla reddetti");
         table.put("TikTok refused the follow with code %1$s. A hidden CAPTCHA may be the cause.",
                 "TikTok takibi %1$s koduyla reddetti. Nedeni gizlenmiş bir CAPTCHA olabilir.");
-        table.put("TikTok refused the follow: %1$s",
-                "TikTok takibi reddetti: %1$s");
     }
 
     private static void fill34(Map<String, String> table) {
+        table.put("TikTok refused the follow: %1$s",
+                "TikTok takibi reddetti: %1$s");
         table.put("TikTok refused the follow: %1$s A hidden CAPTCHA may be the cause.",
                 "TikTok takibi reddetti: %1$s Nedeni gizlenmiş bir CAPTCHA olabilir.");
         table.put("TikTok refused this request (%1$s).",
@@ -4358,11 +4360,11 @@ final class L10nTranslationsTr {
                 "Ekran geçişlerini kapat");
         table.put("Turn off swipe to reply",
                 "Yanıtlamak için kaydırmayı kapat");
-        table.put("Turn off the timer (TikTok closes at %1$s)",
-                "Zamanlayıcıyı kapat (TikTok'un kapanacağı saat: %1$s)");
     }
 
     private static void fill35(Map<String, String> table) {
+        table.put("Turn off the timer (TikTok closes at %1$s)",
+                "Zamanlayıcıyı kapat (TikTok'un kapanacağı saat: %1$s)");
         table.put("Turn on %1$s first.",
                 "Önce %1$s ayarını aç.");
         table.put("Turn on Keep a streak going first",
@@ -4481,11 +4483,11 @@ final class L10nTranslationsTr {
                 "Adı oluşturmak için {creator}, {date}, {video_id} ve {index} kullan. {index}, Orijinal fotoğrafları indir ile kaydedilen bir slayt gösterisinin fotoğraflarını numaralandırır. TikTok'un kendi kaydet düğmesi dosyaları klasöre göre numaralandırır. Dosya uzantısı otomatik eklenir.");
         table.put("Use {date} and {media_id} to build the name. Works for image and video stickers.",
                 "Adı oluşturmak için {date} ve {media_id} kullan. Görsel ve video çıkartmaları için çalışır.");
-        table.put("User ID copied",
-                "Kullanıcı kimliği kopyalandı");
     }
 
     private static void fill36(Map<String, String> table) {
+        table.put("User ID copied",
+                "Kullanıcı kimliği kopyalandı");
         table.put("Username copied",
                 "Kullanıcı adı kopyalandı");
         table.put("Username last changed",
@@ -4548,6 +4550,8 @@ final class L10nTranslationsTr {
                 "Görsel arama");
         table.put("Volume",
                 "Ses");
+        table.put("Voted down",
+                "Beğenmedikleriniz");
         table.put("Wait a day to loosen the budget",
                 "Bütçeyi gevşetmek için bir gün bekle");
         table.put("Wait a day to loosen the budget is on, so Metra stays on",
@@ -4602,13 +4606,13 @@ final class L10nTranslationsTr {
                 "Bütçe bittiğinde ekrandaki video, bekletme başlamadan önce sonuna kadar oynar ve bu sırada başka bir videoya kaydıramazsın. Karartma akışı zaten karartmışsa bekletme hemen başlar. Bir bekletme gerekir. En fazla %1$d dakika bekler.");
         table.put("When the video without the watermark can't be fetched, save TikTok's own watermarked copy instead and say so. It's the size TikTok's own save uses, so it may be smaller than the quality you picked.",
                 "Filigransız video alınamazsa onun yerine TikTok'un kendi filigranlı kopyasını kaydet ve bunu söyle. Boyutu TikTok'un kendi kaydetmesinin kullandığı boyuttur, bu yüzden seçtiğin kaliteden küçük olabilir.");
+    }
+
+    private static void fill37(Map<String, String> table) {
         table.put("When to send",
                 "Ne zaman gönderilsin");
         table.put("When you leave TikTok while a video plays, it keeps playing in a small window over your other apps, with a button to pause it. Works in the feed and on videos you open from a profile, search or a sound. Needs Android 8 or later.",
                 "Bir video oynarken TikTok'tan çıktığınızda, video diğer uygulamalarınızın üzerinde küçük bir pencerede oynamaya devam eder ve duraklatmak için bir düğme bulunur. Akışta ve bir profilden, aramadan veya bir sesten açtığınız videolarda çalışır. Android 8 veya üstü gerekir.");
-    }
-
-    private static void fill37(Map<String, String> table) {
         table.put("When you open TikTok from its icon, the first video in the feed waits for one tap before it plays. A link, a notification or a shortcut opens as usual.",
                 "TikTok'u simgesinden açtığında akıştaki ilk video oynamadan önce bir dokunuş bekler. Bağlantı, bildirim veya kısayol her zamanki gibi açılır.");
         table.put("While Clear display is on, also hide the progress bar, the close button and the pause and speed buttons at the bottom. You can still drag along the bottom edge to move through the video. To leave Clear display, press and hold the video and tap Restore display, or pinch the screen.",

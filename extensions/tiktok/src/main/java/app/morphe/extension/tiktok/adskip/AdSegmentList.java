@@ -92,7 +92,22 @@ final class AdSegmentList {
             list.addView(empty);
         }
 
-        for (int i = segments.size() - 1; i >= 0; i--) list.addView(card(segments.get(i)));
+        List<AdSegment> disliked = new java.util.ArrayList<>();
+        for (int i = segments.size() - 1; i >= 0; i--) {
+            AdSegment segment = segments.get(i);
+            if (SharedDb.myVote(segment.sharedServerId) < 0) disliked.add(segment);
+            else list.addView(card(segment));
+        }
+        if (!disliked.isEmpty()) {
+            TextView heading = AdSkipUi.text(c, L10n.t("Voted down"), 13, AdSkipUi.TEXT, true);
+            heading.setPadding(dp(4), dp(16), 0, dp(2));
+            list.addView(heading);
+            TextView hint = AdSkipUi.text(c, L10n.t("These ads are not skipped for you. Tap Undo if you voted by mistake."),
+                    12, AdSkipUi.TEXT_2, false);
+            hint.setPadding(dp(4), 0, dp(4), dp(8));
+            list.addView(hint);
+            for (AdSegment segment : disliked) list.addView(card(segment));
+        }
 
         if (!segments.isEmpty()) {
             TextView clear = AdSkipUi.chip(c, L10n.t("Delete all"), false);
@@ -266,13 +281,24 @@ final class AdSegmentList {
         text.addView(detailsView);
         card.addView(text, new LinearLayout.LayoutParams(0, -2, 1f));
 
-        Switch toggle = new Switch(c);
-        toggle.setChecked(segment.enabled);
-        toggle.setOnCheckedChangeListener((b, on) -> {
-            AdSegmentStore.setEnabled(segment.id, on);
-            name.setTextColor(on ? AdSkipUi.TEXT : AdSkipUi.TEXT_2);
-        });
-        card.addView(toggle);
+        if (SharedDb.myVote(segment.sharedServerId) < 0) {
+            name.setTextColor(AdSkipUi.TEXT_2);
+            TextView undo = AdSkipUi.chip(c, L10n.t("Undo"), false);
+            undo.setTextColor(AdSkipUi.ACCENT);
+            undo.setOnClickListener(v -> {
+                SharedDb.vote(segment.sharedServerId, 0);
+                refresh();
+            });
+            card.addView(undo);
+        } else {
+            Switch toggle = new Switch(c);
+            toggle.setChecked(segment.enabled);
+            toggle.setOnCheckedChangeListener((b, on) -> {
+                AdSegmentStore.setEnabled(segment.id, on);
+                name.setTextColor(on ? AdSkipUi.TEXT : AdSkipUi.TEXT_2);
+            });
+            card.addView(toggle);
+        }
 
         ImageView more = AdSkipUi.iconButton(c, AdIcons.Icon.MORE, L10n.t("More options"), 36);
         more.setOnClickListener(v -> menu(segment));

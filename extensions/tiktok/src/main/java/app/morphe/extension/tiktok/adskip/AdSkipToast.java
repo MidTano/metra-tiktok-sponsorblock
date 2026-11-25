@@ -188,7 +188,7 @@ final class AdSkipToast {
             pill.addView(action, centred());
         }
 
-        if (serverId != null && serverId.startsWith(SharedDb.SHARED_PREFIX)) {
+        if (SharedDb.canVote(serverId)) {
             pill.addView(divider(activity));
             ImageView up = voteButton(activity);
             ImageView down = voteButton(activity);

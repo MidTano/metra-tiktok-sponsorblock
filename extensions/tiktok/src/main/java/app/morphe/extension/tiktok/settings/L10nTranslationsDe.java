@@ -15,7 +15,7 @@ final class L10nTranslationsDe {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4554);
+        Map<String, String> table = new HashMap<>(4558);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -4110,13 +4110,15 @@ final class L10nTranslationsDe {
                 "Auf dem Bildschirm ist kein Video, aus dem ein Standbild gespeichert werden kann");
         table.put("There's too little sound here to recognise. Choose a louder part.",
                 "Hier ist zu wenig Ton zum Erkennen. Wähle eine lautere Stelle.");
+        table.put("These ads are not skipped for you. Tap Undo if you voted by mistake.",
+                "Diese Werbung wird für dich nicht übersprungen. Tippe auf Rückgängig, wenn du dich vertan hast.");
         table.put("These are posts saved by your signed-in account. Other Favorites categories aren't included.",
                 "Das sind Beiträge, die dein angemeldetes Konto gespeichert hat. Andere Favoriten-Kategorien sind nicht enthalten.");
-        table.put("These loaded values are for a different TikTok version.",
-                "Diese geladenen Werte gehören zu einer anderen TikTok-Version.");
     }
 
     private static void fill33(Map<String, String> table) {
+        table.put("These loaded values are for a different TikTok version.",
+                "Diese geladenen Werte gehören zu einer anderen TikTok-Version.");
         table.put("These notes are in English.",
                 "Diese Hinweise sind auf Englisch.");
         table.put("This LIVE's stream can't be saved",
@@ -4235,11 +4237,11 @@ final class L10nTranslationsDe {
                 "TikTok hat das Folgen mit Code %1$s abgelehnt");
         table.put("TikTok refused the follow with code %1$s. A hidden CAPTCHA may be the cause.",
                 "TikTok hat das Folgen mit Code %1$s abgelehnt. Ein ausgeblendetes CAPTCHA kann die Ursache sein.");
-        table.put("TikTok refused the follow: %1$s",
-                "TikTok hat das Folgen abgelehnt: %1$s");
     }
 
     private static void fill34(Map<String, String> table) {
+        table.put("TikTok refused the follow: %1$s",
+                "TikTok hat das Folgen abgelehnt: %1$s");
         table.put("TikTok refused the follow: %1$s A hidden CAPTCHA may be the cause.",
                 "TikTok hat das Folgen abgelehnt: %1$s Ein ausgeblendetes CAPTCHA kann die Ursache sein.");
         table.put("TikTok refused this request (%1$s).",
@@ -4358,11 +4360,11 @@ final class L10nTranslationsDe {
                 "Bildschirmübergänge ausschalten");
         table.put("Turn off swipe to reply",
                 "Wischen zum Antworten ausschalten");
-        table.put("Turn off the timer (TikTok closes at %1$s)",
-                "Timer ausschalten (TikTok schließt um %1$s)");
     }
 
     private static void fill35(Map<String, String> table) {
+        table.put("Turn off the timer (TikTok closes at %1$s)",
+                "Timer ausschalten (TikTok schließt um %1$s)");
         table.put("Turn on %1$s first.",
                 "Zuerst %1$s einschalten.");
         table.put("Turn on Keep a streak going first",
@@ -4481,11 +4483,11 @@ final class L10nTranslationsDe {
                 "Baue den Namen aus {creator}, {date}, {video_id} und {index}. {index} nummeriert die Fotos einer Diashow, die mit „Originalfotos herunterladen“ gespeichert wird. TikToks eigene Speichern-Schaltfläche nummeriert Dateien stattdessen nach Ordner. Die Dateiendung wird automatisch angehängt.");
         table.put("Use {date} and {media_id} to build the name. Works for image and video stickers.",
                 "Baue den Namen aus {date} und {media_id}. Funktioniert für Bild- und Videosticker.");
-        table.put("User ID copied",
-                "Nutzer-ID kopiert");
     }
 
     private static void fill36(Map<String, String> table) {
+        table.put("User ID copied",
+                "Nutzer-ID kopiert");
         table.put("Username copied",
                 "Nutzername kopiert");
         table.put("Username last changed",
@@ -4548,6 +4550,8 @@ final class L10nTranslationsDe {
                 "Visuelle Suche");
         table.put("Volume",
                 "Lautstärke");
+        table.put("Voted down",
+                "Abgelehnt");
         table.put("Wait a day to loosen the budget",
                 "Lockerungen des Budgets einen Tag warten lassen");
         table.put("Wait a day to loosen the budget is on, so Metra stays on",
@@ -4602,13 +4606,13 @@ final class L10nTranslationsDe {
                 "Wenn das Budget aufgebraucht ist, läuft das Video auf dem Bildschirm zu Ende, bevor die Sperre beginnt, und du kannst währenddessen nicht zu einem anderen Video wischen. Hat die Abblendung den Feed schon abgedunkelt, beginnt die Sperre sofort. Braucht eine Sperre. Es wartet höchstens %1$d Minuten.");
         table.put("When the video without the watermark can't be fetched, save TikTok's own watermarked copy instead and say so. It's the size TikTok's own save uses, so it may be smaller than the quality you picked.",
                 "Wenn das Video ohne Wasserzeichen nicht geladen werden kann, wird stattdessen TikToks eigene Kopie mit Wasserzeichen gespeichert, mit Hinweis. Sie hat die Größe, die TikToks eigenes Speichern nutzt, und kann daher kleiner sein als die gewählte Qualität.");
+    }
+
+    private static void fill37(Map<String, String> table) {
         table.put("When to send",
                 "Wann senden");
         table.put("When you leave TikTok while a video plays, it keeps playing in a small window over your other apps, with a button to pause it. Works in the feed and on videos you open from a profile, search or a sound. Needs Android 8 or later.",
                 "Wenn du TikTok verlässt, während ein Video läuft, läuft es in einem kleinen Fenster über deinen anderen Apps weiter, mit einer Taste zum Pausieren. Funktioniert im Feed und bei Videos, die du über ein Profil, die Suche oder einen Sound öffnest. Erfordert Android 8 oder neuer.");
-    }
-
-    private static void fill37(Map<String, String> table) {
         table.put("When you open TikTok from its icon, the first video in the feed waits for one tap before it plays. A link, a notification or a shortcut opens as usual.",
                 "Wenn du TikTok über das Symbol öffnest, wartet das erste Video im Feed auf ein Tippen, bevor es abspielt. Ein Link, eine Benachrichtigung oder eine Verknüpfung öffnet sich wie gewohnt.");
         table.put("While Clear display is on, also hide the progress bar, the close button and the pause and speed buttons at the bottom. You can still drag along the bottom edge to move through the video. To leave Clear display, press and hold the video and tap Restore display, or pinch the screen.",

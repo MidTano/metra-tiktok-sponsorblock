@@ -15,7 +15,7 @@ final class L10nTranslationsIn {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4554);
+        Map<String, String> table = new HashMap<>(4558);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -4110,13 +4110,15 @@ final class L10nTranslationsIn {
                 "Tidak ada video di layar untuk disimpan bingkainya");
         table.put("There's too little sound here to recognise. Choose a louder part.",
                 "Suara di sini terlalu sedikit untuk dikenali. Pilih bagian yang lebih keras.");
+        table.put("These ads are not skipped for you. Tap Undo if you voted by mistake.",
+                "Iklan ini tidak dilewati untukmu. Ketuk Urungkan jika kamu salah memberi suara.");
         table.put("These are posts saved by your signed-in account. Other Favorites categories aren't included.",
                 "Ini adalah postingan yang disimpan oleh akun yang sedang masuk. Kategori Favorit lainnya tidak disertakan.");
-        table.put("These loaded values are for a different TikTok version.",
-                "Nilai yang dimuat ini untuk versi TikTok yang berbeda.");
     }
 
     private static void fill33(Map<String, String> table) {
+        table.put("These loaded values are for a different TikTok version.",
+                "Nilai yang dimuat ini untuk versi TikTok yang berbeda.");
         table.put("These notes are in English.",
                 "Catatan ini dalam bahasa Inggris.");
         table.put("This LIVE's stream can't be saved",
@@ -4235,11 +4237,11 @@ final class L10nTranslationsIn {
                 "TikTok menolak permintaan mengikuti dengan kode %1$s");
         table.put("TikTok refused the follow with code %1$s. A hidden CAPTCHA may be the cause.",
                 "TikTok menolak permintaan mengikuti dengan kode %1$s. CAPTCHA yang disembunyikan bisa jadi penyebabnya.");
-        table.put("TikTok refused the follow: %1$s",
-                "TikTok menolak permintaan mengikuti: %1$s");
     }
 
     private static void fill34(Map<String, String> table) {
+        table.put("TikTok refused the follow: %1$s",
+                "TikTok menolak permintaan mengikuti: %1$s");
         table.put("TikTok refused the follow: %1$s A hidden CAPTCHA may be the cause.",
                 "TikTok menolak permintaan mengikuti: %1$s CAPTCHA yang disembunyikan bisa jadi penyebabnya.");
         table.put("TikTok refused this request (%1$s).",
@@ -4358,11 +4360,11 @@ final class L10nTranslationsIn {
                 "Matikan transisi layar");
         table.put("Turn off swipe to reply",
                 "Matikan geser untuk membalas");
-        table.put("Turn off the timer (TikTok closes at %1$s)",
-                "Matikan pengatur waktu (TikTok tutup pukul %1$s)");
     }
 
     private static void fill35(Map<String, String> table) {
+        table.put("Turn off the timer (TikTok closes at %1$s)",
+                "Matikan pengatur waktu (TikTok tutup pukul %1$s)");
         table.put("Turn on %1$s first.",
                 "Nyalakan %1$s dulu.");
         table.put("Turn on Keep a streak going first",
@@ -4481,11 +4483,11 @@ final class L10nTranslationsIn {
                 "Pakai {creator}, {date}, {video_id}, dan {index} untuk menyusun nama. {index} menomori foto slideshow yang disimpan dengan Unduh foto asli. Tombol simpan bawaan TikTok menomori file berdasarkan folder. Ekstensi file ditambahkan otomatis.");
         table.put("Use {date} and {media_id} to build the name. Works for image and video stickers.",
                 "Pakai {date} dan {media_id} untuk menyusun nama. Berlaku untuk stiker gambar dan video.");
-        table.put("User ID copied",
-                "ID pengguna disalin");
     }
 
     private static void fill36(Map<String, String> table) {
+        table.put("User ID copied",
+                "ID pengguna disalin");
         table.put("Username copied",
                 "Nama pengguna disalin");
         table.put("Username last changed",
@@ -4548,6 +4550,8 @@ final class L10nTranslationsIn {
                 "Pencarian visual");
         table.put("Volume",
                 "Volume");
+        table.put("Voted down",
+                "Tidak disukai");
         table.put("Wait a day to loosen the budget",
                 "Tunggu sehari untuk melonggarkan anggaran");
         table.put("Wait a day to loosen the budget is on, so Metra stays on",
@@ -4602,13 +4606,13 @@ final class L10nTranslationsIn {
                 "Saat anggaran habis, video di layar diputar sampai selesai sebelum penahanan dimulai, dan kamu tidak bisa menggeser ke video lain selama itu. Jika peredupan sudah meredupkan feed, penahanan langsung dimulai. Perlu penahanan. Menunggu paling lama %1$d menit.");
         table.put("When the video without the watermark can't be fetched, save TikTok's own watermarked copy instead and say so. It's the size TikTok's own save uses, so it may be smaller than the quality you picked.",
                 "Jika video tanpa tanda air tidak bisa diambil, simpan salinan bertanda air milik TikTok sebagai gantinya dan beri tahu. Ukurannya sama dengan yang dipakai penyimpanan TikTok sendiri, jadi bisa lebih kecil dari kualitas yang kamu pilih.");
+    }
+
+    private static void fill37(Map<String, String> table) {
         table.put("When to send",
                 "Kapan dikirim");
         table.put("When you leave TikTok while a video plays, it keeps playing in a small window over your other apps, with a button to pause it. Works in the feed and on videos you open from a profile, search or a sound. Needs Android 8 or later.",
                 "Saat Anda meninggalkan TikTok ketika video sedang diputar, video tetap diputar di jendela kecil di atas aplikasi lain, dengan tombol untuk menjedanya. Berfungsi di feed dan pada video yang Anda buka dari profil, pencarian, atau suara. Memerlukan Android 8 atau yang lebih baru.");
-    }
-
-    private static void fill37(Map<String, String> table) {
         table.put("When you open TikTok from its icon, the first video in the feed waits for one tap before it plays. A link, a notification or a shortcut opens as usual.",
                 "Saat kamu membuka TikTok dari ikonnya, video pertama di feed menunggu satu ketukan sebelum diputar. Tautan, notifikasi, atau pintasan tetap terbuka seperti biasa.");
         table.put("While Clear display is on, also hide the progress bar, the close button and the pause and speed buttons at the bottom. You can still drag along the bottom edge to move through the video. To leave Clear display, press and hold the video and tap Restore display, or pinch the screen.",

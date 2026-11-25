@@ -305,15 +305,24 @@ public final class SharedDb {
         return prefs == null || serverId == null ? 0 : prefs.getInt(KEY_VOTE + serverId, 0);
     }
 
+    /** Only someone else's segment from the base can be voted on. */
+    static boolean canVote(String serverId) {
+        return serverId != null && serverId.startsWith(SHARED_PREFIX) && AdSegmentStore.isOthers(serverId);
+    }
+
     /**
      * Votes once per segment. The same vote again does nothing; the other one replaces it, on the
-     * server too, so a segment never carries two votes from one account.
+     * server too, so a segment never carries two votes from one account. 0 takes the vote back.
+     * A segment voted down is no longer skipped for this reader until the vote is taken back.
      */
     static boolean vote(String serverId, int vote) {
-        if (serverId == null || !serverId.startsWith(SHARED_PREFIX) || myVote(serverId) == vote) return false;
+        int previous = myVote(serverId);
+        if (!canVote(serverId) || previous == vote) return false;
         SharedPreferences prefs = AdSkipPrefs.get();
         if (prefs == null) return false;
-        prefs.edit().putInt(KEY_VOTE + serverId, vote).apply();
+        if (vote == 0) prefs.edit().remove(KEY_VOTE + serverId).apply();
+        else prefs.edit().putInt(KEY_VOTE + serverId, vote).apply();
+        if (vote < 0 || previous < 0) AdSegmentStore.votesChanged();
         String remoteId = uuid(serverId.substring(SHARED_PREFIX.length()));
         Utils.runOnOwnThread("metra-adskip-vote", () -> {
             try {

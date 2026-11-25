@@ -15,7 +15,7 @@ final class L10nTranslationsZh_Hans {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4554);
+        Map<String, String> table = new HashMap<>(4558);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -4110,13 +4110,15 @@ final class L10nTranslationsZh_Hans {
                 "屏幕上没有可截取帧的视频");
         table.put("There's too little sound here to recognise. Choose a louder part.",
                 "这里的声音太少，无法识别。请选择更响的部分。");
+        table.put("These ads are not skipped for you. Tap Undo if you voted by mistake.",
+                "这些广告不会为你跳过。如果点错了，请点按撤消。");
         table.put("These are posts saved by your signed-in account. Other Favorites categories aren't included.",
                 "这些是当前登录账户保存的帖子。不包括其他收藏夹分类。");
-        table.put("These loaded values are for a different TikTok version.",
-                "这些已加载数值属于另一个 TikTok 版本。");
     }
 
     private static void fill33(Map<String, String> table) {
+        table.put("These loaded values are for a different TikTok version.",
+                "这些已加载数值属于另一个 TikTok 版本。");
         table.put("These notes are in English.",
                 "这些注释是英文的。");
         table.put("This LIVE's stream can't be saved",
@@ -4235,11 +4237,11 @@ final class L10nTranslationsZh_Hans {
                 "TikTok 拒绝了关注（代码 %1$s）");
         table.put("TikTok refused the follow with code %1$s. A hidden CAPTCHA may be the cause.",
                 "TikTok 拒绝了关注（代码 %1$s）。原因可能是隐藏的验证码。");
-        table.put("TikTok refused the follow: %1$s",
-                "TikTok 拒绝了关注：%1$s");
     }
 
     private static void fill34(Map<String, String> table) {
+        table.put("TikTok refused the follow: %1$s",
+                "TikTok 拒绝了关注：%1$s");
         table.put("TikTok refused the follow: %1$s A hidden CAPTCHA may be the cause.",
                 "TikTok 拒绝了关注：%1$s 原因可能是隐藏的验证码。");
         table.put("TikTok refused this request (%1$s).",
@@ -4358,11 +4360,11 @@ final class L10nTranslationsZh_Hans {
                 "关闭屏幕过渡");
         table.put("Turn off swipe to reply",
                 "关闭滑动回复");
-        table.put("Turn off the timer (TikTok closes at %1$s)",
-                "关闭计时器（TikTok 在 %1$s 关闭）");
     }
 
     private static void fill35(Map<String, String> table) {
+        table.put("Turn off the timer (TikTok closes at %1$s)",
+                "关闭计时器（TikTok 在 %1$s 关闭）");
         table.put("Turn on %1$s first.",
                 "请先开启 %1$s。");
         table.put("Turn on Keep a streak going first",
@@ -4481,11 +4483,11 @@ final class L10nTranslationsZh_Hans {
                 "用 {creator}、{date}、{video_id} 和 {index} 组合文件名。{index} 给用“下载原始照片”保存的图集照片编号。TikTok 自己的保存按钮按文件夹编号。扩展名会自动添加。");
         table.put("Use {date} and {media_id} to build the name. Works for image and video stickers.",
                 "用 {date} 和 {media_id} 组合文件名。适用于图片和视频贴纸。");
-        table.put("User ID copied",
-                "已复制用户 ID");
     }
 
     private static void fill36(Map<String, String> table) {
+        table.put("User ID copied",
+                "已复制用户 ID");
         table.put("Username copied",
                 "用户名已复制");
         table.put("Username last changed",
@@ -4548,6 +4550,8 @@ final class L10nTranslationsZh_Hans {
                 "视觉搜索");
         table.put("Volume",
                 "音量");
+        table.put("Voted down",
+                "已点踩");
         table.put("Wait a day to loosen the budget",
                 "等一天再放宽预算");
         table.put("Wait a day to loosen the budget is on, so Metra stays on",
@@ -4602,13 +4606,13 @@ final class L10nTranslationsZh_Hans {
                 "预算用完时，屏幕上的视频先播完再开始锁定，期间无法滑动到其他视频。如果淡出已让信息流变暗，锁定立即开始。需要开启锁定。最多等待 %1$d 分钟。");
         table.put("When the video without the watermark can't be fetched, save TikTok's own watermarked copy instead and say so. It's the size TikTok's own save uses, so it may be smaller than the quality you picked.",
                 "无法获取无水印视频时，保存 TikTok 自带的带水印副本并说明。它使用 TikTok 自带保存的画质，可能比你选择的画质小。");
+    }
+
+    private static void fill37(Map<String, String> table) {
         table.put("When to send",
                 "发送时间");
         table.put("When you leave TikTok while a video plays, it keeps playing in a small window over your other apps, with a button to pause it. Works in the feed and on videos you open from a profile, search or a sound. Needs Android 8 or later.",
                 "播放视频时离开 TikTok，视频会在其他应用上方的小窗口继续播放，带暂停按钮。适用于信息流和从主页、搜索或音乐打开的视频。需要 Android 8 或更高版本。");
-    }
-
-    private static void fill37(Map<String, String> table) {
         table.put("When you open TikTok from its icon, the first video in the feed waits for one tap before it plays. A link, a notification or a shortcut opens as usual.",
                 "从图标打开 TikTok 时，信息流第一个视频等你点按一次才开始播放。链接、通知或快捷方式照常打开。");
         table.put("While Clear display is on, also hide the progress bar, the close button and the pause and speed buttons at the bottom. You can still drag along the bottom edge to move through the video. To leave Clear display, press and hold the video and tap Restore display, or pinch the screen.",

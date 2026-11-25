@@ -241,6 +241,24 @@ final class AdSegmentStore {
         }
     }
 
+    /** Whether this base segment was cut by someone else, so the reader may vote on it. */
+    static boolean isOthers(String serverId) {
+        synchronized (LOCK) {
+            ensureLoaded();
+            for (AdSegment s : segments) if (serverId.equals(s.sharedServerId)) return isSharedOnly(s);
+            return false;
+        }
+    }
+
+    /** A vote down takes a segment out of matching and undoing it puts it back. */
+    static void votesChanged() {
+        synchronized (LOCK) {
+            ensureLoaded();
+            generation++;
+            index = AdMatcher.Index.build(segments);
+        }
+    }
+
     /** Came from the shared base and was never marked on this phone. */
     static boolean isSharedOnly(AdSegment s) {
         return s.sharedServerId != null && (s.sourceAid == null || s.sourceAid.equals(s.sharedServerId));

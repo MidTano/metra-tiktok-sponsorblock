@@ -72,7 +72,7 @@ final class AdMatcher {
         }
     }
 
-    /** Every enabled segment's hashes, sorted, for a binary search per query hash. */
+    /** Every enabled segment's hashes, leaving out the ones the reader voted down, sorted, for a binary search per query hash. */
     static final class Index {
         final AdSegment[] segments;
         /** hash << 32 | segment << 16 | frame. */
@@ -88,6 +88,7 @@ final class AdMatcher {
             int total = 0;
             for (AdSegment segment : all) {
                 if (!segment.enabled || segment.hashes.length == 0) continue;
+                if (SharedDb.myVote(segment.sharedServerId) < 0) continue;
                 if (used.size() >= 0xFFFF) break;
                 used.add(segment);
                 total += segment.hashes.length;
