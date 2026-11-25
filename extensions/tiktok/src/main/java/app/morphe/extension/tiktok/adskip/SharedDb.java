@@ -68,10 +68,15 @@ public final class SharedDb {
     private static final String KEY_LAST_REPORT = "skips_reported_last";
     private static final String KEY_LAST_EPOCH = "sync_as_of";
     private static final String KEY_VOTE = "vote_";
+    private static final String KEY_STATS_BASE = "stats_base";
+    private static final String KEY_STATS_MINE = "stats_mine";
+    private static final String KEY_STATS_AT = "stats_at";
     private static final String QUEUE_FILE = "metra_adskip_queue.bin";
     private static final long SYNC_INTERVAL_MS = 24 * 3600 * 1000L;
     /** The server takes two skip reports a day. */
     private static final long REPORT_INTERVAL_MS = 12 * 3600 * 1000L;
+    /** The server counts its statistics once an hour, so asking more often only costs requests. */
+    private static final long STATS_INTERVAL_MS = 3600 * 1000L;
     private static final String USER_AGENT = "Metra-AdSkip/2";
     /** Delta pages one sync reads at most; the rest arrives with the next sync. */
     private static final int MAX_DELTA_PAGES = 10;
@@ -234,6 +239,7 @@ public final class SharedDb {
                 } else if (reply.code == 200 || reply.code == 201) {
                     String id = reply.json == null ? null : reply.json.optString("id", null);
                     if (id != null) AdSegmentStore.linkShared(segment.id, SHARED_PREFIX + id.replace("-", ""));
+                    forgetStats();
                 }
                 AdSkipLog.add(segment.sourceAid, "shared base: sent, HTTP " + reply.code);
             } catch (Throwable failure) {
@@ -367,37 +373,65 @@ public final class SharedDb {
         if (reply.code == 200) AdSkipStats.reported(pending);
     }
 
-    /** The base's totals and, when signed in, what the reader's own cuts saved others. */
+    /**
+     * The base's totals and what the reader's own cuts saved others. An answer is kept for an hour,
+     * so opening the list again costs no request. /v1/me carries the totals too; a server that
+     * predates that is asked /v1/stats as well.
+     */
     @Nullable
     static Stats fetchStats() {
+        SharedPreferences prefs = AdSkipPrefs.get();
         try {
-            Stats stats = new Stats();
-            HttpURLConnection global = open(BASE_URL + "/v1/stats");
-            if (global.getResponseCode() != 200) return null;
-            JSONObject all;
-            try (InputStream in = global.getInputStream()) {
-                all = new JSONObject(new String(readAll(in, 64 * 1024), StandardCharsets.UTF_8));
+            if (prefs != null && System.currentTimeMillis() - prefs.getLong(KEY_STATS_AT, 0) < STATS_INTERVAL_MS) {
+                String kept = prefs.getString(KEY_STATS_BASE, null);
+                String keptMine = prefs.getString(KEY_STATS_MINE, null);
+                if (kept != null) return stats(new JSONObject(kept), keptMine == null ? null : new JSONObject(keptMine));
             }
-            stats.segments = all.optLong("active");
-            stats.contributors = all.optLong("contributors");
-            stats.skips = all.optLong("skips");
-            stats.savedMs = all.optLong("saved_ms");
+            JSONObject mine = null;
+            JSONObject base = null;
             HttpURLConnection me = open(BASE_URL + "/v1/me");
             if (me.getResponseCode() == 200) {
-                JSONObject mine;
-                try (InputStream in = me.getInputStream()) {
-                    mine = new JSONObject(new String(readAll(in, 64 * 1024), StandardCharsets.UTF_8));
-                }
-                stats.mine = true;
-                stats.mySegments = mine.optLong("segments");
-                stats.mySkips = mine.optLong("skips");
-                stats.mySavedMs = mine.optLong("saved_ms");
+                mine = readJson(me);
+                base = mine.optJSONObject("base");
             }
-            return stats;
+            if (base == null) {
+                HttpURLConnection global = open(BASE_URL + "/v1/stats");
+                if (global.getResponseCode() != 200) return null;
+                base = readJson(global);
+            }
+            if (prefs != null) {
+                prefs.edit()
+                        .putString(KEY_STATS_BASE, base.toString())
+                        .putString(KEY_STATS_MINE, mine == null ? null : mine.toString())
+                        .putLong(KEY_STATS_AT, System.currentTimeMillis())
+                        .apply();
+            }
+            return stats(base, mine);
         } catch (Throwable failure) {
             Logger.printDebug(() -> "Ad skip: no shared base statistics: " + failure);
             return null;
         }
+    }
+
+    private static Stats stats(JSONObject base, @Nullable JSONObject mine) {
+        Stats stats = new Stats();
+        stats.segments = base.optLong("active");
+        stats.contributors = base.optLong("contributors");
+        stats.skips = base.optLong("skips");
+        stats.savedMs = base.optLong("saved_ms");
+        if (mine != null) {
+            stats.mine = true;
+            stats.mySegments = mine.optLong("segments");
+            stats.mySkips = mine.optLong("skips");
+            stats.mySavedMs = mine.optLong("saved_ms");
+        }
+        return stats;
+    }
+
+    /** A new cut changes the reader's own figures, so the next look asks again. */
+    private static void forgetStats() {
+        SharedPreferences prefs = AdSkipPrefs.get();
+        if (prefs != null) prefs.edit().remove(KEY_STATS_AT).apply();
     }
 
     // endregion
@@ -442,6 +476,12 @@ public final class SharedDb {
             }
         }
         return new Reply(code, json);
+    }
+
+    private static JSONObject readJson(HttpURLConnection connection) throws Exception {
+        try (InputStream in = connection.getInputStream()) {
+            return new JSONObject(new String(readAll(in, 64 * 1024), StandardCharsets.UTF_8));
+        }
     }
 
     private static byte[] readAll(InputStream in, int limit) throws IOException {
