@@ -69,6 +69,44 @@ final class AdSkipStats {
         return prefs == null ? new HashMap<>() : read(prefs);
     }
 
+    /** Freeze at most 200 entries durably before sending; later skips remain independent. */
+    static synchronized String outgoingReport() throws Exception {
+        SharedPreferences prefs = prefs();
+        if (prefs == null) return null;
+        String kept = prefs.getString("stats_outgoing", null);
+        if (kept != null) {
+            // Server receipts live 30 days. Never replay an uncertain report beyond that window.
+            if (System.currentTimeMillis() - prefs.getLong("stats_outgoing_at", 0) < 7 * 86_400_000L) return kept;
+            if (!prefs.edit().remove("stats_outgoing").remove("stats_outgoing_at").commit())
+                throw new java.io.IOException("Could not expire skip report");
+        }
+        Map<String, long[]> pending = read(prefs);
+        if (pending.isEmpty()) return null;
+        org.json.JSONArray items = new org.json.JSONArray();
+        java.util.Iterator<Map.Entry<String, long[]>> iterator = pending.entrySet().iterator();
+        while (iterator.hasNext() && items.length() < 200) {
+            Map.Entry<String, long[]> entry = iterator.next();
+            String hex = entry.getKey().substring(SharedDb.SHARED_PREFIX.length());
+            String id = hex.substring(0, 8) + "-" + hex.substring(8, 12) + "-" + hex.substring(12, 16)
+                    + "-" + hex.substring(16, 20) + "-" + hex.substring(20);
+            items.put(new org.json.JSONObject().put("id", id).put("n", entry.getValue()[0]).put("ms", entry.getValue()[1]));
+            iterator.remove();
+        }
+        String body = new org.json.JSONObject().put("report_id", java.util.UUID.randomUUID().toString())
+                .put("skips", items).toString();
+        if (!prefs.edit().putString(KEY_PENDING, write(pending)).putString("stats_outgoing", body)
+                .putLong("stats_outgoing_at", System.currentTimeMillis()).commit())
+            throw new java.io.IOException("Could not persist skip report");
+        return body;
+    }
+
+    static synchronized void acknowledgeReport(String body) throws java.io.IOException {
+        SharedPreferences prefs = prefs();
+        if (prefs != null && body.equals(prefs.getString("stats_outgoing", null))
+                && !prefs.edit().remove("stats_outgoing").remove("stats_outgoing_at").commit())
+            throw new java.io.IOException("Could not acknowledge skip report");
+    }
+
     /** The server took this report; skips counted since it was read stay pending. */
     static synchronized void reported(Map<String, long[]> sent) {
         SharedPreferences prefs = prefs();

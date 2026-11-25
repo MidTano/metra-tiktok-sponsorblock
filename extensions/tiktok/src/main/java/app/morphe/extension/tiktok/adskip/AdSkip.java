@@ -84,6 +84,9 @@ public final class AdSkip {
     /** {@code PlayerController.play(Aweme, ...)}, before the engine starts. */
     public static void onPlay(Object playerController, Object aweme) {
         try {
+            // The selected patch's player hook also runs before settings have been opened.
+            SettingsStatus.enableAdSkip();
+            SharedDb.syncIfDue();
             if (aweme == null) return;
             String aid = Reflect.string(aweme, "getAid", "aid");
             if (aid == null) return;

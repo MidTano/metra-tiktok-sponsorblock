@@ -162,7 +162,7 @@ final class AdSegmentList {
                 new LinearLayout.LayoutParams(0, -2, 1f));
         box.addView(tiles);
 
-        if (!app.morphe.extension.tiktok.settings.Settings.AD_SKIP_SHARED_DB.get()) return box;
+        if (!SharedDb.enabled()) return box;
 
         View divider = new View(c);
         divider.setBackgroundColor(AdSkipUi.SURFACE_HI);

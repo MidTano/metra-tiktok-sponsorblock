@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.Utils;
 import app.morphe.extension.tiktok.settings.Settings;
+import app.morphe.extension.tiktok.settings.SettingsStatus;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -20,7 +21,6 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,10 +73,9 @@ public final class SharedDb {
     private static final String KEY_STATS_AT = "stats_at";
     private static final String QUEUE_FILE = "metra_adskip_queue.bin";
     private static final long SYNC_INTERVAL_MS = 24 * 3600 * 1000L;
-    /** The server takes two skip reports a day. */
-    private static final long REPORT_INTERVAL_MS = 12 * 3600 * 1000L;
-    /** The server counts its statistics once an hour, so asking more often only costs requests. */
-    private static final long STATS_INTERVAL_MS = 3600 * 1000L;
+    /** Background traffic is deliberately limited to one attempt per day. */
+    private static final long REPORT_INTERVAL_MS = SYNC_INTERVAL_MS;
+    private static final long STATS_INTERVAL_MS = SYNC_INTERVAL_MS;
     private static final String USER_AGENT = "Metra-AdSkip/2";
     /** Delta pages one sync reads at most; the rest arrives with the next sync. */
     private static final int MAX_DELTA_PAGES = 10;
@@ -89,6 +88,20 @@ public final class SharedDb {
     private static final int MAX_FRAMES = 30 * Landmarks.FRAMES_PER_SECOND + TIME_SLACK;
 
     private static volatile boolean syncing;
+    private static final String KEY_ATTEMPT = "sync_attempt";
+    private static final String KEY_STATS_ATTEMPT = "stats_attempt";
+    private static final String KEY_PENDING_VOTE = "pending_vote_";
+    private static final long RETRY_INTERVAL_MS = SYNC_INTERVAL_MS;
+    private static final Object QUEUE_LOCK = new Object();
+    private static final Object QUEUE_SEND_LOCK = new Object();
+    private static final Object VOTE_SEND_LOCK = new Object();
+    private static final Object STATS_LOCK = new Object();
+
+    interface ConnectionFactory {
+        HttpURLConnection open(String endpoint) throws IOException;
+    }
+    // Package-private transport seam: tests never contact the live service.
+    static ConnectionFactory connectionFactory = endpoint -> (HttpURLConnection) new URL(endpoint).openConnection();
 
     private SharedDb() {}
 
@@ -106,25 +119,39 @@ public final class SharedDb {
 
     // region sync
 
-    /** Syncs in the background once a day and reports skips twice a day. Safe to call on every feed open. */
-    public static void syncIfDue() {
-        if (!Settings.AD_SKIP_SHARED_DB.get() || syncing) return;
+    /** Whether the patch is in, skipping is on and the shared base is on: nothing goes to the server otherwise. */
+    static boolean enabled() {
+        return SettingsStatus.adSkipEnabled && Settings.AD_SKIP.get() && Settings.AD_SKIP_SHARED_DB.get();
+    }
+
+    /** Syncs in the background once a day, including queued votes and skip reports. Safe to call on every feed open. */
+    public static synchronized void syncIfDue() {
+        if (!enabled() || syncing) return;
         Context context = Utils.getContext();
         SharedPreferences prefs = AdSkipPrefs.get();
         if (context == null || prefs == null) return;
         long now = System.currentTimeMillis();
+        // Every video start lands here: the cheap daily gate comes before any file or prefs scan.
+        if (now - prefs.getLong(KEY_ATTEMPT, 0) < RETRY_INTERVAL_MS) return;
         boolean syncDue = now - prefs.getLong(KEY_LAST_SYNC, 0) >= SYNC_INTERVAL_MS;
         boolean reportDue = now - prefs.getLong(KEY_LAST_REPORT, 0) >= REPORT_INTERVAL_MS;
-        if (!syncDue && !reportDue) return;
+        boolean votesDue = prefs.getAll().keySet().stream().anyMatch(key -> key.startsWith(KEY_PENDING_VOTE));
+        File queued = new File(context.getFilesDir(), QUEUE_FILE);
+        boolean queueDue = queued.length() > 0 || new File(queued.getPath() + ".bak").exists();
+        if (!syncDue && !reportDue && !votesDue && !queueDue) return;
+        prefs.edit().putLong(KEY_ATTEMPT, now).apply();
         syncing = true;
         Utils.runOnOwnThread("metra-adskip-sync", () -> {
             try {
                 if (syncDue) {
-                    download(prefs);
-                    flushQueue(context);
+                    try { download(prefs); }
+                    catch (IOException failure) { Logger.printException(() -> "Ad skip: download failed", failure); }
                 }
-                if (reportDue) {
-                    reportSkips();
+                try { flushQueue(context); }
+                catch (IOException failure) { Logger.printException(() -> "Ad skip: queue upload failed", failure); }
+                try { flushVotes(); }
+                catch (Exception failure) { Logger.printException(() -> "Ad skip: vote upload failed", failure); }
+                if (reportDue && reportSkips()) {
                     prefs.edit().putLong(KEY_LAST_REPORT, System.currentTimeMillis()).apply();
                 }
             } catch (Throwable failure) {
@@ -140,7 +167,9 @@ public final class SharedDb {
         boolean more = true;
         for (int page = 0; more && page < MAX_DELTA_PAGES; page++) {
             long since = prefs.getLong(KEY_LAST_EPOCH, 0);
-            String endpoint = since > 0 ? BASE_URL + "/v1/db/since?t=" + since : BASE_URL + "/v1/db.bin";
+            String cursor = prefs.getString("sync_cursor", "");
+            String endpoint = since > 0 ? BASE_URL + "/v1/db/since?t=" + since
+                    + (cursor.isEmpty() ? "" : "&after=" + cursor) : BASE_URL + "/v1/db.bin";
             HttpURLConnection connection = open(endpoint);
             int code = connection.getResponseCode();
             if (code != 200) throw new IOException("HTTP " + code + " from " + endpoint);
@@ -150,28 +179,42 @@ public final class SharedDb {
             } catch (Exception missing) {
                 asOf = System.currentTimeMillis() / 1000L - 86_400L;
             }
-            more = since > 0 && "1".equals(connection.getHeaderField("X-Db-More")) && asOf > since;
+            String nextCursor = connection.getHeaderField("X-Db-Cursor");
+            if (nextCursor == null) nextCursor = "";
+            if (!nextCursor.isEmpty() && !nextCursor.matches("[0-9a-fA-F-]{36}"))
+                throw new IOException("Invalid database cursor");
+            more = since > 0 && "1".equals(connection.getHeaderField("X-Db-More"));
+            if (more && (asOf < since || (asOf == since && nextCursor.compareTo(cursor) <= 0)))
+                throw new IOException("Database cursor did not advance");
             byte[] data;
             try (InputStream in = connection.getInputStream()) {
                 data = readAll(in, MAX_DB_BYTES);
             }
             added += merge(data);
-            prefs.edit().putLong(KEY_LAST_EPOCH, asOf).apply();
+            long replay = prefs.getLong("sync_replay", asOf);
+            long nextEpoch = !more && since > 0 && (prefs.contains("sync_replay") || !cursor.isEmpty())
+                    ? Math.min(asOf, replay - replay % 3600) : asOf;
+            SharedPreferences.Editor progress = prefs.edit().putLong(KEY_LAST_EPOCH, nextEpoch)
+                    .putString("sync_cursor", more ? nextCursor : "");
+            if (more) progress.putLong("sync_replay", replay);
+            else progress.remove("sync_replay");
+            progress.apply();
         }
         prefs.edit().putLong(KEY_LAST_SYNC, System.currentTimeMillis()).apply();
         AdSkipLog.add(null, "shared base: " + added + " new segments");
     }
 
-    private static int merge(byte[] data) {
-        if (data.length < 12) return 0;
+    private static int merge(byte[] data) throws IOException {
+        if (data.length < 12) throw new IOException("Truncated shared database");
         ByteBuffer buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
-        if (buf.getInt() != MAGIC) return 0;
+        if (buf.getInt() != MAGIC) throw new IOException("Invalid shared database magic");
         int version = buf.getInt();
-        if (version != 1 && version != 2) return 0;
+        if (version != 1 && version != 2) throw new IOException("Unsupported shared database version");
         int count = buf.getInt();
+        if (count < 0) throw new IOException("Invalid shared database count");
         List<AdSegmentStore.Shared> entries = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            if (buf.remaining() < (version == 2 ? 40 : 28)) break;
+            if (buf.remaining() < (version == 2 ? 40 : 28)) throw new IOException("Truncated shared database row");
             byte[] id = new byte[16];
             buf.get(id);
             int number = version == 2 ? buf.getInt() : 0;
@@ -180,7 +223,7 @@ public final class SharedDb {
             int durationMs = buf.getInt();
             int score = buf.getInt();
             int hashCount = buf.getInt();
-            if (hashCount < 0 || buf.remaining() < hashCount * 8L) break;
+            if (hashCount < 0 || buf.remaining() < hashCount * 8L) throw new IOException("Truncated shared database hashes");
             if (hashCount > MAX_HASHES) {
                 buf.position(buf.position() + hashCount * 8);
                 continue;
@@ -224,6 +267,7 @@ public final class SharedDb {
      * queue on the phone, and works locally meanwhile.
      */
     public static void submit(Context context, AdSegment segment) {
+        if (!enabled()) return;
         byte[] body;
         try {
             body = payload(segment);
@@ -231,63 +275,121 @@ public final class SharedDb {
             Logger.printException(() -> "Ad skip: could not encode a segment for the shared base", failure);
             return;
         }
+        // Persist before starting a request so process termination cannot lose the submission.
+        enqueue(context, body);
         Utils.runOnOwnThread("metra-adskip-submit", () -> {
-            try {
-                Reply reply = post("/v1/segments", body);
-                if (reply.code == 202 || reply.code == 401 || reply.code == 429 || reply.code >= 500) {
-                    enqueue(context, body);
-                } else if (reply.code == 200 || reply.code == 201) {
-                    String id = reply.json == null ? null : reply.json.optString("id", null);
-                    if (id != null) AdSegmentStore.linkShared(segment.id, SHARED_PREFIX + id.replace("-", ""));
-                    forgetStats();
+            synchronized (QUEUE_SEND_LOCK) {
+                try {
+                    synchronized (QUEUE_LOCK) {
+                        if (readQueue(context).stream().noneMatch(entry -> java.util.Arrays.equals(entry, body))) return;
+                    }
+                    Reply reply = post("/v1/segments", body);
+                    if (!retryable(reply.code)) {
+                        synchronized (QUEUE_LOCK) {
+                            List<byte[]> entries = readQueue(context);
+                            for (int i = 0; i < entries.size(); i++) {
+                                if (java.util.Arrays.equals(entries.get(i), body)) { entries.remove(i); break; }
+                            }
+                            writeQueue(context, entries);
+                        }
+                    }
+                    if (reply.code == 200 || reply.code == 201) {
+                        String id = reply.json == null ? null : reply.json.optString("id", null);
+                        if (id != null) AdSegmentStore.linkShared(segment.id, SHARED_PREFIX + id.replace("-", ""));
+                        // Server statistics stay cached until the next daily refresh.
+                    }
+                    AdSkipLog.add(segment.sourceAid, "shared base: sent, HTTP " + reply.code);
+                } catch (Throwable failure) {
+                    Logger.printException(() -> "Ad skip: could not send a segment", failure);
                 }
-                AdSkipLog.add(segment.sourceAid, "shared base: sent, HTTP " + reply.code);
-            } catch (Throwable failure) {
-                Logger.printException(() -> "Ad skip: could not send a segment", failure);
-                enqueue(context, body);
             }
         });
     }
 
     private static void enqueue(Context context, byte[] payload) {
-        synchronized (SharedDb.class) {
-            try (DataOutputStream out = new DataOutputStream(
-                    new FileOutputStream(new File(context.getFilesDir(), QUEUE_FILE), true))) {
-                out.writeInt(payload.length);
-                out.write(payload);
+        synchronized (QUEUE_LOCK) {
+            try {
+                List<byte[]> entries = readQueue(context);
+                entries.add(payload);
+                writeQueue(context, entries);
             } catch (IOException failure) {
                 Logger.printException(() -> "Ad skip: could not queue a segment", failure);
             }
         }
     }
 
-    private static void flushQueue(Context context) throws IOException {
+    private static android.util.AtomicFile queueFile(Context context) {
+        return new android.util.AtomicFile(new File(context.getFilesDir(), QUEUE_FILE));
+    }
+
+    private static List<byte[]> readQueue(Context context) throws IOException {
         List<byte[]> entries = new ArrayList<>();
-        synchronized (SharedDb.class) {
-            File file = new File(context.getFilesDir(), QUEUE_FILE);
-            if (!file.exists()) return;
-            byte[] data;
-            try (InputStream in = new FileInputStream(file)) {
-                data = readAll(in, Integer.MAX_VALUE);
-            }
-            ByteBuffer buf = ByteBuffer.wrap(data);
-            while (buf.remaining() >= 4) {
-                int length = buf.getInt();
-                if (length <= 0 || length > buf.remaining()) break;
-                byte[] entry = new byte[length];
-                buf.get(entry);
-                entries.add(entry);
-            }
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
+        byte[] data;
+        try (InputStream in = queueFile(context).openRead()) {
+            data = readAll(in, MAX_DB_BYTES);
+        } catch (java.io.FileNotFoundException absent) {
+            return entries;
         }
-        int sent = 0;
-        for (byte[] entry : entries) {
+        ByteBuffer buf = ByteBuffer.wrap(data);
+        while (buf.hasRemaining()) {
+            if (buf.remaining() < 4) throw new IOException("Truncated segment queue");
+            int length = buf.getInt();
+            if (length <= 0 || length > buf.remaining()) throw new IOException("Bad segment queue entry");
+            byte[] entry = new byte[length];
+            buf.get(entry);
+            entries.add(entry);
+        }
+        return entries;
+    }
+
+    private static void writeQueue(Context context, List<byte[]> entries) throws IOException {
+        long bytes = 0;
+        for (byte[] entry : entries) bytes += 4L + entry.length;
+        if (bytes > MAX_DB_BYTES) throw new IOException("Segment queue is full; segment remains local");
+        android.util.AtomicFile file = queueFile(context);
+        FileOutputStream stream = file.startWrite();
+        try {
+            DataOutputStream out = new DataOutputStream(stream);
+            for (byte[] entry : entries) {
+                out.writeInt(entry.length);
+                out.write(entry);
+            }
+            out.flush();
+            file.finishWrite(stream);
+        } catch (IOException failure) {
+            file.failWrite(stream);
+            throw failure;
+        }
+    }
+
+    private static boolean retryable(int code) {
+        return code == 202 || code == 401 || code == 429 || code >= 500;
+    }
+
+    // Only the sync worker drains the queue. The entry stays durable until acknowledged;
+    // an interrupted request may be replayed, which the server deduplicates by fingerprint.
+    private static void flushQueue(Context context) throws IOException {
+        synchronized (QUEUE_SEND_LOCK) {
+            flushQueueLocked(context);
+        }
+    }
+
+    private static void flushQueueLocked(Context context) throws IOException {
+        for (int sent = 0; sent < 20; sent++) {
+            byte[] entry;
+            synchronized (QUEUE_LOCK) {
+                List<byte[]> entries = readQueue(context);
+                if (entries.isEmpty()) return;
+                entry = entries.get(0);
+            }
             Reply reply = post("/v1/segments", entry);
-            if (reply.code == 200 || reply.code == 201) sent++;
-            else if (reply.code == 202 || reply.code == 401 || reply.code == 429 || reply.code >= 500) enqueue(context, entry);
+            if (retryable(reply.code)) return; // Do not hammer a daily or burst limit.
+            synchronized (QUEUE_LOCK) {
+                List<byte[]> entries = readQueue(context);
+                entries.remove(0); // Enqueues can only append while this request is in flight.
+                writeQueue(context, entries);
+            }
         }
-        AdSkipLog.add(null, "shared base: sent " + sent + " of " + entries.size() + " queued");
     }
 
     private static byte[] payload(AdSegment segment) {
@@ -333,24 +435,44 @@ public final class SharedDb {
      * A segment voted down is no longer skipped for this reader until the vote is taken back.
      */
     static boolean vote(String serverId, int vote) {
-        int previous = myVote(serverId);
-        if (!canVote(serverId) || previous == vote) return false;
+        if (vote < -1 || vote > 1 || !canVote(serverId)) return false;
         SharedPreferences prefs = AdSkipPrefs.get();
         if (prefs == null) return false;
-        if (vote == 0) prefs.edit().remove(KEY_VOTE + serverId).apply();
-        else prefs.edit().putInt(KEY_VOTE + serverId, vote).apply();
-        if (vote < 0 || previous < 0) AdSegmentStore.votesChanged();
-        String remoteId = uuid(serverId.substring(SHARED_PREFIX.length()));
-        Utils.runOnOwnThread("metra-adskip-vote", () -> {
-            try {
-                byte[] body = new JSONObject().put("vote", vote).toString().getBytes(StandardCharsets.UTF_8);
-                Reply reply = post("/v1/segments/" + remoteId + "/vote", body);
-                AdSkipLog.add(null, "shared base: vote " + vote + ", HTTP " + reply.code);
-            } catch (Throwable failure) {
-                Logger.printException(() -> "Ad skip: could not send a vote", failure);
-            }
-        });
+        synchronized (prefs) {
+            int previous = myVote(serverId);
+            if (previous == vote) return false;
+            // Keep the local effect even offline or with sharing off. Zero is also queued:
+            // taking back a down-vote must eventually reach the server.
+            prefs.edit().putInt(KEY_VOTE + serverId, vote)
+                    .putInt(KEY_PENDING_VOTE + serverId, vote).apply();
+            if (vote < 0 || previous < 0) AdSegmentStore.votesChanged();
+        }
+        // Only the daily sync sends the latest choice; local down-votes apply immediately.
         return true;
+    }
+
+    private static void flushVotes() throws Exception {
+        synchronized (VOTE_SEND_LOCK) {
+            SharedPreferences prefs = AdSkipPrefs.get();
+            if (prefs == null || !enabled()) return;
+            for (String key : prefs.getAll().keySet()) {
+                if (!key.startsWith(KEY_PENDING_VOTE)) continue;
+                int value;
+                synchronized (prefs) {
+                    if (!prefs.contains(key)) continue;
+                    value = prefs.getInt(key, 0);
+                }
+                String id = key.substring(KEY_PENDING_VOTE.length());
+                String remoteId = uuid(id.substring(SHARED_PREFIX.length()));
+                Reply reply = post("/v1/segments/" + remoteId + "/vote",
+                        new JSONObject().put("vote", value).toString().getBytes(StandardCharsets.UTF_8));
+                if (retryable(reply.code)) return;
+                synchronized (prefs) {
+                    // Do not acknowledge a newer choice made while the request was in flight.
+                    if (prefs.getInt(key, 2) == value) prefs.edit().remove(key).apply();
+                }
+            }
+        }
     }
 
     // endregion
@@ -358,34 +480,40 @@ public final class SharedDb {
     // region statistics
 
     /** Sends how often each shared segment was skipped here since the last report. */
-    private static void reportSkips() throws Exception {
-        Map<String, long[]> pending = AdSkipStats.pendingReport();
-        if (pending.isEmpty()) return;
-        JSONArray items = new JSONArray();
-        for (Map.Entry<String, long[]> entry : pending.entrySet()) {
-            items.put(new JSONObject()
-                    .put("id", uuid(entry.getKey().substring(SHARED_PREFIX.length())))
-                    .put("n", entry.getValue()[0])
-                    .put("ms", entry.getValue()[1]));
-        }
-        byte[] body = new JSONObject().put("skips", items).toString().getBytes(StandardCharsets.UTF_8);
-        Reply reply = post("/v1/skips", body);
-        if (reply.code == 200) AdSkipStats.reported(pending);
+    private static boolean reportSkips() throws Exception {
+        String body = AdSkipStats.outgoingReport();
+        if (body == null) return true;
+        Reply reply = post("/v1/skips", body.getBytes(StandardCharsets.UTF_8));
+        if (reply.code == 200) AdSkipStats.acknowledgeReport(body);
+        return reply.code == 200;
     }
 
     /**
-     * The base's totals and what the reader's own cuts saved others. An answer is kept for an hour,
+     * The base's totals and what the reader's own cuts saved others. An answer is kept for a day,
      * so opening the list again costs no request. /v1/me carries the totals too; a server that
      * predates that is asked /v1/stats as well.
      */
     @Nullable
     static Stats fetchStats() {
+        synchronized (STATS_LOCK) {
+            return fetchStatsLocked();
+        }
+    }
+
+    @Nullable
+    private static Stats fetchStatsLocked() {
+        if (!enabled()) return null;
         SharedPreferences prefs = AdSkipPrefs.get();
         try {
             if (prefs != null && System.currentTimeMillis() - prefs.getLong(KEY_STATS_AT, 0) < STATS_INTERVAL_MS) {
                 String kept = prefs.getString(KEY_STATS_BASE, null);
                 String keptMine = prefs.getString(KEY_STATS_MINE, null);
                 if (kept != null) return stats(new JSONObject(kept), keptMine == null ? null : new JSONObject(keptMine));
+            }
+            long now = System.currentTimeMillis();
+            if (prefs != null) {
+                if (now - prefs.getLong(KEY_STATS_ATTEMPT, 0) < RETRY_INTERVAL_MS) return cachedStats(prefs);
+                prefs.edit().putLong(KEY_STATS_ATTEMPT, now).apply();
             }
             JSONObject mine = null;
             JSONObject base = null;
@@ -396,7 +524,7 @@ public final class SharedDb {
             }
             if (base == null) {
                 HttpURLConnection global = open(BASE_URL + "/v1/stats");
-                if (global.getResponseCode() != 200) return null;
+                if (global.getResponseCode() != 200) return cachedStats(prefs);
                 base = readJson(global);
             }
             if (prefs != null) {
@@ -409,6 +537,18 @@ public final class SharedDb {
             return stats(base, mine);
         } catch (Throwable failure) {
             Logger.printDebug(() -> "Ad skip: no shared base statistics: " + failure);
+            return cachedStats(prefs);
+        }
+    }
+
+    @Nullable
+    private static Stats cachedStats(@Nullable SharedPreferences prefs) {
+        if (prefs == null) return null;
+        try {
+            String base = prefs.getString(KEY_STATS_BASE, null);
+            String mine = prefs.getString(KEY_STATS_MINE, null);
+            return base == null ? null : stats(new JSONObject(base), mine == null ? null : new JSONObject(mine));
+        } catch (Exception invalid) {
             return null;
         }
     }
@@ -428,12 +568,6 @@ public final class SharedDb {
         return stats;
     }
 
-    /** A new cut changes the reader's own figures, so the next look asks again. */
-    private static void forgetStats() {
-        SharedPreferences prefs = AdSkipPrefs.get();
-        if (prefs != null) prefs.edit().remove(KEY_STATS_AT).apply();
-    }
-
     // endregion
 
     // region http
@@ -450,9 +584,10 @@ public final class SharedDb {
     }
 
     private static HttpURLConnection open(String endpoint) throws IOException {
+        if (!enabled()) throw new IOException("Shared base is disabled");
         String token = AdSkipPrefs.token();
         if (token == null) throw new IOException("No sync token yet");
-        HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
+        HttpURLConnection connection = connectionFactory.open(endpoint);
         connection.setConnectTimeout(15_000);
         connection.setReadTimeout(30_000);
         connection.setRequestProperty("User-Agent", USER_AGENT);
