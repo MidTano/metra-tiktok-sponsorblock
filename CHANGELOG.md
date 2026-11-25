@@ -1,3 +1,16 @@
+## [0.12.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.1...v0.12.2) (2026-11-25)
+
+
+### Performance Improvements
+
+* **tiktok:** talk to the shared ad base once a day ([81eb038](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/81eb038aff27e025770e79931a28289f42101571))
+
+
+
+
+
+## 0.12.2
+
 ## [0.12.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.0...v0.12.1) (2026-11-25)
 
 
