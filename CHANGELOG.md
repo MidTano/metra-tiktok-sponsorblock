@@ -1,3 +1,16 @@
+## [0.12.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.0...v0.12.1) (2026-11-25)
+
+
+### Performance Improvements
+
+* **tiktok:** keep the ad skip statistics for an hour and fetch them in one request ([90ec1ec](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/90ec1ecaa90f13792ac9b8e71aac36111dbecb85))
+
+
+
+
+
+## 0.12.1
+
 # [0.12.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.11.1...v0.12.0) (2026-11-25)
 
 
