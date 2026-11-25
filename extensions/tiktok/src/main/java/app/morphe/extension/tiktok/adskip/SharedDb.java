@@ -65,10 +65,13 @@ public final class SharedDb {
 
     private static final int MAGIC = 0x4244414D;
     private static final String KEY_LAST_SYNC = "sync_last";
+    private static final String KEY_LAST_REPORT = "skips_reported_last";
     private static final String KEY_LAST_EPOCH = "sync_as_of";
     private static final String KEY_VOTE = "vote_";
     private static final String QUEUE_FILE = "metra_adskip_queue.bin";
     private static final long SYNC_INTERVAL_MS = 24 * 3600 * 1000L;
+    /** The server takes two skip reports a day. */
+    private static final long REPORT_INTERVAL_MS = 12 * 3600 * 1000L;
     private static final String USER_AGENT = "Metra-AdSkip/2";
     /** Delta pages one sync reads at most; the rest arrives with the next sync. */
     private static final int MAX_DELTA_PAGES = 10;
@@ -98,19 +101,27 @@ public final class SharedDb {
 
     // region sync
 
-    /** Syncs in the background once a day. Safe to call on every feed open. */
+    /** Syncs in the background once a day and reports skips twice a day. Safe to call on every feed open. */
     public static void syncIfDue() {
         if (!Settings.AD_SKIP_SHARED_DB.get() || syncing) return;
         Context context = Utils.getContext();
         SharedPreferences prefs = AdSkipPrefs.get();
         if (context == null || prefs == null) return;
-        if (System.currentTimeMillis() - prefs.getLong(KEY_LAST_SYNC, 0) < SYNC_INTERVAL_MS) return;
+        long now = System.currentTimeMillis();
+        boolean syncDue = now - prefs.getLong(KEY_LAST_SYNC, 0) >= SYNC_INTERVAL_MS;
+        boolean reportDue = now - prefs.getLong(KEY_LAST_REPORT, 0) >= REPORT_INTERVAL_MS;
+        if (!syncDue && !reportDue) return;
         syncing = true;
         Utils.runOnOwnThread("metra-adskip-sync", () -> {
             try {
-                download(prefs);
-                flushQueue(context);
-                reportSkips();
+                if (syncDue) {
+                    download(prefs);
+                    flushQueue(context);
+                }
+                if (reportDue) {
+                    reportSkips();
+                    prefs.edit().putLong(KEY_LAST_REPORT, System.currentTimeMillis()).apply();
+                }
             } catch (Throwable failure) {
                 Logger.printException(() -> "Ad skip: shared base sync failed", failure);
             } finally {
