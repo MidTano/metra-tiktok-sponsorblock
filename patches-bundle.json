@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-24T22:55:18",
-  "description": "## [0.11.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.11.0...v0.11.1) (2026-11-24)\n\n\n### Bug Fixes\n\n* **tiktok:** hide Save traffic (beta) and switch it off for everyone until it is reliable ([f396c55](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/f396c55ccbf715c67cf1b2536eb64fc38293ed49))\n\n\n\n\n\n## 0.11.1",
-  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.11.1/patches-0.11.1.mpp",
+  "created_at": "2026-11-25T00:17:48",
+  "description": "# [0.12.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.11.1...v0.12.0) (2026-11-25)\n\n\n### Features\n\n* **tiktok:** no votes on your own ads, a voted-down ad is no longer skipped, and Undo for it in the list ([2906401](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/2906401c978803b87d811f6a6c0b32b97ea68fda))\n* **tiktok:** report skip counts twice a day ([52cc908](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/52cc908eb4512d8273cc2f76ade78e5f7b6c9825))\n\n\n\n\n\n## 0.12.0",
+  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.12.0/patches-0.12.0.mpp",
   "signature_download_url": "",
-  "version": "0.11.1"
+  "version": "0.12.0"
 }

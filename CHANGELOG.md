@@ -1,3 +1,17 @@
+# [0.12.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.11.1...v0.12.0) (2026-11-25)
+
+
+### Features
+
+* **tiktok:** no votes on your own ads, a voted-down ad is no longer skipped, and Undo for it in the list ([2906401](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/2906401c978803b87d811f6a6c0b32b97ea68fda))
+* **tiktok:** report skip counts twice a day ([52cc908](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/52cc908eb4512d8273cc2f76ade78e5f7b6c9825))
+
+
+
+
+
+## 0.12.0
+
 ## [0.11.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.11.0...v0.11.1) (2026-11-24)
 
 
