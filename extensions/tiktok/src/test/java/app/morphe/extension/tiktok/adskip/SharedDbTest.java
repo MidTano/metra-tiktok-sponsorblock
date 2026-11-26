@@ -153,6 +153,7 @@ public class SharedDbTest {
     }
 
     @Test public void deltaOverQuotaFallsBackToTheSnapshot() throws Exception {
+        AdSegmentStore.load();
         prefs.edit().putLong("sync_as_of", 1795600000L).putString("sync_cursor", "").commit();
         Map<String, Integer> codes = new HashMap<>();
         codes.put("api.sponblocktikitoki.dpdns.org", 429);
@@ -166,6 +167,7 @@ public class SharedDbTest {
     }
 
     @Test public void deltaAdvancesToItsNamedTime() throws Exception {
+        AdSegmentStore.load();
         prefs.edit().putLong("sync_as_of", 1795600000L).commit();
         Map<String, Map<String, String>> headers = new HashMap<>();
         headers.put("api.sponblocktikitoki.dpdns.org", Collections.singletonMap("X-Db-Time", "1795654800"));
@@ -235,6 +237,7 @@ public class SharedDbTest {
     }
 
     @Test public void apiFailingAfterOpenFallsBackToTheSnapshot() throws Exception {
+        AdSegmentStore.load();
         prefs.edit().putLong("sync_as_of", 1795600000L).commit();
         Map<String, Map<String, String>> headers = new HashMap<>();
         headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));

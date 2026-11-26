@@ -413,7 +413,10 @@ final class AdSegmentStore {
                 SharedDb.forgetSyncProgress();
             }
         } else if (file != null) {
+            // No list yet. A sync cursor without one means the list was lost: start over. The
+            // empty list is written, so from now on a missing file always means a loss.
             SharedDb.forgetSyncProgress();
+            save();
         }
         if (dropSharedCopies()) save();
         index = AdMatcher.Index.build(segments);
