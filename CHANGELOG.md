@@ -1,3 +1,16 @@
+# [0.15.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.14.1...v0.15.0) (2026-11-26)
+
+
+### Features
+
+* **adskip:** export and import the marked ads; faster scans of the video on screen ([#4](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/4)) ([735e7b4](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/735e7b447ade76f87ede1b45b2618c7989031578))
+
+
+
+
+
+## 0.15.0
+
 ## [0.14.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.14.0...v0.14.1) (2026-11-26)
 
 
