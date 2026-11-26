@@ -1,3 +1,16 @@
+# [0.14.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.13.0...v0.14.0) (2026-11-26)
+
+
+### Features
+
+* **adskip:** calmer, more precise editor; new skip notice; tidier list; runtime fixes ([#2](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/2)) ([0bb6bf1](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/0bb6bf1277fd767b7da6049140add5ac272d8e16))
+
+
+
+
+
+## 0.14.0
+
 # [0.13.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.2...v0.13.0) (2026-11-26)
 
 
