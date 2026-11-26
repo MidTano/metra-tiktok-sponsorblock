@@ -203,10 +203,13 @@ public class SharedDbTest {
         int[][] own = sound(3);
         AdSegmentStore.add("Mine", 5000, "7300000000000000001", new Landmarks.Print(own[0], own[1], own[0].length, 160, -1));
         // A delta that does not mention an ad says nothing about it.
-        AdSegmentStore.mergeShared(Collections.emptyList(), false);
+        AdSegmentStore.mergeShared(Collections.emptyList(), -1);
         assertEquals(new HashSet<>(Arrays.asList(kept, gone)), sharedIds());
-        // A snapshot without it: it was hidden on the server since.
-        AdSegmentStore.mergeShared(Collections.singletonList(shared(kept, 1, false)), true);
+        // A snapshot older than both says nothing about them either.
+        AdSegmentStore.mergeShared(Collections.singletonList(shared(kept, 1, false)), 1000L);
+        assertEquals(new HashSet<>(Arrays.asList(kept, gone)), sharedIds());
+        // A snapshot from after this phone had it, without it: it was hidden on the server since.
+        AdSegmentStore.mergeShared(Collections.singletonList(shared(kept, 1, false)), System.currentTimeMillis() + 1000);
         assertEquals(Collections.singleton(kept), sharedIds());
         boolean mine = false;
         for (AdSegment segment : AdSegmentStore.all()) mine |= "Mine".equals(segment.name);

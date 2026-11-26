@@ -82,6 +82,8 @@ final class AdScanner {
     /** The videos asked for most recently, newest first: the feed around the one on screen. */
     private static final LinkedList<String> WANTED = new LinkedList<>();
     private static final int WANTED_SIZE = 4;
+    /** The latest job for each video, queued or running. */
+    private static final Map<String, Job> JOBS = new java.util.HashMap<>();
     private static int workers;
     private static final int MAX_WORKERS = 2;
     private static final String CACHE_FILE = "metra-adskip-scans.json";
@@ -139,23 +141,35 @@ final class AdScanner {
         if (AdSegmentStore.index().isEmpty()) return;
         restoreOnce();
         int stamp = stamp();
-        want(aid, urgent);
+        List<Job> stale = want(aid, urgent);
+        if (!stale.isEmpty()) {
+            synchronized (RESULTS) {
+                for (Job gone : stale) RESULTS.remove(gone.aid);
+            }
+        }
         // RESULTS and QUEUE are never held together, so a bind on one thread and progress on
         // another can't lock each other out.
-        boolean promote = false;
+        boolean pending = false;
         synchronized (RESULTS) {
             Result r = RESULTS.get(aid);
             if (r != null && (r.state == State.QUEUED || r.state == State.RUNNING)) {
-                promote = urgent;
+                pending = true;
             } else {
                 if (r != null && r.state == State.DONE && r.generation == stamp) return;
                 if (r != null && r.state == State.FAILED && r.generation == stamp && !urgent) return;
                 RESULTS.put(aid, new Result(State.QUEUED, stamp, Collections.emptyList(), 0, 0, null));
             }
         }
-        if (promote) {
-            promote(aid);
-            return;
+        if (pending) {
+            synchronized (QUEUE) {
+                Job current = JOBS.get(aid);
+                if (current != null && !current.cancel.get()) {
+                    if (urgent && QUEUE.remove(current)) QUEUE.addFirst(current);
+                    return;
+                }
+            }
+            // Its scan was stopped when the feed moved on, and now the video is back: scan again.
+            store(aid, new Result(State.QUEUED, stamp, Collections.emptyList(), 0, 0, null));
         }
         if (isPhotoPost(aweme)) {
             store(aid, new Result(State.DONE, stamp, Collections.emptyList(), 0, 0, null));
@@ -164,9 +178,15 @@ final class AdScanner {
         Job job = new Job(aid, aweme);
         List<Job> dropped = new ArrayList<>();
         synchronized (QUEUE) {
+            JOBS.put(aid, job);
             if (urgent) QUEUE.addFirst(job);
             else QUEUE.addLast(job);
-            while (QUEUE.size() > MAX_QUEUE) dropped.add(QUEUE.removeLast());
+            while (QUEUE.size() > MAX_QUEUE) {
+                Job gone = QUEUE.removeLast();
+                gone.cancel.set(true);
+                if (JOBS.get(gone.aid) == gone) JOBS.remove(gone.aid);
+                dropped.add(gone);
+            }
             if (workers < MAX_WORKERS) {
                 workers++;
                 Utils.runOnOwnThread("metra-adskip", AdScanner::work);
@@ -180,32 +200,36 @@ final class AdScanner {
     }
 
     /**
-     * Notes a video as wanted and stops the running scans of videos the feed has left behind:
-     * a swipe through ten videos must not keep ten downloads going.
+     * Notes a video as wanted and stops the scans of videos the feed has left behind, running or
+     * still queued: a swipe through ten videos must not leave ten downloads to come. Returns the
+     * queued jobs it dropped, whose results the caller forgets.
      */
-    private static void want(String aid, boolean urgent) {
-        List<Job> stale = new ArrayList<>();
+    private static List<Job> want(String aid, boolean urgent) {
+        List<Job> dropped = new ArrayList<>();
         synchronized (QUEUE) {
             WANTED.remove(aid);
             if (urgent) WANTED.addFirst(aid);
             else WANTED.add(Math.min(1, WANTED.size()), aid);
             while (WANTED.size() > WANTED_SIZE) WANTED.removeLast();
             for (Job running : RUNNING) {
-                if (!WANTED.contains(running.aid)) stale.add(running);
+                if (!WANTED.contains(running.aid)) running.cancel.set(true);
+            }
+            for (Iterator<Job> it = QUEUE.iterator(); it.hasNext(); ) {
+                Job queued = it.next();
+                if (WANTED.contains(queued.aid)) continue;
+                it.remove();
+                queued.cancel.set(true);
+                if (JOBS.get(queued.aid) == queued) JOBS.remove(queued.aid);
+                dropped.add(queued);
             }
         }
-        for (Job job : stale) job.cancel.set(true);
+        return dropped;
     }
 
-    private static void promote(String aid) {
+    /** Whether this job is still the one for its video: an older, stopped one must not overwrite it. */
+    private static boolean current(Job job) {
         synchronized (QUEUE) {
-            for (Job job : QUEUE) {
-                if (job.aid.equals(aid)) {
-                    QUEUE.remove(job);
-                    QUEUE.addFirst(job);
-                    return;
-                }
-            }
+            return JOBS.get(job.aid) == job;
         }
     }
 
@@ -236,6 +260,7 @@ final class AdScanner {
             } finally {
                 synchronized (QUEUE) {
                     RUNNING.remove(job);
+                    if (JOBS.get(job.aid) == job) JOBS.remove(job.aid);
                 }
             }
         }
@@ -245,7 +270,7 @@ final class AdScanner {
         Object aweme = job.aweme.get();
         int generation = stamp();
         if (aweme == null || job.cancel.get() || !AdSkip.active() || !AdSkip.mayDownload()) {
-            forget(job.aid);
+            if (current(job)) forget(job.aid);
             return;
         }
         store(job.aid, new Result(State.RUNNING, generation, Collections.emptyList(), 0, 0, null));
@@ -257,6 +282,7 @@ final class AdScanner {
             List<AdMatcher.Match> matches = scan(pcm.samples, pcm.length, job.cancel);
             long took = System.currentTimeMillis() - started;
             Result result = new Result(State.DONE, generation, matches, pcm.durationMs(), took, null);
+            if (job.cancel.get() && !current(job)) return;
             store(job.aid, result);
             persist();
             AdSkipLog.add(job.aid, (matches.isEmpty()
@@ -268,7 +294,7 @@ final class AdScanner {
         } catch (Throwable failure) {
             if (job.cancel.get()) {
                 // Left behind, not broken: asked again, it is scanned again.
-                forget(job.aid);
+                if (current(job)) forget(job.aid);
                 AdSkipLog.add(job.aid, "scan stopped, the feed moved on");
                 return;
             }
@@ -431,6 +457,7 @@ final class AdScanner {
             for (Job job : QUEUE) job.cancel.set(true);
             for (Job job : RUNNING) job.cancel.set(true);
             QUEUE.clear();
+            JOBS.clear();
         }
         synchronized (RESULTS) {
             RESULTS.clear();

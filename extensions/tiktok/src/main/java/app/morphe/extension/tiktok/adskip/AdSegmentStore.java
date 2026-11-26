@@ -164,25 +164,27 @@ final class AdSegmentStore {
      * base, ad12, which is the same on every phone. One the votes hid is taken off again.
      */
     static int mergeShared(List<Shared> incoming) {
-        return mergeShared(incoming, false);
+        return mergeShared(incoming, -1);
     }
 
     /**
-     * {@code full}: the incoming list is a whole snapshot, so a segment only the base had and the
-     * snapshot no longer holds was hidden or removed there, and goes here too. The reader's own
-     * cuts always stay.
+     * {@code snapshotAtMs} >= 0: the incoming list is a whole snapshot as of then. A segment only
+     * the base had, that this phone already held then, and that the snapshot lacks was hidden or
+     * removed on the server, and goes here too. One that arrived later, by a newer delta, stays:
+     * the snapshot can be older than it. The reader's own cuts always stay.
      */
-    static int mergeShared(List<Shared> incoming, boolean full) {
+    static int mergeShared(List<Shared> incoming, long snapshotAtMs) {
         synchronized (LOCK) {
             ensureLoaded();
             int added = 0;
             boolean dirty = false;
-            if (full) {
+            if (snapshotAtMs >= 0) {
                 java.util.Set<String> present = new java.util.HashSet<>();
                 for (Shared entry : incoming) if (!entry.hidden) present.add(entry.serverId);
                 for (java.util.Iterator<AdSegment> it = segments.iterator(); it.hasNext(); ) {
                     AdSegment s = it.next();
-                    if (isSharedOnly(s) && s.sharedServerId != null && !present.contains(s.sharedServerId)) {
+                    if (isSharedOnly(s) && s.sharedServerId != null && s.createdAt < snapshotAtMs
+                            && !present.contains(s.sharedServerId)) {
                         it.remove();
                         dirty = true;
                     }
@@ -244,6 +246,7 @@ final class AdSegmentStore {
                 dirty = true;
             }
             if (dirty) changed();
+            else if (saveFailed) save(); // an earlier merge is still only in memory
             return added;
         }
     }
@@ -417,6 +420,13 @@ final class AdSegmentStore {
     }
 
     private static volatile boolean saveFailed;
+
+    /** Reads the list now if it isn't yet, recovering a lost one before a sync relies on it. */
+    static void load() {
+        synchronized (LOCK) {
+            ensureLoaded();
+        }
+    }
 
     /** Whether the last write of the list failed, so a sync must not count what it merged as kept. */
     static boolean lastSaveFailed() {

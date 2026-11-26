@@ -170,6 +170,8 @@ public final class SharedDb {
     }
 
     private static void download(SharedPreferences prefs) throws IOException {
+        // Load the local list first: recovering a lost one resets the cursor read below.
+        AdSegmentStore.load();
         int added = 0;
         boolean more = true;
         for (int page = 0; more && page < MAX_DELTA_PAGES; page++) {
@@ -214,8 +216,9 @@ public final class SharedDb {
             try (InputStream in = connection.getInputStream()) {
                 data = readAll(in, MAX_DB_BYTES);
             }
-            // A full snapshot is the whole visible base: what is not in it was hidden or removed.
-            added += merge(data, since == 0);
+            // A full snapshot is the whole visible base as of asOf: an ad this phone already had
+            // then and the snapshot lacks was hidden or removed on the server.
+            added += merge(data, since == 0 ? asOf * 1000L : -1);
             if (AdSegmentStore.lastSaveFailed()) throw new IOException("Could not store the shared base");
             long replay = prefs.getLong("sync_replay", asOf);
             long nextEpoch = !more && since > 0 && (prefs.contains("sync_replay") || !cursor.isEmpty())
@@ -231,10 +234,11 @@ public final class SharedDb {
     }
 
     private static int merge(byte[] data) throws IOException {
-        return merge(data, false);
+        return merge(data, -1);
     }
 
-    private static int merge(byte[] data, boolean full) throws IOException {
+    /** {@code snapshotAtMs}: the time a full snapshot is current as of, or -1 for a delta. */
+    private static int merge(byte[] data, long snapshotAtMs) throws IOException {
         if (data.length < 12) throw new IOException("Truncated shared database");
         ByteBuffer buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         if (buf.getInt() != MAGIC) throw new IOException("Invalid shared database magic");
@@ -242,6 +246,7 @@ public final class SharedDb {
         int count = buf.getInt();
         if (count < 0) throw new IOException("Invalid shared database count");
         List<AdSegmentStore.Shared> entries = new ArrayList<>();
+        int unreadable = 0;
         for (int i = 0; i < count; i++) {
             if (buf.remaining() < 40) throw new IOException("Truncated shared database row");
             byte[] id = new byte[16];
@@ -255,19 +260,25 @@ public final class SharedDb {
             if (hashCount < 0 || buf.remaining() < hashCount * 8L) throw new IOException("Truncated shared database hashes");
             if (hashCount > MAX_HASHES) {
                 buf.position(buf.position() + hashCount * 8);
+                unreadable++;
                 continue;
             }
             int[] hashes = new int[hashCount];
             int[] times = new int[hashCount];
             for (int k = 0; k < hashCount; k++) hashes[k] = buf.getInt();
             for (int k = 0; k < hashCount; k++) times[k] = buf.getInt();
-            if (!isValid(number, durationMs, frames, hashes, times)) continue;
+            if (!isValid(number, durationMs, frames, hashes, times)) {
+                unreadable++;
+                continue;
+            }
             // The server decides: a segment the maintainer restored stays visible at any score.
             boolean hidden = (flags & 1) != 0;
             entries.add(new AdSegmentStore.Shared(SHARED_PREFIX + hex(id), number, hidden, durationMs, frames,
                     hashes, times, score));
         }
-        return AdSegmentStore.mergeShared(entries, full);
+        if (buf.hasRemaining()) throw new IOException("Trailing bytes after the shared database");
+        // Rows this phone could not read are not absent: with any of them, nothing is removed.
+        return AdSegmentStore.mergeShared(entries, unreadable == 0 ? snapshotAtMs : -1);
     }
 
     private static boolean isValid(int number, int durationMs, int frames, int[] hashes, int[] times) {
