@@ -205,6 +205,9 @@ public final class SharedDb {
         AdSegmentStore.load();
         int added = 0;
         boolean more = true;
+        // A snapshot is built once a night, so after one the changes since then are asked for
+        // at once: without that, ads marked during the day only came the next day.
+        boolean fromSnapshot = false;
         for (int page = 0; more && page < MAX_DELTA_PAGES; page++) {
             long since = prefs.getLong(KEY_LAST_EPOCH, 0);
             String cursor = prefs.getString("sync_cursor", "");
@@ -223,6 +226,9 @@ public final class SharedDb {
                     if (connection != null) connection.disconnect();
                     connection = null;
                 }
+                if (connection == null && fromSnapshot) {
+                    throw new IOException("Got the snapshot, but not the changes since it");
+                }
                 if (connection == null) {
                     // The API is down or over its quota: start again from the snapshot in storage.
                     since = 0;
@@ -240,8 +246,9 @@ public final class SharedDb {
             if (nextCursor == null) nextCursor = "";
             if (!nextCursor.isEmpty() && !nextCursor.matches("[0-9a-fA-F-]{36}"))
                 throw new IOException("Invalid database cursor");
-            more = since > 0 && "1".equals(connection.getHeaderField("X-Db-More"));
-            if (more && (asOf < since || (asOf == since && nextCursor.compareTo(cursor) <= 0)))
+            fromSnapshot = since == 0;
+            more = fromSnapshot || "1".equals(connection.getHeaderField("X-Db-More"));
+            if (more && since > 0 && (asOf < since || (asOf == since && nextCursor.compareTo(cursor) <= 0)))
                 throw new IOException("Database cursor did not advance");
             byte[] data;
             try (InputStream in = connection.getInputStream()) {
@@ -254,9 +261,10 @@ public final class SharedDb {
             long replay = prefs.getLong("sync_replay", asOf);
             long nextEpoch = !more && since > 0 && (prefs.contains("sync_replay") || !cursor.isEmpty())
                     ? Math.min(asOf, replay - replay % 3600) : asOf;
+            boolean nextPage = more && !fromSnapshot;
             SharedPreferences.Editor progress = prefs.edit().putLong(KEY_LAST_EPOCH, nextEpoch)
-                    .putString("sync_cursor", more ? nextCursor : "");
-            if (more) progress.putLong("sync_replay", replay);
+                    .putString("sync_cursor", nextPage ? nextCursor : "");
+            if (nextPage) progress.putLong("sync_replay", replay);
             else progress.remove("sync_replay");
             progress.apply();
         }
