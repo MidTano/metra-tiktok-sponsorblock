@@ -132,21 +132,24 @@ public class SharedDbTest {
         invoke("download", new Class<?>[]{SharedPreferences.class}, prefs);
     }
 
+    private static Map<String, String> lastModified(long millis) {
+        return Collections.singletonMap("Last-Modified", String.valueOf(millis));
+    }
+
     @Test public void firstSyncTakesTheSnapshotFromStorage() throws Exception {
         Map<String, Map<String, String>> headers = new HashMap<>();
-        headers.put("cdn.sponblocktikitoki.dpdns.org", Collections.singletonMap("x-amz-meta-as_of", "1795654800"));
+        headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
         route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
         download();
         assertEquals(Collections.singletonList(SharedDb.SNAPSHOT_URL), urls);
-        assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+        // The hour before the upload: the build began in that hour or the next.
+        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
     }
 
-    @Test public void snapshotWithoutMetadataStartsAnHourBeforeItsUpload() throws Exception {
-        Map<String, Map<String, String>> headers = new HashMap<>();
-        headers.put("cdn.sponblocktikitoki.dpdns.org", Collections.singletonMap("Last-Modified", String.valueOf(1795656123_000L)));
-        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
-        download();
-        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
+    @Test public void snapshotWithoutLastModifiedIsNotAcknowledged() throws Exception {
+        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), new HashMap<>(), emptyBase());
+        try { download(); fail("accepted a snapshot with no time"); } catch (IOException expected) {}
+        assertEquals(0, prefs.getLong("sync_as_of", 0));
     }
 
     @Test public void deltaOverQuotaFallsBackToTheSnapshot() throws Exception {
@@ -155,34 +158,21 @@ public class SharedDbTest {
         codes.put("api.sponblocktikitoki.dpdns.org", 429);
         codes.put("cdn.sponblocktikitoki.dpdns.org", 200);
         Map<String, Map<String, String>> headers = new HashMap<>();
-        headers.put("cdn.sponblocktikitoki.dpdns.org", Collections.singletonMap("x-amz-meta-as_of", "1795654800"));
+        headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
         route(codes, headers, emptyBase());
         download();
         assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL), urls);
-        assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
     }
 
-    @Test public void unreachableDomainFallsBackToWorkersDev() throws Exception {
+    @Test public void deltaAdvancesToItsNamedTime() throws Exception {
         prefs.edit().putLong("sync_as_of", 1795600000L).commit();
         Map<String, Map<String, String>> headers = new HashMap<>();
-        headers.put("metra-adskip.falker600.workers.dev", Collections.singletonMap("X-Db-Time", "1795654800"));
-        route(Collections.singletonMap("metra-adskip.falker600.workers.dev", 200), headers, emptyBase());
+        headers.put("api.sponblocktikitoki.dpdns.org", Collections.singletonMap("X-Db-Time", "1795654800"));
+        route(Collections.singletonMap("api.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
         download();
-        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000",
-                SharedDb.FALLBACK_URL + "/v1/db/since?t=1795600000"), urls);
+        assertEquals(Collections.singletonList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000"), urls);
         assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
-    }
-
-    @Test public void postGoesToFallbackOnlyWhenNothingWasSent() throws Exception {
-        route(Collections.singletonMap("metra-adskip.falker600.workers.dev", 200), new HashMap<>(), "{}".getBytes(StandardCharsets.UTF_8));
-        enqueue("first");
-        drain();
-        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/segments", SharedDb.FALLBACK_URL + "/v1/segments"), urls);
-        urls.clear();
-        route(Collections.singletonMap("api.sponblocktikitoki.dpdns.org", 503), new HashMap<>(), new byte[0]);
-        enqueue("second");
-        drain();
-        assertEquals(Collections.singletonList(SharedDb.BASE_URL + "/v1/segments"), urls);
     }
 
     @Test public void queueSurvivesConnectionFailureAndRetries() throws Exception {
@@ -239,7 +229,10 @@ public class SharedDbTest {
     @Test public void malformedDownloadIsNotAcknowledged() throws Exception {
         for (byte[] bytes : new byte[][] {new byte[0], new byte[12],
                 java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-                        .putInt(0x4244414D).putInt(2).putInt(1).array()}) {
+                        .putInt(0x4244414D).putInt(2).putInt(1).array(),
+                // Version 1 is no longer read.
+                java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                        .putInt(0x4244414D).putInt(1).putInt(0).array()}) {
             try { invoke("merge", new Class<?>[]{byte[].class}, bytes); fail("accepted corrupt database"); }
             catch (IOException expected) {}
         }
@@ -276,8 +269,7 @@ public class SharedDbTest {
         fail = true;
         assertEquals(8, SharedDb.fetchStats().segments);
         assertEquals(8, SharedDb.fetchStats().segments);
-        // The failed attempt tried the domain and then workers.dev; the cooldown stops the second.
-        assertEquals(2, requests);
+        assertEquals(1, requests);
     }
 
     @Test public void statsCacheLastsADayAndThenExpires() {
