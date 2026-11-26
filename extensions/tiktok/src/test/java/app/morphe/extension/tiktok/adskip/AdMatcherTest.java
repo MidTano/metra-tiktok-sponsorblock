@@ -85,7 +85,25 @@ public class AdMatcherTest {
 
     private static List<AdMatcher.Match> find(AdSegment segment, short[] video) {
         AdMatcher.Index index = AdMatcher.Index.build(Collections.singletonList(segment));
-        return AdMatcher.match(index, Landmarks.compute(video, video.length), AdMatcher.Strictness.NORMAL);
+        return AdMatcher.match(index, Landmarks.computeQuery(video, video.length), AdMatcher.Strictness.NORMAL);
+    }
+
+    @Test
+    public void findsItUnderLouderMusic() {
+        short[] ad = melody(7, 12, 1.0);
+        // The ad at a third of its level under the creator's music at full level, about -10 dB.
+        short[] video = mix(melody(99, 40, 1.0), melody(7, 12, 0.33), 12 * SR);
+        video = mix(video, noise(5, video.length, 0.15), 0);
+        assertFoundAt(find(segment(ad), video), 12_000, 24_000, 400);
+    }
+
+    @Test
+    public void anAdIsStillReadTheWayItAlwaysWas() {
+        // Marks and the shared base hold the sparse reading; the dense one is only for videos.
+        short[] ad = melody(7, 12, 1.0);
+        Landmarks.Print sparse = Landmarks.compute(ad, ad.length);
+        Landmarks.Print dense = Landmarks.computeQuery(ad, ad.length);
+        assertTrue(dense.count > sparse.count * 3);
     }
 
     private static void assertFoundAt(List<AdMatcher.Match> matches, long startMs, long endMs, long slackMs) {
@@ -140,11 +158,11 @@ public class AdMatcherTest {
         short[] video = place(melody(99, 40, 1.0), fast, 10 * SR);
         AdSegment segment = segment(ad);
         AdMatcher.Index index = AdMatcher.Index.build(Collections.singletonList(segment));
-        List<AdMatcher.Match> plain = AdMatcher.match(index, Landmarks.compute(video, video.length), AdMatcher.Strictness.NORMAL);
+        List<AdMatcher.Match> plain = AdMatcher.match(index, Landmarks.computeQuery(video, video.length), AdMatcher.Strictness.NORMAL);
         List<AdMatcher.Match> found = new ArrayList<>(plain);
         if (found.isEmpty()) {
             short[] slowed = AdScanner.stretch(video, video.length, 1.05f);
-            for (AdMatcher.Match m : AdMatcher.match(index, Landmarks.compute(slowed, slowed.length), AdMatcher.Strictness.NORMAL)) {
+            for (AdMatcher.Match m : AdMatcher.match(index, Landmarks.computeQuery(slowed, slowed.length), AdMatcher.Strictness.NORMAL)) {
                 found.add(new AdMatcher.Match(m.segment, Math.round(m.startMs / 1.05f), Math.round(m.endMs / 1.05f), m.votes, m.partial));
             }
         }

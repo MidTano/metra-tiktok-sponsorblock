@@ -23,7 +23,9 @@ import java.util.Map;
 final class AdMatcher {
     /** How sure a match has to be. */
     enum Strictness {
-        LOOSE(8, 0.006f, 25), NORMAL(12, 0.015f, 40), STRICT(20, 0.040f, 80);
+        // Set for the dense reading of a video (Landmarks.computeQuery), which gives chance more
+        // votes too: the loudest chance peak measured stays under 0.6 of Loose and 0.4 of Normal.
+        LOOSE(12, 0.010f, 30), NORMAL(14, 0.015f, 40), STRICT(20, 0.040f, 80);
 
         final int minVotes;
         final float ratio;

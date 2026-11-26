@@ -181,6 +181,7 @@ Add a seen-history file saved by Metra to the videos @%1$s has seen. A video in 
 Add a seen-history file saved by Metra to this account's seen videos. A video in both keeps the newer date.,Add a seen-history file saved by Metra to this account's seen videos. A video in both keeps the newer date.
 Add a separate button that skips videos using the current sound.,Add a separate button that skips videos using the current sound.
 "Add a thin line along the bottom of a video story that you can drag to go back or skip ahead. The time shows while you drag, and a tap on it still moves between stories.","Add a thin line along the bottom of a video story that you can drag to go back or skip ahead. The time shows while you drag, and a tap on it still moves between stories."
+Add ads from a backup file,Add ads from a backup file
 Add apps to Share via,Add apps to Share via
 Add hidden creator,Add hidden creator
 Add older seen videos to this account,Add older seen videos to this account
@@ -1424,6 +1425,7 @@ Remind me every,Remind me every
 Remove,Remove
 Remove %1$s,Remove %1$s
 Remove all overrides,Remove all overrides
+Remove every marked ad from this phone,Remove every marked ad from this phone
 Remove feed ads,Remove feed ads
 "Remove feed ads, creator commission posts, paid partnerships, and branded content.","Remove feed ads, creator commission posts, paid partnerships, and branded content."
 Remove story rings,Remove story rings
@@ -1485,6 +1487,7 @@ STEM,STEM
 Sample caption to test,Sample caption to test
 Sample category to test,Sample category to test
 Save,Save
+Save %1$s ads to a file,Save %1$s ads to a file
 Save a profile picture on a long press,Save a profile picture on a long press
 Save a story from its share sheet,Save a story from its share sheet
 Save a story on a long press,Save a story on a long press
@@ -1518,7 +1521,6 @@ Save the video's cover,Save the video's cover
 "Save the videos @%1$s has seen, and when, to a JSON file. Anyone who opens the file can see that viewing history.","Save the videos @%1$s has seen, and when, to a JSON file. Anyone who opens the file can see that viewing history."
 "Save this account's seen videos, and when they were watched, to a JSON file. Anyone who opens the file can see that viewing history.","Save this account's seen videos, and when they were watched, to a JSON file. Anyone who opens the file can see that viewing history."
 Save videos without sound,Save videos without sound
-"Save your ads to a file, or bring them back on another phone.","Save your ads to a file, or bring them back on another phone."
 "Save, restore, reset and undo your settings","Save, restore, reset and undo your settings"
 Saved,Saved
 "Saved ""%1$s"", but its sound is weak. A longer or louder cut is found more reliably.","Saved ""%1$s"", but its sound is weak. A longer or louder cut is found more reliably."

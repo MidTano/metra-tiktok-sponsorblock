@@ -34,6 +34,25 @@ final class Landmarks {
     static final int FRAMES_PER_SECOND = SAMPLE_RATE / HOP; // 31
     static final int MAX_PEAKS_PER_SECOND = 30;
 
+    /*
+     * The video side looks harder than the ad side, the way Shazam does: a marked ad keeps the
+     * sparse peaks above, but a video is read with a smaller block, no loudness floor above the
+     * frame's mean, a peak budget per frequency band and a wider pairing. When the creator's
+     * music plays over the ad, the ad's peaks stop winning the big block and fall out of a
+     * sparse reading, and the music's peaks push an ad peak's partner out of the next six; a
+     * dense reading still holds most of the ad's pairs, so they still vote. Measured on speech
+     * and song ads under other music after an AAC round trip: under music 14 dB louder than the
+     * ad, 23 of 25 found instead of 8; with no ad, no match. The ad side is unchanged, so every
+     * mark already made and the shared base keep working.
+     */
+    static final int QUERY_TIME_RADIUS = 2;
+    static final int QUERY_FREQ_RADIUS = 3;
+    static final float QUERY_ABOVE_MEAN_DB = 0f;
+    static final int QUERY_PEAKS_PER_SECOND = 150;
+    /** The budget is split over this many bands, so loud bass can't take all of it from the voice. */
+    static final int QUERY_BANDS = 6;
+    static final int QUERY_FAN_OUT = 20;
+
     /** Each peak pairs with up to this many of the peaks that follow it. */
     static final int FAN_OUT = 6;
     /** dt is 6 bits: up to 2 s ahead. */
@@ -114,7 +133,19 @@ final class Landmarks {
         }
     }
 
+    /** A marked ad's landmarks: sparse, the format stored and shared. */
     static Print compute(short[] pcm, int length) {
+        return compute(pcm, length, TIME_RADIUS, FREQ_RADIUS, ABOVE_MEAN_DB, MAX_PEAKS_PER_SECOND, 1, FAN_OUT);
+    }
+
+    /** A video's landmarks, to look for ads in: dense, so an ad under music is still found. */
+    static Print computeQuery(short[] pcm, int length) {
+        return compute(pcm, length, QUERY_TIME_RADIUS, QUERY_FREQ_RADIUS, QUERY_ABOVE_MEAN_DB,
+                QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT);
+    }
+
+    private static Print compute(short[] pcm, int length, int timeRadius, int freqRadius, float aboveMean,
+            int peaksPerSecond, int bands, int fanOut) {
         int frames = length < WINDOW ? 0 : (length - WINDOW) / HOP + 1;
         if (frames <= 0) return new Print(new int[0], new int[0], 0, 0, 0);
 
@@ -126,7 +157,7 @@ final class Landmarks {
         float[] re = new float[WINDOW];
         float[] im = new float[WINDOW];
 
-        int ring = 2 * TIME_RADIUS + 1;
+        int ring = 2 * timeRadius + 1;
         float[][] spec = new float[ring][BINS];
         float[][] fmax = new float[ring][BINS];
         float[] mean = new float[ring];
@@ -136,7 +167,7 @@ final class Landmarks {
         IntList candF = new IntList(frames * 4);
         FloatList candV = new FloatList(frames * 4);
 
-        for (int fi = 0; fi < frames + TIME_RADIUS; fi++) {
+        for (int fi = 0; fi < frames + timeRadius; fi++) {
             int slot = fi % ring;
             float[] row = spec[slot];
             if (fi < frames) {
@@ -162,19 +193,19 @@ final class Landmarks {
             float[] maxRow = fmax[slot];
             for (int b = 0; b < BINS; b++) {
                 float best = Float.NEGATIVE_INFINITY;
-                int lo = Math.max(0, b - FREQ_RADIUS);
-                int hi = Math.min(BINS - 1, b + FREQ_RADIUS);
+                int lo = Math.max(0, b - freqRadius);
+                int hi = Math.min(BINS - 1, b + freqRadius);
                 for (int j = lo; j <= hi; j++) if (row[j] > best) best = row[j];
                 maxRow[b] = best;
             }
 
-            int center = fi - TIME_RADIUS;
+            int center = fi - timeRadius;
             if (center < 0) continue;
             int cSlot = center % ring;
             float[] cRow = spec[cSlot];
-            float threshold = Math.max(FLOOR_DB, mean[cSlot] + ABOVE_MEAN_DB);
-            int first = Math.max(0, center - TIME_RADIUS);
-            int last = Math.min(frames - 1, center + TIME_RADIUS);
+            float threshold = Math.max(FLOOR_DB, mean[cSlot] + aboveMean);
+            int first = Math.max(0, center - timeRadius);
+            int last = Math.min(frames - 1, center + timeRadius);
             for (int b = 0; b < BINS; b++) {
                 float v = cRow[b];
                 if (v < threshold) continue;
@@ -198,15 +229,9 @@ final class Landmarks {
             int block = candT.data[blockStart] / FRAMES_PER_SECOND;
             int blockEnd = blockStart;
             while (blockEnd < n && candT.data[blockEnd] / FRAMES_PER_SECOND == block) blockEnd++;
-            int size = blockEnd - blockStart;
-            if (size <= MAX_PEAKS_PER_SECOND) {
-                for (int i = blockStart; i < blockEnd; i++) keep[i] = true;
-            } else {
-                Integer[] order = new Integer[size];
-                for (int i = 0; i < size; i++) order[i] = blockStart + i;
-                final float[] v = candV.data;
-                java.util.Arrays.sort(order, (a, b) -> Float.compare(v[b], v[a]));
-                for (int i = 0; i < MAX_PEAKS_PER_SECOND; i++) keep[order[i]] = true;
+            for (int band = 0; band < bands; band++) {
+                int lo = BINS * band / bands, hi = BINS * (band + 1) / bands;
+                keepLoudest(candF.data, candV.data, blockStart, blockEnd, lo, hi, peaksPerSecond / bands, keep);
             }
             blockStart = blockEnd;
         }
@@ -222,11 +247,11 @@ final class Landmarks {
             p++;
         }
 
-        IntList hashes = new IntList(peaks * FAN_OUT);
-        IntList times = new IntList(peaks * FAN_OUT);
+        IntList hashes = new IntList(peaks * fanOut);
+        IntList times = new IntList(peaks * fanOut);
         for (int i = 0; i < peaks; i++) {
             int paired = 0;
-            for (int j = i + 1; j < peaks && paired < FAN_OUT; j++) {
+            for (int j = i + 1; j < peaks && paired < fanOut; j++) {
                 int dt = pt[j] - pt[i];
                 if (dt <= 0) continue;
                 if (dt > MAX_DT) break;
@@ -237,6 +262,25 @@ final class Landmarks {
             }
         }
         return new Print(hashes.data, times.data, hashes.size, frames, peaks);
+    }
+
+    /**
+     * Keeps the loudest {@code cap} of the candidates in [from, to) whose bin lies in [lo, hi).
+     * With one band this is exactly the old per-second budget, so an ad's landmarks are the same.
+     */
+    private static void keepLoudest(int[] bins, float[] loudness, int from, int to, int lo, int hi, int cap,
+            boolean[] keep) {
+        int size = 0;
+        for (int i = from; i < to; i++) if (bins[i] >= lo && bins[i] < hi) size++;
+        if (size <= cap) {
+            for (int i = from; i < to; i++) if (bins[i] >= lo && bins[i] < hi) keep[i] = true;
+            return;
+        }
+        Integer[] order = new Integer[size];
+        int k = 0;
+        for (int i = from; i < to; i++) if (bins[i] >= lo && bins[i] < hi) order[k++] = i;
+        java.util.Arrays.sort(order, (a, b) -> Float.compare(loudness[b], loudness[a]));
+        for (int i = 0; i < cap; i++) keep[order[i]] = true;
     }
 
     /** In-place iterative radix-2 FFT with precomputed tables. */

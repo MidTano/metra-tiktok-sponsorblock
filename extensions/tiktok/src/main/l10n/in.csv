@@ -2309,6 +2309,8 @@ Couldn't save the backup. Try another folder.,Cadangan tidak bisa disimpan. Coba
 Imported %1$s ads,%1$s iklan diimpor
 This file is not a Metra ad backup,File ini bukan cadangan iklan Metra
 Backup,Cadangan
-"Save your ads to a file, or bring them back on another phone.","Simpan iklanmu ke file, atau kembalikan di ponsel lain."
 Export,Ekspor
 Import,Impor
+Save %1$s ads to a file,Simpan %1$s iklan ke file
+Add ads from a backup file,Tambahkan iklan dari file cadangan
+Remove every marked ad from this phone,Hapus semua iklan yang ditandai dari ponsel ini

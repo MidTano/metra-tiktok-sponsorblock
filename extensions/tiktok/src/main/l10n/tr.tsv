@@ -2334,6 +2334,8 @@ Imported %1$s ads, %2$s were already in the list	%1$s reklam içe aktarıldı, %
 Imported %1$s ads	%1$s reklam içe aktarıldı
 This file is not a Metra ad backup	Bu dosya bir Metra reklam yedeği değil
 Backup	Yedek
-Save your ads to a file, or bring them back on another phone.	Reklamlarınızı bir dosyaya kaydedin veya başka bir telefonda geri yükleyin.
 Export	Dışa aktar
 Import	İçe aktar
+Save %1$s ads to a file	%1$s reklamı dosyaya kaydet
+Add ads from a backup file	Yedek dosyasından reklam ekle
+Remove every marked ad from this phone	İşaretli tüm reklamları bu telefondan kaldır

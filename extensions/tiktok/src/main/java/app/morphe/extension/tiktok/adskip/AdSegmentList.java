@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Color;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -105,20 +106,37 @@ final class AdSegmentList {
             for (AdSegment segment : disliked) list.addView(card(segment));
         }
 
-        list.addView(backup(!segments.isEmpty()));
+        list.addView(sectionTitle(L10n.t("Backup")));
+        LinearLayout backup = section();
+        int count = segments.size();
+        View export = action(AdIcons.Icon.DOWNLOAD, AdSkipBar.MARK, L10n.t("Export"),
+                count == 0 ? L10n.t("There are no ads to export yet")
+                        : L10n.f("Save %1$s ads to a file", String.valueOf(count)), AdSkipUi.TEXT);
+        export.setOnClickListener(v -> AdBackup.export(activity));
+        AdSkipUi.enable(export, count > 0);
+        backup.addView(export);
+        backup.addView(rule());
+        View importRow = action(AdIcons.Icon.UPLOAD, AdSkipBar.MARK, L10n.t("Import"),
+                L10n.t("Add ads from a backup file"), AdSkipUi.TEXT);
+        importRow.setOnClickListener(v -> AdBackup.importFile(activity, () -> {
+            if (dialog.isShowing()) refresh();
+        }));
+        backup.addView(importRow);
+        list.addView(backup);
 
         if (!segments.isEmpty()) {
-            AdSkipUi.IconChip clear = new AdSkipUi.IconChip(c, AdSkipUi.SURFACE, AdSkipUi.ACCENT, true);
-            clear.set(AdIcons.Icon.DELETE, L10n.t("Delete all"));
+            LinearLayout danger = section();
+            View clear = action(AdIcons.Icon.DELETE, AdSkipUi.ACCENT, L10n.t("Delete all"),
+                    L10n.t("Remove every marked ad from this phone"), AdSkipUi.ACCENT);
             clear.setOnClickListener(v -> confirm(L10n.t("Delete every marked ad?"), () -> {
                 AdSegmentStore.clear();
                 AdScanner.clearAll();
                 refresh();
             }));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, -2);
-            p.topMargin = dp(8);
-            p.gravity = Gravity.END;
-            list.addView(clear, p);
+            danger.addView(clear);
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+            p.topMargin = dp(10);
+            list.addView(danger, p);
         }
 
         List<String> log = AdSkipLog.lines();
@@ -126,7 +144,7 @@ final class AdSegmentList {
             // The log is for troubleshooting, so it stays folded until asked for.
             TextView heading = AdSkipUi.text(c, L10n.t("Recent checks"), 13, AdSkipUi.TEXT_2, true);
             heading.setGravity(Gravity.CENTER_VERTICAL);
-            heading.setPadding(dp(4), dp(10), dp(4), dp(10));
+            heading.setPadding(dp(6), dp(10), dp(6), dp(10));
             heading.setCompoundDrawablePadding(dp(6));
             LinearLayout.LayoutParams headingParams = new LinearLayout.LayoutParams(-1, -2);
             headingParams.topMargin = dp(16);
@@ -222,35 +240,62 @@ final class AdSegmentList {
         return box;
     }
 
-    /** Export and import of the whole list, side by side; Export only once there is something to save. */
-    private View backup(boolean any) {
-        Context c = activity;
-        LinearLayout box = new LinearLayout(c);
+    /** A small heading over a group of rows, like the ones in the phone's settings. */
+    private View sectionTitle(String text) {
+        TextView title = AdSkipUi.text(activity, text, 13, AdSkipUi.TEXT_2, true);
+        title.setPadding(dp(6), dp(22), dp(6), dp(8));
+        return title;
+    }
+
+    /** A rounded group that rows sit in, one under another. */
+    private LinearLayout section() {
+        LinearLayout box = new LinearLayout(activity);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(4), dp(16), dp(4), 0);
-        TextView heading = AdSkipUi.text(c, L10n.t("Backup"), 13, AdSkipUi.TEXT, true);
-        box.addView(heading);
-        TextView hint = AdSkipUi.text(c, L10n.t("Save your ads to a file, or bring them back on another phone."),
-                12, AdSkipUi.TEXT_2, false);
-        hint.setPadding(0, dp(2), 0, dp(8));
-        box.addView(hint);
+        box.setBackground(AdSkipUi.round(AdSkipUi.SURFACE, dp(14)));
+        box.setClipToOutline(true);
+        return box;
+    }
+
+    /** A hairline between two rows of a group, starting where the text starts. */
+    private View rule() {
+        View line = new View(activity);
+        line.setBackgroundColor(0x14FFFFFF);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, Math.max(1, dp(0.75f)));
+        p.leftMargin = dp(64);
+        line.setLayoutParams(p);
+        return line;
+    }
+
+    /** One tappable row: an icon on a tile, a title over a line of detail, and a chevron. */
+    private View action(AdIcons.Icon icon, int iconColor, String title, String detail, int titleColor) {
+        Context c = activity;
         LinearLayout row = new LinearLayout(c);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        AdSkipUi.IconChip export = new AdSkipUi.IconChip(c, false);
-        export.set(AdIcons.Icon.DOWNLOAD, L10n.t("Export"));
-        export.setOnClickListener(v -> AdBackup.export(activity));
-        AdSkipUi.enable(export, any);
-        LinearLayout.LayoutParams left = new LinearLayout.LayoutParams(0, dp(44), 1f);
-        left.rightMargin = dp(8);
-        row.addView(export, left);
-        AdSkipUi.IconChip importButton = new AdSkipUi.IconChip(c, false);
-        importButton.set(AdIcons.Icon.UPLOAD, L10n.t("Import"));
-        importButton.setOnClickListener(v -> AdBackup.importFile(activity, () -> {
-            if (dialog.isShowing()) refresh();
-        }));
-        row.addView(importButton, new LinearLayout.LayoutParams(0, dp(44), 1f));
-        box.addView(row);
-        return box;
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(64));
+        row.setPadding(dp(14), dp(10), dp(12), dp(10));
+        row.setBackground(new android.graphics.drawable.RippleDrawable(
+                android.content.res.ColorStateList.valueOf(0x22FFFFFF), null, AdSkipUi.round(Color.WHITE, dp(14))));
+        row.setClickable(true);
+        row.setFocusable(true);
+        ImageView tile = new ImageView(c);
+        tile.setScaleType(ImageView.ScaleType.CENTER);
+        tile.setImageDrawable(AdIcons.of(c, icon, iconColor, 20));
+        tile.setBackground(AdSkipUi.round(AdSkipUi.SURFACE_HI, dp(10)));
+        row.addView(tile, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        LinearLayout text = new LinearLayout(c);
+        text.setOrientation(LinearLayout.VERTICAL);
+        text.setPadding(dp(12), 0, dp(8), 0);
+        text.addView(AdSkipUi.text(c, title, 15, titleColor, true));
+        TextView line = AdSkipUi.text(c, detail, 12, AdSkipUi.TEXT_2, false);
+        line.setPadding(0, dp(2), 0, 0);
+        text.addView(line);
+        row.addView(text, new LinearLayout.LayoutParams(0, -2, 1f));
+        ImageView chevron = new ImageView(c);
+        chevron.setImageDrawable(AdIcons.of(c, AdIcons.Icon.CHEVRON_RIGHT, AdSkipUi.TEXT_2, 18));
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(18), dp(18)));
+        row.setContentDescription(title + ". " + detail);
+        return row;
     }
 
     /** No ads yet: the waveform sign, what this list is, and how to fill it. */
