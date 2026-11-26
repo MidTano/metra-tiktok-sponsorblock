@@ -2337,6 +2337,8 @@ Imported %1$s ads, %2$s were already in the list	%1$s Werbungen importiert, %2$s
 Imported %1$s ads	%1$s Werbungen importiert
 This file is not a Metra ad backup	Diese Datei ist keine Metra-Werbesicherung
 Backup	Sicherung
-Save your ads to a file, or bring them back on another phone.	Speichere deine Werbungen in einer Datei oder hole sie auf einem anderen Handy zurück.
 Export	Exportieren
 Import	Importieren
+Save %1$s ads to a file	%1$s Werbungen in einer Datei speichern
+Add ads from a backup file	Werbungen aus einer Sicherung hinzufügen
+Remove every marked ad from this phone	Alle markierten Werbungen von diesem Handy entfernen

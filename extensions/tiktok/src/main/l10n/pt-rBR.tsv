@@ -2334,6 +2334,8 @@ Imported %1$s ads, %2$s were already in the list	%1$s anúncios importados, %2$s
 Imported %1$s ads	%1$s anúncios importados
 This file is not a Metra ad backup	Este arquivo não é um backup de anúncios do Metra
 Backup	Backup
-Save your ads to a file, or bring them back on another phone.	Salve seus anúncios em um arquivo ou recupere-os em outro celular.
 Export	Exportar
 Import	Importar
+Save %1$s ads to a file	Salvar %1$s anúncios em um arquivo
+Add ads from a backup file	Adicionar anúncios de um backup
+Remove every marked ad from this phone	Remover todos os anúncios marcados deste celular

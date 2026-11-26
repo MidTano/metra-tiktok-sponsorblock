@@ -23,17 +23,30 @@ import java.util.Map;
 final class AdMatcher {
     /** How sure a match has to be. */
     enum Strictness {
-        LOOSE(8, 0.006f, 25), NORMAL(12, 0.015f, 40), STRICT(20, 0.040f, 80);
+        LOOSE(8, 0.006f, 25, 12, 0.010f, 30),
+        NORMAL(12, 0.015f, 40, 14, 0.015f, 40),
+        STRICT(20, 0.040f, 80, 20, 0.040f, 80);
 
         final int minVotes;
         final float ratio;
         /** The cap on the ratio part, so a long ad present only in part can still be found. */
         final int maxVotes;
+        /*
+         * The same for the dense reading of a video (Landmarks.computeQuery), which gives chance
+         * more votes too: the loudest chance peak measured stays under 0.6 of Loose and 0.4 of
+         * Normal there.
+         */
+        final int denseMinVotes;
+        final float denseRatio;
+        final int denseMaxVotes;
 
-        Strictness(int minVotes, float ratio, int maxVotes) {
+        Strictness(int minVotes, float ratio, int maxVotes, int denseMinVotes, float denseRatio, int denseMaxVotes) {
             this.minVotes = minVotes;
             this.ratio = ratio;
             this.maxVotes = maxVotes;
+            this.denseMinVotes = denseMinVotes;
+            this.denseRatio = denseRatio;
+            this.denseMaxVotes = denseMaxVotes;
         }
 
         static Strictness of(String value) {
@@ -129,7 +142,34 @@ final class AdMatcher {
 
     private AdMatcher() {}
 
+    /**
+     * The ads in this sound, from both readings: the sparse one hears an ad that plays clearly,
+     * the dense one still finds an ad under the creator's music, and hears more of its start and
+     * end when music covers them. Where both found the same ad, the match spans both.
+     */
+    static List<Match> find(Index index, short[] pcm, int length, Strictness strictness) {
+        List<Match> all = new ArrayList<>(match(index, Landmarks.compute(pcm, length), strictness, false));
+        for (Match d : match(index, Landmarks.computeQuery(pcm, length), strictness, true)) {
+            boolean known = false;
+            for (int i = 0; i < all.size(); i++) {
+                Match m = all.get(i);
+                if (m.segment != d.segment || m.startMs >= d.endMs || d.startMs >= m.endMs) continue;
+                all.set(i, new Match(m.segment, Math.min(m.startMs, d.startMs), Math.max(m.endMs, d.endMs),
+                        Math.max(m.votes, d.votes), m.partial && d.partial));
+                known = true;
+                break;
+            }
+            if (!known) all.add(d);
+        }
+        Collections.sort(all, (x, y) -> Long.compare(x.startMs, y.startMs));
+        return merge(all);
+    }
+
     static List<Match> match(Index index, Landmarks.Print video, Strictness strictness) {
+        return match(index, video, strictness, false);
+    }
+
+    static List<Match> match(Index index, Landmarks.Print video, Strictness strictness, boolean dense) {
         if (index == null || index.isEmpty() || video == null || video.count == 0) return Collections.emptyList();
         int segmentCount = index.segments.length;
         int[][] votes = new int[segmentCount][];
@@ -139,8 +179,10 @@ final class AdMatcher {
         long[] entries = index.entries;
         int[] required = new int[segmentCount];
         for (int s = 0; s < segmentCount; s++) {
-            required[s] = Math.max(strictness.minVotes,
-                    Math.min(strictness.maxVotes, Math.round(strictness.ratio * index.segments[s].hashes.length)));
+            int length = index.segments[s].hashes.length;
+            required[s] = dense
+                    ? Math.max(strictness.denseMinVotes, Math.min(strictness.denseMaxVotes, Math.round(strictness.denseRatio * length)))
+                    : Math.max(strictness.minVotes, Math.min(strictness.maxVotes, Math.round(strictness.ratio * length)));
         }
 
         // First pass: how many hashes each ad shares with the video at all. An ad below its

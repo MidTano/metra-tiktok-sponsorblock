@@ -2309,6 +2309,8 @@ Couldn't save the backup. Try another folder.,无法保存备份，请换一个�
 Imported %1$s ads,已导入 %1$s 条广告
 This file is not a Metra ad backup,此文件不是 Metra 广告备份
 Backup,备份
-"Save your ads to a file, or bring them back on another phone.",把你的广告保存到文件，或在另一部手机上恢复。
 Export,导出
 Import,导入
+Save %1$s ads to a file,将 %1$s 条广告保存到文件
+Add ads from a backup file,从备份文件添加广告
+Remove every marked ad from this phone,从此手机删除所有标记的广告

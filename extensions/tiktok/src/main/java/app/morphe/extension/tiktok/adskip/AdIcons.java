@@ -49,7 +49,8 @@ final class AdIcons extends Drawable {
         EXPAND_MORE("M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z"),
         EXPAND_LESS("M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"),
         DOWNLOAD("M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"),
-        UPLOAD("M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z");
+        UPLOAD("M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"),
+        CHEVRON_RIGHT("M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z");
 
         final String data;
         private Path parsed;

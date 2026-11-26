@@ -86,6 +86,8 @@ final class AdScanner {
     private static final Map<String, Job> JOBS = new java.util.HashMap<>();
     private static int workers;
     private static final int MAX_WORKERS = 2;
+    /** The version of how a video is read and matched; kept scans of another are dropped. */
+    private static final int ALGORITHM = 2;
     /** One more thread, only for the video on screen when the others are busy with the feed around it. */
     private static final int MAX_WORKERS_URGENT = 3;
     private static final String CACHE_FILE = "metra-adskip-scans.json";
@@ -353,13 +355,12 @@ final class AdScanner {
     static List<AdMatcher.Match> scan(short[] pcm, int length, AtomicBoolean cancel) throws IOException {
         AdMatcher.Index index = AdSegmentStore.index();
         AdMatcher.Strictness strictness = AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get());
-        Landmarks.Print print = Landmarks.compute(pcm, length);
-        List<AdMatcher.Match> found = AdMatcher.match(index, print, strictness);
+        List<AdMatcher.Match> found = AdMatcher.find(index, pcm, length, strictness);
         if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
         for (float rate : RATES) {
             if (cancel != null && cancel.get()) throw new IOException("Cancelled");
             short[] stretched = stretch(pcm, length, rate);
-            List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.compute(stretched, stretched.length), strictness);
+            List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.computeQuery(stretched, stretched.length), strictness, true);
             if (retimed.isEmpty()) continue;
             List<AdMatcher.Match> mapped = new ArrayList<>();
             for (AdMatcher.Match m : retimed) {
@@ -468,7 +469,8 @@ final class AdScanner {
     }
 
     private static String fingerprint() {
-        StringBuilder text = new StringBuilder(String.valueOf(stamp() % 16)).append('|');
+        // The reading of videos changed with ALGORITHM, so an old "no ad" is not trusted.
+        StringBuilder text = new StringBuilder("a").append(ALGORITHM).append('|').append(stamp() % 16).append('|');
         for (AdSegment segment : AdSegmentStore.index().segments) {
             text.append(segment.id).append(':').append(segment.hashes.length).append(';');
         }
