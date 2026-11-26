@@ -384,15 +384,30 @@ public class SharedDbTest {
         assertEquals(1, requests);
     }
 
-    @Test public void failedStatsWaitADayBeforeRetry() {
-        prefs.edit().putString("stats_base", "{\"active\":8}")
+    @Test public void aFailureIsRetriedInMinutesNotADay() {
+        prefs.edit().putString("sync_server", SharedDb.BASE_URL).putInt("stats_fails", 1)
+                .putLong("stats_attempt", System.currentTimeMillis() - 3 * 60_000L).commit();
+        assertNotNull(SharedDb.fetchStats());
+        assertEquals(1, requests);
+        assertEquals(0, prefs.getInt("stats_fails", 9));
+    }
+
+    @Test public void anAttemptAgainstAnotherServerDoesNotHoldBackThisOne() {
+        prefs.edit().putString("sync_server", "https://metra-adskip.falker600.workers.dev")
+                .putLong("stats_attempt", System.currentTimeMillis()).commit();
+        assertNotNull(SharedDb.fetchStats());
+        assertEquals(1, requests);
+    }
+
+    @Test public void statsAfterASuccessWaitADay() {
+        prefs.edit().putString("stats_base", "{\"active\":8}").putString("sync_server", SharedDb.BASE_URL)
                 .putLong("stats_attempt", System.currentTimeMillis() - 23 * 3600_000L).commit();
         assertEquals(8, SharedDb.fetchStats().segments);
         assertEquals(0, requests);
     }
 
     @Test public void syncCooldownSurvivesRepeatedFeedCalls() {
-        prefs.edit().putLong("sync_attempt", System.currentTimeMillis() - 23 * 3600_000L).commit();
+        prefs.edit().putString("sync_server", SharedDb.BASE_URL).putLong("sync_attempt", System.currentTimeMillis() - 23 * 3600_000L).commit();
         SharedDb.syncIfDue(); SharedDb.syncIfDue();
         assertEquals(0, requests);
     }

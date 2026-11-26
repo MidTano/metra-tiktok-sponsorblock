@@ -91,6 +91,12 @@ public final class SharedDb {
     private static volatile boolean syncing;
     private static final String KEY_ATTEMPT = "sync_attempt";
     private static final String KEY_STATS_ATTEMPT = "stats_attempt";
+    /** Failures in a row since the last success, for the sync and for the statistics. */
+    private static final String KEY_FAILS = "sync_fails", KEY_STATS_FAILS = "stats_fails";
+    /** The server the attempt times above belong to; a new one is tried at once. */
+    private static final String KEY_SERVER = "sync_server";
+    /** After a failure: 2 min, then 6, 18, 54 ... up to 6 h, so one bad moment can't cost a day. */
+    private static final long FIRST_RETRY_MS = 2 * 60 * 1000L, MAX_RETRY_MS = 6 * 3600 * 1000L;
     private static final String KEY_PENDING_VOTE = "pending_vote_";
     private static final long RETRY_INTERVAL_MS = SYNC_INTERVAL_MS;
     private static final Object QUEUE_LOCK = new Object();
@@ -132,8 +138,9 @@ public final class SharedDb {
         SharedPreferences prefs = AdSkipPrefs.get();
         if (context == null || prefs == null) return;
         long now = System.currentTimeMillis();
-        // Every video start lands here: the cheap daily gate comes before any file or prefs scan.
-        if (now - prefs.getLong(KEY_ATTEMPT, 0) < RETRY_INTERVAL_MS) return;
+        forgetOtherServer(prefs);
+        // Every video start lands here: the cheap gate comes before any file or prefs scan.
+        if (now - prefs.getLong(KEY_ATTEMPT, 0) < retryAfter(prefs, KEY_FAILS)) return;
         boolean syncDue = now - prefs.getLong(KEY_LAST_SYNC, 0) >= SYNC_INTERVAL_MS;
         boolean reportDue = now - prefs.getLong(KEY_LAST_REPORT, 0) >= REPORT_INTERVAL_MS;
         boolean votesDue = prefs.getAll().keySet().stream().anyMatch(key -> key.startsWith(KEY_PENDING_VOTE));
@@ -145,8 +152,13 @@ public final class SharedDb {
         Utils.runOnOwnThread("metra-adskip-sync", () -> {
             try {
                 if (syncDue) {
-                    try { download(prefs); }
-                    catch (IOException failure) { Logger.printException(() -> "Ad skip: download failed", failure); }
+                    try {
+                        download(prefs);
+                        prefs.edit().remove(KEY_FAILS).apply();
+                    } catch (IOException failure) {
+                        prefs.edit().putInt(KEY_FAILS, prefs.getInt(KEY_FAILS, 0) + 1).apply();
+                        Logger.printException(() -> "Ad skip: download failed", failure);
+                    }
                 }
                 try { flushQueue(context); }
                 catch (IOException failure) { Logger.printException(() -> "Ad skip: queue upload failed", failure); }
@@ -161,6 +173,25 @@ public final class SharedDb {
                 syncing = false;
             }
         });
+    }
+
+    /**
+     * How long after an attempt the next may start: a day after a success, sooner after failures
+     * so a phone that was offline, or a server that was down for a minute, isn't cut off a day.
+     */
+    private static long retryAfter(SharedPreferences prefs, String failsKey) {
+        int fails = prefs.getInt(failsKey, 0);
+        if (fails <= 0) return RETRY_INTERVAL_MS;
+        long delay = FIRST_RETRY_MS;
+        for (int i = 1; i < fails && delay < MAX_RETRY_MS; i++) delay *= 3;
+        return Math.min(MAX_RETRY_MS, delay);
+    }
+
+    /** The attempts and failures counted against an earlier server address say nothing about this one. */
+    private static void forgetOtherServer(SharedPreferences prefs) {
+        if (BASE_URL.equals(prefs.getString(KEY_SERVER, null))) return;
+        prefs.edit().putString(KEY_SERVER, BASE_URL).remove(KEY_ATTEMPT).remove(KEY_STATS_ATTEMPT)
+                .remove(KEY_FAILS).remove(KEY_STATS_FAILS).apply();
     }
 
     /** Starts the next sync from a full snapshot: the local list lost what earlier syncs brought. */
@@ -551,26 +582,33 @@ public final class SharedDb {
             }
             long now = System.currentTimeMillis();
             if (prefs != null) {
-                if (now - prefs.getLong(KEY_STATS_ATTEMPT, 0) < RETRY_INTERVAL_MS) return cachedStats(prefs);
+                forgetOtherServer(prefs);
+                if (now - prefs.getLong(KEY_STATS_ATTEMPT, 0) < retryAfter(prefs, KEY_STATS_FAILS)) return cachedStats(prefs);
                 prefs.edit().putLong(KEY_STATS_ATTEMPT, now).apply();
             }
             HttpURLConnection me = open(BASE_URL + "/v1/me");
-            if (me.getResponseCode() != 200) return cachedStats(prefs);
-            JSONObject mine = readJson(me);
-            JSONObject base = mine.optJSONObject("base");
-            if (base == null) return cachedStats(prefs);
+            JSONObject mine = me.getResponseCode() == 200 ? readJson(me) : null;
+            JSONObject base = mine == null ? null : mine.optJSONObject("base");
+            if (base == null) return statsFailed(prefs);
             if (prefs != null) {
                 prefs.edit()
                         .putString(KEY_STATS_BASE, base.toString())
                         .putString(KEY_STATS_MINE, mine.toString())
                         .putLong(KEY_STATS_AT, System.currentTimeMillis())
+                        .remove(KEY_STATS_FAILS)
                         .apply();
             }
             return stats(base, mine);
         } catch (Throwable failure) {
             Logger.printDebug(() -> "Ad skip: no shared base statistics: " + failure);
-            return cachedStats(prefs);
+            return statsFailed(prefs);
         }
+    }
+
+    @Nullable
+    private static Stats statsFailed(@Nullable SharedPreferences prefs) {
+        if (prefs != null) prefs.edit().putInt(KEY_STATS_FAILS, prefs.getInt(KEY_STATS_FAILS, 0) + 1).apply();
+        return cachedStats(prefs);
     }
 
     @Nullable
