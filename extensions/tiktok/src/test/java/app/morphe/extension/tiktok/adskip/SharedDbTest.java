@@ -139,11 +139,15 @@ public class SharedDbTest {
     @Test public void firstSyncTakesTheSnapshotFromStorage() throws Exception {
         Map<String, Map<String, String>> headers = new HashMap<>();
         headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
-        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
+        headers.put("api.sponblocktikitoki.dpdns.org", Collections.singletonMap("X-Db-Time", "1795690800"));
+        Map<String, Integer> codes = new HashMap<>();
+        codes.put("cdn.sponblocktikitoki.dpdns.org", 200);
+        codes.put("api.sponblocktikitoki.dpdns.org", 200);
+        route(codes, headers, emptyBase());
         download();
-        assertEquals(Collections.singletonList(SharedDb.SNAPSHOT_URL), urls);
-        // The hour before the upload: the build began in that hour or the next.
-        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
+        // The snapshot, from the hour before its upload, then at once what changed since.
+        assertEquals(Arrays.asList(SharedDb.SNAPSHOT_URL, SharedDb.BASE_URL + "/v1/db/since?t=1795651200"), urls);
+        assertEquals(1795690800L, prefs.getLong("sync_as_of", 0));
     }
 
     @Test public void snapshotWithoutLastModifiedIsNotAcknowledged() throws Exception {
@@ -161,8 +165,10 @@ public class SharedDbTest {
         Map<String, Map<String, String>> headers = new HashMap<>();
         headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
         route(codes, headers, emptyBase());
-        download();
-        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL), urls);
+        try { download(); fail("the changes since the snapshot were not fetched"); } catch (IOException expected) {}
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL,
+                SharedDb.BASE_URL + "/v1/db/since?t=1795651200"), urls);
+        // The snapshot is kept: the retry asks only for the changes.
         assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
     }
 
@@ -260,8 +266,9 @@ public class SharedDbTest {
                 public InputStream getInputStream() { return new ByteArrayInputStream(emptyBase()); }
             };
         };
-        download();
-        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL), urls);
+        try { download(); fail("the changes since the snapshot were not fetched"); } catch (IOException expected) {}
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL,
+                SharedDb.BASE_URL + "/v1/db/since?t=1795651200"), urls);
         assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
     }
 
