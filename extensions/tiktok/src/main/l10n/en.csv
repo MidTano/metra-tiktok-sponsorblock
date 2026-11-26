@@ -171,6 +171,8 @@ Activity,Activity
 Activity center (PIA),Activity center (PIA)
 Ad,Ad
 Ad range,Ad range
+Ad skipped,Ad skipped
+Ad skipped: %1$s,Ad skipped: %1$s
 Add,Add
 Add a button beside the block control that turns the feed's sound off and on.,Add a button beside the block control that turns the feed's sound off and on.
 Add a button beside the block control to send feedback about the current video.,Add a button beside the block control to send feedback about the current video.
@@ -378,6 +380,7 @@ Clear preset,Clear preset
 "Clear screen hides a LIVE's chat, gifts and buttons so only the stream shows. TikTok puts it in the menu of only some rooms. This adds it to the others.","Clear screen hides a LIVE's chat, gifts and buttons so only the stream shows. TikTok puts it in the menu of only some rooms. This adds it to the others."
 Clear search,Clear search
 Clear seen videos,Clear seen videos
+Clear sound. This part is easy to recognise.,Clear sound. This part is easy to recognise.
 Clear the search,Clear the search
 Cleared. Tap to undo before TikTok closes.,Cleared. Tap to undo before TikTok closes.
 Clearing,Clearing
@@ -539,7 +542,9 @@ Dim when idle and shift,Dim when idle and shift
 Dims: %1$s,Dims: %1$s
 Disable,Disable
 Disabled,Disabled
+Discard,Discard
 Discard edits,Discard edits
+Discard this ad?,Discard this ad?
 Dismissed %1$s suggested accounts,Dismissed %1$s suggested accounts
 Dismissed one suggested account,Dismissed one suggested account
 Display name last changed,Display name last changed
@@ -572,6 +577,9 @@ Empty,Empty
 "Empty the menu that opens when you press and hold TikTok's icon on the home screen. Turning this off asks TikTok to build them again. Tapping the icon still opens the app, and a shortcut you pinned yourself stays where you put it.","Empty the menu that opens when you press and hold TikTok's icon on the home screen. Turning this off asks TikTok to build them again. Tapping the icon still opens the app, and a shortcut you pinned yourself stays where you put it."
 Enable,Enable
 Enabled,Enabled
+End,End
+End earlier,End earlier
+End later,End later
 Enter a JSON object or array.,Enter a JSON object or array.
 Enter a creator handle or id,Enter a creator handle or id
 Enter a finite number.,Enter a finite number.
@@ -589,6 +597,7 @@ Enter who to message below to start.,Enter who to message below to start.
 Entry %1$d has a field with the wrong data type.,Entry %1$d has a field with the wrong data type.
 Entry %1$d isn't an object.,Entry %1$d isn't an object.
 Errors,Errors
+Everyone with Metra skips this ad too.,Everyone with Metra skips this ad too.
 Everything this list has loaded is picked or saved. Scroll down to load more.,Everything this list has loaded is picked or saved. Scroll down to load more.
 Expand activity list,Expand activity list
 Explore or Community,Explore or Community
@@ -885,6 +894,7 @@ Highest,Highest
 Historical,Historical
 Historical values,Historical values
 Hold a gate to choose several,Hold a gate to choose several
+Hold a handle still to zoom in. Pinch the strip to zoom.,Hold a handle still to zoom in. Pinch the strip to zoom.
 Hold a photo story,Hold a photo story
 Hold speed on Comment,Hold speed on Comment
 Hold speed on Favorites,Hold speed on Favorites
@@ -935,6 +945,7 @@ Keep a paused video paused,Keep a paused video paused
 "Keep a photo story on screen until you tap or swipe, instead of moving on after a few seconds.","Keep a photo story on screen until you tap or swipe, instead of moving on after a few seconds."
 Keep a streak going,Keep a streak going
 Keep captions in Clear display,Keep captions in Clear display
+Keep editing,Keep editing
 Keep faded controls in Clear display,Keep faded controls in Clear display
 Keep going,Keep going
 Keep long press from quick sharing,Keep long press from quick sharing
@@ -987,6 +998,7 @@ Leave maximum empty to keep it unlimited.,Leave maximum empty to keep it unlimit
 Leave the sound out of the saved video. Save the sound as well still writes the sound file beside it if you want both.,Leave the sound out of the saved video. Save the sound as well still writes the sound file beside it if you want both.
 Leave when TikTok says time is up,Leave when TikTok says time is up
 Left edge strip,Left edge strip
+Length,Length
 Length and views per like,Length and views per like
 Less than a minute left,Less than a minute left
 Let a LIVE fill the screen up to the top edge. The status bar comes back when you leave the LIVE. Swipe down from the top to peek at it.,Let a LIVE fill the screen up to the top edge. The status bar comes back when you leave the LIVE. Swipe down from the top to peek at it.
@@ -1009,6 +1021,8 @@ Limits,Limits
 Link copied,Link copied
 Links,Links
 Links in comments open,Links in comments open
+Listen to the end,Listen to the end
+Listen to the start,Listen to the start
 "Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.","Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second."
 Live photo clip,Live photo clip
 Live photo clip saved to %1$s,Live photo clip saved to %1$s
@@ -1117,6 +1131,7 @@ New value,New value
 Next message: today at %1$s.,Next message: today at %1$s.
 Next message: tomorrow at %1$s.,Next message: tomorrow at %1$s.
 No,No
+No ads marked yet,No ads marked yet
 No ads marked yet. Open a video's share sheet and tap Mark ad.,No ads marked yet. Open a video's share sheet and tap Mark ad.
 No app on this phone opens that file,No app on this phone opens that file
 No app on this phone opens web links,No app on this phone opens web links
@@ -1226,6 +1241,7 @@ Open Metra settings,Open Metra settings
 Open TikTok on,Open TikTok on
 "Open a share sheet once, then return here to choose its actions.","Open a share sheet once, then return here to choose its actions."
 Open a video first,Open a video first
+Open a video's share sheet and tap Mark ad.,Open a video's share sheet and tap Mark ad.
 Open and close TikTok's screens without their slide. Swipes inside a screen still follow your finger.,Open and close TikTok's screens without their slide. Swipes inside a screen still follow your finger.
 Open comments,Open comments
 Open external links directly,Open external links directly
@@ -1717,6 +1733,7 @@ Skip content warnings,Skip content warnings
 Skip marked ads,Skip marked ads
 "Skip the puzzle TikTok shows while you're just browsing. A puzzle right after you like, follow, comment or repost still shows, and so do sign-in, SMS and two-step checks. If something stops working, turn this off.","Skip the puzzle TikTok shows while you're just browsing. A puzzle right after you like, follow, comment or repost still shows, and so do sign-in, SMS and two-step checks. If something stops working, turn this off."
 Skip the splash ad,Skip the splash ad
+Skip this ad,Skip this ad
 Skip update checks,Skip update checks
 "Skipped entries are invalid, expired, already recorded, or older than the newest %1$s videos.","Skipped entries are invalid, expired, already recorded, or older than the newest %1$s videos."
 Skipped for others,Skipped for others
@@ -1739,7 +1756,9 @@ Speed menu choices,Speed menu choices
 Speed while you hold the video,Speed while you hold the video
 Spin the music disc,Spin the music disc
 Split comment minimum width,Split comment minimum width
+Start,Start
 Start each new video at your default. A manual choice lasts until the video changes.,Start each new video at your default. A manual choice lasts until the video changes.
+Start earlier,Start earlier
 Start feature gate recording,Start feature gate recording
 Start recording,Start recording
 Start the day at,Start the day at
@@ -1934,6 +1953,7 @@ The original photos aren't available. No video was saved.,The original photos ar
 "The override changes no fields. Edit the field values, or reset the override.","The override changes no fields. Edit the field values, or reset the override."
 "The override couldn't be applied: %1$s. Edit the field values, or reset the override.","The override couldn't be applied: %1$s. Edit the field values, or reset the override."
 "The override doesn't say what list to return. Edit the field values, or reset the override.","The override doesn't say what list to return. Edit the field values, or reset the override."
+The part you chose is not saved.,The part you chose is not saved.
 The partial file couldn't be removed. Delete it from the folder you chose.,The partial file couldn't be removed. Delete it from the folder you chose.
 The phone is running out of room. What was recorded is saved to %1$s,The phone is running out of room. What was recorded is saved to %1$s
 "The port the proxy listens on, like 8080 or 1080.","The port the proxy listens on, like 8080 or 1080."
@@ -2078,6 +2098,7 @@ Today: %1$d minutes,Today: %1$d minutes
 Today: %1$d video,Today: %1$d video
 Today: %1$d videos,Today: %1$d videos
 Too late to put the saved videos back,Too late to put the saved videos back
+Too little sound to recognise. Choose a louder part.,Too little sound to recognise. Choose a louder part.
 Too many media saves are already running. Try again in a moment.,Too many media saves are already running. Try again in a moment.
 Top tabs and search,Top tabs and search
 Tracking,Tracking
@@ -2092,6 +2113,7 @@ Translation preview,Translation preview
 Transparent,Transparent
 Try a different word or clear the search.,Try a different word or clear the search.
 Try a different word or clear the search. Switches from patches you didn't tick in Morphe Manager aren't listed.,Try a different word or clear the search. Switches from patches you didn't tick in Morphe Manager aren't listed.
+Try again,Try again
 "Try again, or go back to TikTok.","Try again, or go back to TikTok."
 Turn Metra back on,Turn Metra back on
 Turn off double tap to react,Turn off double tap to react
@@ -2103,6 +2125,7 @@ Turn off the timer (TikTok closes at %1$s),Turn off the timer (TikTok closes at 
 Turn on %1$s first.,Turn on %1$s first.
 Turn on Keep a streak going first,Turn on Keep a streak going first
 Turn on overrides,Turn on overrides
+Turn on the shared base in settings to share.,Turn on the shared base in settings to share.
 "Turn the music disc at the bottom of the right column while a video plays, the way TikTok used to.","Turn the music disc at the bottom of the right column while a video plays, the way TikTok used to."
 Turned off %1$d gates of %2$d. The rest don't take a true or false value. Restart TikTok to apply this.,Turned off %1$d gates of %2$d. The rest don't take a true or false value. Restart TikTok to apply this.
 Turned off %1$d gates. Restart TikTok to apply this.,Turned off %1$d gates. Restart TikTok to apply this.
@@ -2205,6 +2228,7 @@ Wake the controls when,Wake the controls when
 Wakes when: %1$s,Wakes when: %1$s
 Watch history was imported for the account that chose the file. Switch back to see it.,Watch history was imported for the account that chose the file. Switch back to see it.
 Watch it,Watch it
+Weak sound. A longer or louder part is found more reliably.,Weak sound. A longer or louder part is found more reliably.
 "WebP, exactly as TikTok sent it","WebP, exactly as TikTok sent it"
 What TikTok gets,What TikTok gets
 What dims,What dims
@@ -2274,6 +2298,8 @@ Your settings already match,Your settings already match
 "Zero switches this off. Count the minutes the player spends running in the feed. Time on messages, a profile or search doesn't count.","Zero switches this off. Count the minutes the player spends running in the feed. Time on messages, a profile or search doesn't count."
 "Zero switches this off. Counts every video that comes up in the feed and tells you when you reach the limit. Separate from the auto-advance session limit under Playback, which counts only videos Metra moved past for you.","Zero switches this off. Counts every video that comes up in the feed and tells you when you reach the limit. Separate from the auto-advance session limit under Playback, which counts only videos Metra moved past for you."
 Zoom,Zoom
+Zoom in,Zoom in
+Zoom out,Zoom out
 collapsed,collapsed
 debug debugging logs logging,debug debugging logs logging
 expanded,expanded
