@@ -2231,7 +2231,6 @@ Nothing is dimmed.	Heç nə solğunlaşmır.
 %1$s h %2$s min	%1$s saat %2$s dəq
 %1$s min	%1$s dəq
 %1$s s · skipped %2$s times · %3$s	%1$s san · %2$s dəfə ötürülüb · %3$s
-AD	REKLAM
 Ad	Reklam
 Ad range	Reklam aralığı
 Adds Mark ad to a video's share sheet, where you cut the ad out of the video.	Videonun paylaşma vərəqinə Reklamı işarələ düyməsini əlavə edir. Orada reklamı videodan kəsib ayırırsınız.
@@ -2270,7 +2269,6 @@ Match strictness	Uyğunluq sərtliyi
 Move on from ad-only videos	Yalnız reklamdan ibarət videoları keçin
 Name	Ad
 New marks you save are sent to the shared base so others benefit right away.	Saxladığınız yeni işarələr ümumi bazaya göndərilir ki, başqaları dərhal faydalansın.
-No ads marked yet. Open a video's share sheet and tap Mark ad.	Hələ işarələnmiş reklam yoxdur. Videonun paylaşma vərəqini açın və Reklamı işarələ düyməsinə toxunun.
 None yet. In a video, tap Share, then Mark ad, and choose where the ad starts and ends.	Hələ yoxdur. Videoda Paylaşın, sonra Reklamı işarələ düyməsinə toxunun və reklamın harada başlayıb bitdiyini seçin.
 Open a video first	Əvvəlcə videonu açın
 Play ad	Reklamı oynat
@@ -2290,7 +2288,6 @@ Skip marked ads	İşarələnmiş reklamları ötürün
 Skipped for others	Başqalarında ötürülüb
 Strict: only clear matches	Sərt: yalnız aydın uyğunluqlar
 The shared base can't be reached right now.	Ümumi baza hazırda əlçatan deyil.
-There's too little sound here to recognise. Choose a louder part.	Burada tanımaq üçün səs çox azdır. Daha yüksək səsli hissə seçin.
 Time saved	Qənaət olunan vaxt
 Use shared ad database	Ümumi reklam bazasından istifadə edin
 Watch it	Baxın
@@ -2298,6 +2295,33 @@ When the ad is the whole video, go to the next one instead of jumping to its end
 Wrong	Səhvdir
 Your contribution	Sizin töhfəniz
 Your marks	Sizin işarələriniz
-Zoom	Miqyas
 Voted down	Bəyənmədikləriniz
 These ads are not skipped for you. Tap Undo if you voted by mistake.	Bu reklamlar sizin üçün ötürülmür. Səhvən səs vermisinizsə, Geri qaytarın düyməsinə toxunun.
+# context: Skip ads by sound, the editor, the skip notice and the list of marked ads
+Ad skipped	Reklam ötürüldü
+Ad skipped: %1$s	Reklam ötürüldü: %1$s
+Clear sound. This part is easy to recognise.	Aydın səs. Bu hissəni tanımaq asandır.
+Discard	Ləğv et
+Discard this ad?	Bu reklam ləğv edilsin?
+End	Son
+End earlier	Sonu tez et
+End later	Sonu gec et
+Everyone with Metra skips this ad too.	Metra istifadə edən hər kəs də bu reklamı ötürəcək.
+Hold a handle still to zoom in. Pinch the strip to zoom.	Yaxınlaşdırmaq üçün tutacağı hərəkətsiz saxlayın. Miqyas üçün zolağı iki barmaqla açın.
+Keep editing	Redaktəyə davam et
+Length	Uzunluq
+Listen to the end	Sonu dinlə
+Listen to the start	Başlanğıcı dinlə
+No ads marked yet	Hələ işarələnmiş reklam yoxdur
+Open a video's share sheet and tap Mark ad.	Videonun paylaşım menyusunu açın və Reklamı işarələ düyməsinə toxunun.
+Skip this ad	Bu reklamı ötür
+Start	Başlanğıc
+Start earlier	Başlanğıcı tez et
+Start later	Başlanğıcı gec et
+The part you chose is not saved.	Seçdiyiniz hissə saxlanmayıb.
+Too little sound to recognise. Choose a louder part.	Tanımaq üçün səs çox azdır. Daha yüksək səsli hissə seçin.
+Try again	Yenidən cəhd et
+Turn on the shared base in settings to share.	Paylaşmaq üçün ayarlarda ortaq bazanı aktiv edin.
+Weak sound. A longer or louder part is found more reliably.	Zəif səs. Daha uzun və ya daha yüksək hissə daha etibarlı tapılır.
+Zoom in	Yaxınlaşdır
+Zoom out	Uzaqlaşdır

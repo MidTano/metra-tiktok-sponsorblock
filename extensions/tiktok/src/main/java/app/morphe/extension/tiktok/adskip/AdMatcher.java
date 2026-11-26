@@ -137,18 +137,45 @@ final class AdMatcher {
         for (int s = 0; s < segmentCount; s++) base[s] = index.segments[s].frames + 1;
 
         long[] entries = index.entries;
+        int[] required = new int[segmentCount];
+        for (int s = 0; s < segmentCount; s++) {
+            required[s] = Math.max(strictness.minVotes,
+                    Math.min(strictness.maxVotes, Math.round(strictness.ratio * index.segments[s].hashes.length)));
+        }
+
+        // First pass: how many hashes each ad shares with the video at all. An ad below its
+        // threshold in total can't reach it at any one offset, so it gets no histogram: with a
+        // large shared base most ads share a few chance hashes with any video, and a histogram
+        // the length of the video for each of them used to cost tens of megabytes per scan.
+        int[] firsts = new int[video.count];
+        int[] totals = new int[segmentCount];
         for (int q = 0; q < video.count; q++) {
-            int at = index.first(video.hashes[q]);
+            int hash = video.hashes[q];
+            int at = firsts[q] = index.first(hash);
+            if (at < 0) continue;
+            for (int e = at; e < entries.length && (int) (entries[e] >>> 32) == hash; e++) {
+                totals[(int) ((entries[e] >>> 16) & 0xFFFF)]++;
+            }
+        }
+        boolean any = false;
+        for (int s = 0; s < segmentCount; s++) {
+            if (totals[s] >= required[s]) {
+                votes[s] = new int[video.frames + base[s] + 2];
+                any = true;
+            }
+        }
+        if (!any) return Collections.emptyList();
+
+        for (int q = 0; q < video.count; q++) {
+            int at = firsts[q];
             if (at < 0) continue;
             int hash = video.hashes[q];
             int tq = video.times[q];
             for (int e = at; e < entries.length && (int) (entries[e] >>> 32) == hash; e++) {
                 int s = (int) ((entries[e] >>> 16) & 0xFFFF);
-                int ts = (int) (entries[e] & 0xFFFF);
                 int[] histogram = votes[s];
-                if (histogram == null) {
-                    histogram = votes[s] = new int[video.frames + base[s] + 2];
-                }
+                if (histogram == null) continue;
+                int ts = (int) (entries[e] & 0xFFFF);
                 int slot = tq - ts + base[s];
                 if (slot >= 0 && slot < histogram.length) histogram[slot]++;
             }
@@ -159,8 +186,6 @@ final class AdMatcher {
             int[] histogram = votes[s];
             if (histogram == null) continue;
             AdSegment segment = index.segments[s];
-            int required = Math.max(strictness.minVotes,
-                    Math.min(strictness.maxVotes, Math.round(strictness.ratio * segment.hashes.length)));
             int n = histogram.length;
             int[] smooth = new int[n];
             for (int i = 0; i < n; i++) {
@@ -177,7 +202,7 @@ final class AdMatcher {
                         best = i;
                     }
                 }
-                if (best < 0 || bestVotes < required) break;
+                if (best < 0 || bestVotes < required[s]) break;
                 Match match = describe(segment, s, index, video, best - base[s], bestVotes);
                 if (match != null) found.add(match);
                 int from = Math.max(0, best - suppress), to = Math.min(n - 1, best + suppress);

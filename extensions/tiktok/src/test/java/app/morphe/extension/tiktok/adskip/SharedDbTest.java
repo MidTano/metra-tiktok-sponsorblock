@@ -153,6 +153,7 @@ public class SharedDbTest {
     }
 
     @Test public void deltaOverQuotaFallsBackToTheSnapshot() throws Exception {
+        AdSegmentStore.load();
         prefs.edit().putLong("sync_as_of", 1795600000L).putString("sync_cursor", "").commit();
         Map<String, Integer> codes = new HashMap<>();
         codes.put("api.sponblocktikitoki.dpdns.org", 429);
@@ -166,6 +167,7 @@ public class SharedDbTest {
     }
 
     @Test public void deltaAdvancesToItsNamedTime() throws Exception {
+        AdSegmentStore.load();
         prefs.edit().putLong("sync_as_of", 1795600000L).commit();
         Map<String, Map<String, String>> headers = new HashMap<>();
         headers.put("api.sponblocktikitoki.dpdns.org", Collections.singletonMap("X-Db-Time", "1795654800"));
@@ -173,6 +175,105 @@ public class SharedDbTest {
         download();
         assertEquals(Collections.singletonList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000"), urls);
         assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+    }
+
+    private static int[][] sound(int seed) {
+        Random random = new Random(seed);
+        int[] hashes = new int[80], times = new int[80];
+        for (int i = 0; i < hashes.length; i++) {
+            hashes[i] = (random.nextInt(Landmarks.BINS) << 15) | (random.nextInt(Landmarks.BINS) << 6) | (1 + random.nextInt(20));
+            times[i] = i * 2;
+        }
+        return new int[][]{hashes, times};
+    }
+
+    private static AdSegmentStore.Shared shared(String serverId, int seed, boolean hidden) {
+        int[][] sound = sound(seed);
+        return new AdSegmentStore.Shared(serverId, seed, hidden, 5000, 160, sound[0], sound[1], 0);
+    }
+
+    private static Set<String> sharedIds() {
+        Set<String> ids = new HashSet<>();
+        for (AdSegment segment : AdSegmentStore.all()) if (segment.sharedServerId != null) ids.add(segment.sharedServerId);
+        return ids;
+    }
+
+    @Test public void fullSnapshotDropsSharedAdsItNoLongerHoldsAndKeepsOwnCuts() {
+        AdSegmentStore.clear();
+        String kept = "s_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", gone = "s_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        AdSegmentStore.mergeShared(Arrays.asList(shared(kept, 1, false), shared(gone, 2, false)));
+        int[][] own = sound(3);
+        AdSegmentStore.add("Mine", 5000, "7300000000000000001", new Landmarks.Print(own[0], own[1], own[0].length, 160, -1));
+        // A delta that does not mention an ad says nothing about it.
+        AdSegmentStore.mergeShared(Collections.emptyList(), -1);
+        assertEquals(new HashSet<>(Arrays.asList(kept, gone)), sharedIds());
+        // A snapshot older than both says nothing about them either.
+        AdSegmentStore.mergeShared(Collections.singletonList(shared(kept, 1, false)), 1000L);
+        assertEquals(new HashSet<>(Arrays.asList(kept, gone)), sharedIds());
+        // A snapshot from after this phone had it, without it: it was hidden on the server since.
+        AdSegmentStore.mergeShared(Collections.singletonList(shared(kept, 1, false)), System.currentTimeMillis() + 1000);
+        assertEquals(Collections.singleton(kept), sharedIds());
+        boolean mine = false;
+        for (AdSegment segment : AdSegmentStore.all()) mine |= "Mine".equals(segment.name);
+        assertTrue("the reader's own cut stays", mine);
+        AdSegmentStore.clear();
+    }
+
+    @Test public void theServersHiddenFlagDecidesNotTheScore() throws Exception {
+        AdSegmentStore.clear();
+        int[][] sound = sound(5);
+        java.nio.ByteBuffer row = java.nio.ByteBuffer.allocate(12 + 40 + sound[0].length * 8).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        row.putInt(0x4244414D).putInt(2).putInt(1);
+        for (int i = 0; i < 16; i++) row.put((byte) (0x10 + i));
+        // Restored by the maintainer: visible at a score that votes alone would hide.
+        row.putInt(7).putInt(0).putInt(160).putInt(5000).putInt(-5).putInt(sound[0].length);
+        for (int h : sound[0]) row.putInt(h);
+        for (int t : sound[1]) row.putInt(t);
+        invoke("merge", new Class<?>[]{byte[].class}, (Object) row.array());
+        List<AdSegment> all = AdSegmentStore.all();
+        assertEquals(1, all.size());
+        assertTrue(all.get(0).enabled);
+        AdSegmentStore.clear();
+    }
+
+    @Test public void apiFailingAfterOpenFallsBackToTheSnapshot() throws Exception {
+        AdSegmentStore.load();
+        prefs.edit().putLong("sync_as_of", 1795600000L).commit();
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
+        SharedDb.connectionFactory = endpoint -> {
+            urls.add(endpoint);
+            String host = new URL(endpoint).getHost();
+            return new HttpURLConnection(new URL(endpoint)) {
+                public void connect() {}
+                public void disconnect() {}
+                public boolean usingProxy() { return false; }
+                public int getResponseCode() throws IOException {
+                    if (host.startsWith("api.")) throw new SocketTimeoutException("connect timed out");
+                    return 200;
+                }
+                public String getHeaderField(String name) { return headers.getOrDefault(host, Collections.emptyMap()).get(name); }
+                public long getHeaderFieldDate(String name, long fallback) {
+                    String value = getHeaderField(name);
+                    return value == null ? fallback : Long.parseLong(value);
+                }
+                public InputStream getInputStream() { return new ByteArrayInputStream(emptyBase()); }
+            };
+        };
+        download();
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL), urls);
+        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void theFirstSkipEverIsCountedOnce() {
+        AdSegmentStore.clear();
+        prefs.edit().clear().commit();
+        int[][] own = sound(9);
+        AdSegment segment = AdSegmentStore.add("Mine", 5000, "7300000000000000002", new Landmarks.Print(own[0], own[1], own[0].length, 160, -1));
+        AdSegmentStore.recordSkip(segment, 4000);
+        assertEquals(1, AdSkipStats.skips());
+        assertEquals(4000, AdSkipStats.savedMs());
+        AdSegmentStore.clear();
     }
 
     @Test public void queueSurvivesConnectionFailureAndRetries() throws Exception {

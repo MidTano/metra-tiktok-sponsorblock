@@ -132,6 +132,11 @@ final class AdSkipStats {
         return L10n.f("%1$s s", String.valueOf(seconds));
     }
 
+    static synchronized void seedOnce() {
+        SharedPreferences prefs = prefs();
+        if (prefs != null) seed(prefs);
+    }
+
     /** Counters start from the skips the segments already carry, for phones that had them first. */
     private static void seed(SharedPreferences prefs) {
         if (prefs.contains(KEY_SKIPS)) return;

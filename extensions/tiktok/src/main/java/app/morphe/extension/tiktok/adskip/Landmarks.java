@@ -87,12 +87,18 @@ final class Landmarks {
          * startFrame. Cutting from the whole video's print rather than fingerprinting the cut
          * keeps the peaks exactly the ones a later scan of another video will find.
          */
-        Print slice(int startFrame, int endFrame) {
+        /** How many landmarks lie wholly inside these frames: what {@link #slice} would keep. */
+        int countIn(int startFrame, int endFrame) {
             int n = 0;
             for (int i = 0; i < count; i++) {
                 int t = times[i];
                 if (t >= startFrame && t + dtOf(hashes[i]) < endFrame) n++;
             }
+            return n;
+        }
+
+        Print slice(int startFrame, int endFrame) {
+            int n = countIn(startFrame, endFrame);
             int[] h = new int[n];
             int[] t = new int[n];
             int k = 0;

@@ -164,10 +164,32 @@ final class AdSegmentStore {
      * base, ad12, which is the same on every phone. One the votes hid is taken off again.
      */
     static int mergeShared(List<Shared> incoming) {
+        return mergeShared(incoming, -1);
+    }
+
+    /**
+     * {@code snapshotAtMs} >= 0: the incoming list is a whole snapshot as of then. A segment only
+     * the base had, that this phone already held then, and that the snapshot lacks was hidden or
+     * removed on the server, and goes here too. One that arrived later, by a newer delta, stays:
+     * the snapshot can be older than it. The reader's own cuts always stay.
+     */
+    static int mergeShared(List<Shared> incoming, long snapshotAtMs) {
         synchronized (LOCK) {
             ensureLoaded();
             int added = 0;
             boolean dirty = false;
+            if (snapshotAtMs >= 0) {
+                java.util.Set<String> present = new java.util.HashSet<>();
+                for (Shared entry : incoming) if (!entry.hidden) present.add(entry.serverId);
+                for (java.util.Iterator<AdSegment> it = segments.iterator(); it.hasNext(); ) {
+                    AdSegment s = it.next();
+                    if (isSharedOnly(s) && s.sharedServerId != null && s.createdAt < snapshotAtMs
+                            && !present.contains(s.sharedServerId)) {
+                        it.remove();
+                        dirty = true;
+                    }
+                }
+            }
             for (Shared entry : incoming) {
                 AdSegment known = null;
                 for (AdSegment s : segments) {
@@ -217,13 +239,14 @@ final class AdSegmentStore {
                 for (AdSegment s : segments) if (s.id >= id) id = s.id + 1;
                 String name = entry.number > 0 ? sharedName(entry.number) : sharedName(sharedCount() + 1);
                 AdSegment segment = new AdSegment(id, name, System.currentTimeMillis(), entry.durationMs, null,
-                        entry.hashes, entry.times, entry.frames, entry.score > -2, 0, 0);
+                        entry.hashes, entry.times, entry.frames, true, 0, 0);
                 segment.sharedServerId = entry.serverId;
                 segments.add(segment);
                 added++;
                 dirty = true;
             }
             if (dirty) changed();
+            else if (saveFailed) save(); // an earlier merge is still only in memory
             return added;
         }
     }
@@ -314,6 +337,9 @@ final class AdSegmentStore {
 
     /** Counts a skip and the time it saved. Saved later with the next change or by {@link #flushStats}. */
     static void recordSkip(AdSegment segment, long savedMs) {
+        // The lifetime counters start from the segments' counts; they must be read before this
+        // skip is added to the segment, or the first skip counts twice.
+        AdSkipStats.seedOnce();
         synchronized (LOCK) {
             segment.skips++;
             segment.lastSkipAt = System.currentTimeMillis();
@@ -383,15 +409,37 @@ final class AdSegmentStore {
                 //noinspection ResultOfMethodCallIgnored
                 file.renameTo(broken);
                 segments.clear();
+                // What earlier syncs brought is gone with it: fetch the whole base again.
+                SharedDb.forgetSyncProgress();
             }
+        } else if (file != null) {
+            // No list yet. A sync cursor without one means the list was lost: start over. The
+            // empty list is written, so from now on a missing file always means a loss.
+            SharedDb.forgetSyncProgress();
+            save();
         }
         if (dropSharedCopies()) save();
         index = AdMatcher.Index.build(segments);
     }
 
+    private static volatile boolean saveFailed;
+
+    /** Reads the list now if it isn't yet, recovering a lost one before a sync relies on it. */
+    static void load() {
+        synchronized (LOCK) {
+            ensureLoaded();
+        }
+    }
+
+    /** Whether the last write of the list failed, so a sync must not count what it merged as kept. */
+    static boolean lastSaveFailed() {
+        return saveFailed;
+    }
+
     private static void save() {
         File file = file();
         if (file == null) return;
+        saveFailed = true;
         File temp = new File(file.getParentFile(), FILE + ".tmp");
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(temp)))) {
             out.writeInt(MAGIC);
@@ -421,8 +469,12 @@ final class AdSegmentStore {
         if (!temp.renameTo(file)) {
             //noinspection ResultOfMethodCallIgnored
             file.delete();
-            if (!temp.renameTo(file)) Logger.printDebug(() -> "Ad skip: could not replace the ad list");
+            if (!temp.renameTo(file)) {
+                Logger.printDebug(() -> "Ad skip: could not replace the ad list");
+                return;
+            }
         }
+        saveFailed = false;
     }
 
     private static File file() {

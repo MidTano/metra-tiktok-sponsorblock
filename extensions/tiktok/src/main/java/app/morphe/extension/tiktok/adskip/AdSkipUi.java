@@ -31,6 +31,9 @@ final class AdSkipUi {
     static final int ACCENT = 0xFFFE2C55;
     static final int GOOD = 0xFF35C76F;
     static final int WARN = 0xFFF5A623;
+    /** A switch that is off: a light thumb on a dark track. */
+    static final int SWITCH_THUMB_OFF = 0xFFC8C8CE;
+    static final int SWITCH_TRACK_OFF = 0xFF4A4A50;
 
     private AdSkipUi() {}
 
@@ -39,11 +42,17 @@ final class AdSkipUi {
     }
 
     static String time(long ms, boolean tenths) {
+        return time(ms, tenths ? 1 : 0);
+    }
+
+    /** m:ss with 0, 1 or 2 decimals of a second. */
+    static String time(long ms, int decimals) {
         if (ms < 0) ms = 0;
         long totalSeconds = ms / 1000;
         long m = totalSeconds / 60, s = totalSeconds % 60;
-        if (!tenths) return String.format(Locale.ROOT, "%d:%02d", m, s);
-        return String.format(Locale.ROOT, "%d:%02d.%d", m, s, (ms % 1000) / 100);
+        if (decimals <= 0) return String.format(Locale.ROOT, "%d:%02d", m, s);
+        if (decimals == 1) return String.format(Locale.ROOT, "%d:%02d.%d", m, s, (ms % 1000) / 100);
+        return String.format(Locale.ROOT, "%d:%02d.%02d", m, s, (ms % 1000) / 10);
     }
 
     static String seconds(long ms) {
@@ -92,19 +101,24 @@ final class AdSkipUi {
         private final int color;
 
         IconChip(Context context, boolean primary) {
+            this(context, primary ? ACCENT : SURFACE_HI, primary ? Color.WHITE : TEXT, primary);
+        }
+
+        /** A chip in any fill, its icon and label in one colour. */
+        IconChip(Context context, int fill, int color, boolean bold) {
             super(context);
-            color = primary ? Color.WHITE : TEXT;
+            this.color = color;
             setOrientation(HORIZONTAL);
             setGravity(Gravity.CENTER);
             setPadding(dp(context, 16), 0, dp(context, 16), 0);
             setMinimumHeight(dp(context, 40));
             setBackground(new RippleDrawable(ColorStateList.valueOf(0x33FFFFFF),
-                    round(primary ? ACCENT : SURFACE_HI, dp(context, 24)), null));
+                    round(fill, dp(context, 24)), null));
             setClickable(true);
             setFocusable(true);
             icon = new ImageView(context);
             addView(icon, new LayoutParams(dp(context, 20), dp(context, 20)));
-            label = text(context, "", 15, color, primary);
+            label = text(context, "", 15, color, bold);
             label.setIncludeFontPadding(false);
             label.setSingleLine(true);
             LayoutParams labelParams = new LayoutParams(-2, -2);
@@ -136,6 +150,20 @@ final class AdSkipUi {
 
     static void setIcon(ImageView button, AdIcons.Icon icon, float sizeDp) {
         button.setImageDrawable(AdIcons.of(button.getContext(), icon, TEXT, sizeDp * 0.5f));
+    }
+
+    /** A switch in the accent colour, so it matches the sheet rather than the phone's theme. */
+    static void tint(android.widget.Switch toggle, int on) {
+        int[][] states = {{android.R.attr.state_checked}, {}};
+        toggle.setThumbTintList(new ColorStateList(states, new int[]{Color.WHITE, SWITCH_THUMB_OFF}));
+        toggle.setTrackTintList(new ColorStateList(states, new int[]{on, SWITCH_TRACK_OFF}));
+    }
+
+    /** A spinner in the accent colour. */
+    static android.widget.ProgressBar spinner(Context context) {
+        android.widget.ProgressBar spinner = new android.widget.ProgressBar(context);
+        spinner.setIndeterminateTintList(ColorStateList.valueOf(ACCENT));
+        return spinner;
     }
 
     static void enable(View chip, boolean enabled) {

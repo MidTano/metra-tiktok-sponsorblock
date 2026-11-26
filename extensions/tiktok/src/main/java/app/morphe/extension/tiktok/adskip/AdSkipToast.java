@@ -4,8 +4,12 @@
  */
 package app.morphe.extension.tiktok.adskip;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.res.ColorStateList;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.Typeface;
@@ -14,12 +18,15 @@ import android.graphics.drawable.RippleDrawable;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.view.animation.LinearInterpolator;
+import android.view.animation.OvershootInterpolator;
 
 import androidx.annotation.Nullable;
 
@@ -31,11 +38,12 @@ import java.lang.ref.WeakReference;
 
 /**
  * The skip notice: a small pill centred across the screen, 20 px above the creator's name, so
- * it sits clear of the name, the caption and the buttons. In it the green AD badge, the ad's
- * name and "Watch it". It goes by itself after a few seconds.
+ * it sits clear of the name, the caption and the buttons. In it a skip sign whose ring runs down
+ * the time left, "Ad skipped" over the ad's name, "Watch it" and the votes. It goes by itself
+ * when the ring runs out; a finger on it holds it, and a sideways swipe sends it away.
  */
 final class AdSkipToast {
-    private static final long VISIBLE_MS = 3500;
+    private static final long VISIBLE_MS = 4000;
     /** The gap between the pill and the creator's name. */
     private static final int ABOVE_NAME_PX = 20;
     /** Where it sits when the name can't be found: about 200 px above the bottom bar's line. */
@@ -58,20 +66,22 @@ final class AdSkipToast {
                 ViewGroup root = activity.findViewById(android.R.id.content);
                 if (root == null) return;
                 dismiss();
-                View pill = build(activity, name, serverId, watch);
+                int token = ++generation;
+                Pill pill = build(activity, name, serverId, watch);
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(-2, -2,
                         Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
                 params.bottomMargin = bottomMargin(activity, root);
                 root.addView(pill, params);
                 pill.setAlpha(0f);
-                pill.setScaleX(0.92f);
-                pill.setScaleY(0.92f);
-                pill.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(170).start();
+                pill.setTranslationY(dp(activity, 14));
+                pill.setScaleX(0.94f);
+                pill.setScaleY(0.94f);
+                pill.animate().alpha(1f).translationY(0).scaleX(1f).scaleY(1f).setDuration(260)
+                        .setInterpolator(new OvershootInterpolator(1.1f)).start();
                 shown = new WeakReference<>(pill);
-                int token = ++generation;
-                Utils.runOnMainThreadDelayed(() -> {
+                pill.countDown(VISIBLE_MS, () -> {
                     if (token == generation) dismiss();
-                }, VISIBLE_MS);
+                });
             } catch (Throwable failure) {
                 Logger.printException(() -> "Ad skip: could not show the notice", failure);
             }
@@ -133,53 +143,58 @@ final class AdSkipToast {
         return null;
     }
 
-    private static View build(Activity activity, String name, String serverId, @Nullable Runnable watch) {
-        LinearLayout pill = new LinearLayout(activity);
-        pill.setOrientation(LinearLayout.HORIZONTAL);
-        pill.setGravity(Gravity.CENTER);
-        pill.setPadding(dp(activity, 5), dp(activity, 4), dp(activity, watch == null ? 11 : 5), dp(activity, 4));
+    private static Pill build(Activity activity, String name, String serverId, @Nullable Runnable watch) {
+        Pill pill = new Pill(activity);
+        pill.setPadding(dp(activity, 6), dp(activity, 5), dp(activity, watch == null ? 14 : 6), dp(activity, 5));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(0xD9161618);
-        background.setCornerRadius(dp(activity, 16));
+        background.setColor(0xF0151517);
+        background.setCornerRadius(dp(activity, 22));
+        background.setStroke(Math.max(1, dp(activity, 0.75f)), 0x1FFFFFFF);
         pill.setBackground(background);
-        pill.setElevation(dp(activity, 4));
+        pill.setElevation(dp(activity, 8));
+        pill.setContentDescription(L10n.f("Ad skipped: %1$s", name));
 
-        TextView badge = new TextView(activity);
-        badge.setText(L10n.t("AD"));
-        badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9.5f);
-        badge.setTypeface(Typeface.DEFAULT_BOLD);
-        badge.setTextColor(0xFF06210F);
-        badge.setLetterSpacing(0.06f);
-        badge.setIncludeFontPadding(false);
-        badge.setGravity(Gravity.CENTER);
-        badge.setPadding(dp(activity, 6), dp(activity, 3), dp(activity, 6), dp(activity, 3));
-        GradientDrawable badgeFill = new GradientDrawable();
-        badgeFill.setColor(AdSkipBar.MARK);
-        badgeFill.setCornerRadius(dp(activity, 10));
-        badge.setBackground(badgeFill);
-        pill.addView(badge, centred());
+        pill.addView(pill.ring, new LinearLayout.LayoutParams(dp(activity, 34), dp(activity, 34)));
 
+        LinearLayout text = new LinearLayout(activity);
+        text.setOrientation(LinearLayout.VERTICAL);
+        text.setPadding(dp(activity, 9), 0, dp(activity, 8), 0);
+        TextView caption = new TextView(activity);
+        caption.setText(L10n.t("Ad skipped"));
+        caption.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        caption.setTextColor(AdSkipBar.MARK);
+        caption.setTypeface(Typeface.DEFAULT_BOLD);
+        caption.setLetterSpacing(0.02f);
+        caption.setIncludeFontPadding(false);
+        text.addView(caption);
         TextView label = new TextView(activity);
         label.setText(name);
-        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f);
+        label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
         label.setTextColor(0xF2FFFFFF);
         label.setMaxLines(1);
         label.setEllipsize(TextUtils.TruncateAt.END);
-        label.setMaxWidth(dp(activity, 180));
+        label.setMaxWidth(dp(activity, 168));
         label.setIncludeFontPadding(false);
-        label.setGravity(Gravity.CENTER);
-        label.setPadding(dp(activity, 7), 0, dp(activity, 7), 0);
-        pill.addView(label, centred());
+        label.setPadding(0, dp(activity, 3), 0, 0);
+        text.addView(label);
+        pill.addView(text, centred());
 
         if (watch != null) {
-            pill.addView(divider(activity));
-            TextView action = text14(activity, L10n.t("Watch it"), AdSkipBar.MARK, true);
+            LinearLayout action = new LinearLayout(activity);
+            action.setOrientation(LinearLayout.HORIZONTAL);
             action.setGravity(Gravity.CENTER);
-            action.setPadding(dp(activity, 10), dp(activity, 6), dp(activity, 10), dp(activity, 6));
+            action.setPadding(dp(activity, 9), dp(activity, 7), dp(activity, 11), dp(activity, 7));
             GradientDrawable fill = new GradientDrawable();
-            fill.setColor(0x262BD96B);
-            fill.setCornerRadius(dp(activity, 12));
+            fill.setColor(0x242BD96B);
+            fill.setCornerRadius(dp(activity, 16));
             action.setBackground(new RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), fill, null));
+            ImageView icon = new ImageView(activity);
+            icon.setImageDrawable(AdIcons.of(activity, AdIcons.Icon.REPLAY, AdSkipBar.MARK, 15));
+            action.addView(icon, new LinearLayout.LayoutParams(dp(activity, 15), dp(activity, 15)));
+            TextView words = text14(activity, L10n.t("Watch it"), AdSkipBar.MARK, true);
+            words.setPadding(dp(activity, 5), 0, 0, 0);
+            action.addView(words, centred());
+            action.setContentDescription(L10n.t("Watch it"));
             action.setOnClickListener(v -> {
                 dismiss();
                 try { watch.run(); }
@@ -201,6 +216,198 @@ final class AdSkipToast {
             pill.addView(down);
         }
         return pill;
+    }
+
+    /**
+     * The pill itself. It runs its own countdown so a finger can hold it: touching anywhere on it
+     * stops the ring, letting go starts it again, and a sideways swipe throws it off the screen.
+     */
+    static final class Pill extends LinearLayout {
+        final Ring ring;
+        private final int slop;
+        private Runnable onTimeUp;
+        private long total = 1, remaining, resumedAt;
+        private boolean running;
+        private float downX, downY;
+        private boolean swiping;
+
+        Pill(Activity activity) {
+            super(activity);
+            setOrientation(HORIZONTAL);
+            setGravity(Gravity.CENTER);
+            setClickable(true);
+            ring = new Ring(activity);
+            slop = android.view.ViewConfiguration.get(activity).getScaledTouchSlop();
+        }
+
+        /**
+         * Goes after ms of time on screen, not counting time held. The deadline runs on the
+         * clock, not on the animation, so a phone with animations turned off still shows the
+         * notice for the whole time; the ring only draws it.
+         */
+        void countDown(long ms, Runnable done) {
+            onTimeUp = done;
+            total = ms;
+            remaining = ms;
+            resumeTimer();
+        }
+
+        private final Runnable expire = () -> {
+            remaining = 0;
+            if (onTimeUp != null) onTimeUp.run();
+        };
+
+        private void resumeTimer() {
+            if (onTimeUp == null || remaining <= 0 || running) return;
+            running = true;
+            resumedAt = android.os.SystemClock.uptimeMillis();
+            postDelayed(expire, remaining);
+            if (ring.drawing != null) ring.drawing.cancel();
+            ValueAnimator draw = ValueAnimator.ofFloat(remaining / (float) total, 0f);
+            draw.setDuration(remaining);
+            draw.setInterpolator(new LinearInterpolator());
+            draw.addUpdateListener(a -> ring.setLeft((float) a.getAnimatedValue()));
+            ring.drawing = draw;
+            draw.start();
+        }
+
+        private void pauseTimer() {
+            if (!running) return;
+            running = false;
+            removeCallbacks(expire);
+            remaining = Math.max(0, remaining - (android.os.SystemClock.uptimeMillis() - resumedAt));
+            if (ring.drawing != null) ring.drawing.cancel();
+            ring.setLeft(remaining / (float) total);
+        }
+
+        void stopTimer() {
+            pauseTimer();
+            onTimeUp = null;
+        }
+
+        @Override
+        public boolean dispatchTouchEvent(MotionEvent event) {
+            int action = event.getActionMasked();
+            if (action == MotionEvent.ACTION_DOWN) pauseTimer();
+            else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) resumeTimer();
+            return super.dispatchTouchEvent(event);
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            super.onDetachedFromWindow();
+            stopTimer();
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(MotionEvent event) {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX = event.getRawX();
+                    downY = event.getRawY();
+                    swiping = false;
+                    return false;
+                case MotionEvent.ACTION_MOVE: {
+                    float dx = event.getRawX() - downX, dy = event.getRawY() - downY;
+                    if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) {
+                        swiping = true;
+                        getParent().requestDisallowInterceptTouchEvent(true);
+                        return true;
+                    }
+                    return false;
+                }
+                default:
+                    return false;
+            }
+        }
+
+        @android.annotation.SuppressLint("ClickableViewAccessibility")
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            float dx = event.getRawX() - downX;
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX = event.getRawX();
+                    downY = event.getRawY();
+                    swiping = false;
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    if (!swiping && Math.abs(dx) > slop) {
+                        swiping = true;
+                        getParent().requestDisallowInterceptTouchEvent(true);
+                    }
+                    if (swiping) {
+                        setTranslationX(dx);
+                        setAlpha(Math.max(0.2f, 1f - Math.abs(dx) / Math.max(1f, getWidth())));
+                    }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    if (swiping && Math.abs(dx) > getWidth() * 0.3f) {
+                        stopTimer();
+                        animate().translationX(Math.signum(dx) * getWidth() * 1.2f).alpha(0f).setDuration(160)
+                                .withEndAction(() -> {
+                                    if (shown.get() == this) shown = new WeakReference<>(null);
+                                    ViewGroup parent = (ViewGroup) getParent();
+                                    if (parent != null) parent.removeView(this);
+                                }).start();
+                    } else if (swiping) {
+                        animate().translationX(0).alpha(1f).setDuration(180).start();
+                    }
+                    swiping = false;
+                    return true;
+                default:
+                    return true;
+            }
+        }
+    }
+
+    /** The skip sign on a soft green disc, with a ring around it that empties as time runs out. */
+    static final class Ring extends View {
+        private final Paint disc = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint arc = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF oval = new RectF();
+        private final AdIcons icon;
+        private float left = 1f;
+        /** The animation drawing the countdown; the deadline itself is the pill's. */
+        ValueAnimator drawing;
+
+        Ring(Activity activity) {
+            super(activity);
+            float density = activity.getResources().getDisplayMetrics().density;
+            disc.setColor(0x262BD96B);
+            track.setColor(0x332BD96B);
+            track.setStyle(Paint.Style.STROKE);
+            track.setStrokeWidth(2 * density);
+            arc.setColor(AdSkipBar.MARK);
+            arc.setStyle(Paint.Style.STROKE);
+            arc.setStrokeWidth(2 * density);
+            arc.setStrokeCap(Paint.Cap.ROUND);
+            icon = AdIcons.of(activity, AdIcons.Icon.FAST_FORWARD, AdSkipBar.MARK, 16);
+        }
+
+        void setLeft(float fraction) {
+            left = fraction;
+            invalidate();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            float w = getWidth(), h = getHeight();
+            float stroke = arc.getStrokeWidth();
+            float r = Math.min(w, h) / 2f - stroke;
+            canvas.drawCircle(w / 2f, h / 2f, r, disc);
+            oval.set(w / 2f - r, h / 2f - r, w / 2f + r, h / 2f + r);
+            canvas.drawOval(oval, track);
+            canvas.drawArc(oval, -90, 360 * left, false, arc);
+            int side = icon.getBounds().width();
+            int x = Math.round((w - side) / 2f), y = Math.round((h - side) / 2f);
+            canvas.save();
+            canvas.translate(x, y);
+            icon.draw(canvas);
+            canvas.restore();
+        }
     }
 
     /** A hairline between the pill's parts. Space draws nothing, not even its background. */
@@ -274,7 +481,10 @@ final class AdSkipToast {
         View pill = shown.get();
         shown = new WeakReference<>(null);
         if (pill == null) return;
-        pill.animate().alpha(0f).setDuration(150).withEndAction(() -> {
+        if (pill instanceof Pill) ((Pill) pill).stopTimer();
+        pill.animate().cancel();
+        pill.animate().alpha(0f).translationY(pill.getTranslationY() + dp((Activity) pill.getContext(), 8))
+                .setDuration(160).withEndAction(() -> {
             ViewGroup parent = (ViewGroup) pill.getParent();
             if (parent != null) parent.removeView(pill);
         }).start();

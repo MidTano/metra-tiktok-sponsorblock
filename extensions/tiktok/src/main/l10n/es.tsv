@@ -2231,7 +2231,6 @@ Nothing is dimmed.	No se atenúa nada.
 %1$s h %2$s min	%1$s h %2$s min
 %1$s min	%1$s min
 %1$s s · skipped %2$s times · %3$s	%1$s s · saltado %2$s veces · %3$s
-AD	ANUNCIO
 Ad	Anuncio
 Ad range	Fragmento del anuncio
 Adds Mark ad to a video's share sheet, where you cut the ad out of the video.	Añade Marcar anuncio al panel de compartir de un vídeo, donde recortas el anuncio del vídeo.
@@ -2270,7 +2269,6 @@ Match strictness	Rigor de coincidencia
 Move on from ad-only videos	Pasar los vídeos que son solo un anuncio
 Name	Nombre
 New marks you save are sent to the shared base so others benefit right away.	Las marcas nuevas que guardes se envían a la base compartida para que otros se beneficien de inmediato.
-No ads marked yet. Open a video's share sheet and tap Mark ad.	Aún no hay anuncios marcados. Abre el panel de compartir de un vídeo y toca Marcar anuncio.
 None yet. In a video, tap Share, then Mark ad, and choose where the ad starts and ends.	Aún no hay ninguno. En un vídeo, toca Compartir, luego Marcar anuncio, y elige dónde empieza y termina el anuncio.
 Open a video first	Primero abre un vídeo
 Play ad	Reproducir anuncio
@@ -2290,7 +2288,6 @@ Skip marked ads	Saltar los anuncios marcados
 Skipped for others	Saltados a otros
 Strict: only clear matches	Estricto: solo coincidencias claras
 The shared base can't be reached right now.	Ahora mismo no se puede acceder a la base compartida.
-There's too little sound here to recognise. Choose a louder part.	Aquí hay muy poco sonido para reconocerlo. Elige una parte más fuerte.
 Time saved	Tiempo ahorrado
 Use shared ad database	Usar la base de datos de anuncios compartida
 Watch it	Verlo
@@ -2298,6 +2295,33 @@ When the ad is the whole video, go to the next one instead of jumping to its end
 Wrong	Incorrecto
 Your contribution	Tu aporte
 Your marks	Tus marcas
-Zoom	Zoom
 Voted down	Votados en contra
 These ads are not skipped for you. Tap Undo if you voted by mistake.	Estos anuncios no se saltan para ti. Toca Deshacer si votaste por error.
+# context: Skip ads by sound, the editor, the skip notice and the list of marked ads
+Ad skipped	Anuncio omitido
+Ad skipped: %1$s	Anuncio omitido: %1$s
+Clear sound. This part is easy to recognise.	Sonido claro. Este fragmento es fácil de reconocer.
+Discard	Descartar
+Discard this ad?	¿Descartar este anuncio?
+End	Fin
+End earlier	Terminar antes
+End later	Terminar después
+Everyone with Metra skips this ad too.	Todos los que usan Metra también omitirán este anuncio.
+Hold a handle still to zoom in. Pinch the strip to zoom.	Mantén un tirador quieto para acercar. Pellizca la tira para hacer zoom.
+Keep editing	Seguir editando
+Length	Duración
+Listen to the end	Escuchar el final
+Listen to the start	Escuchar el inicio
+No ads marked yet	Aún no hay anuncios marcados
+Open a video's share sheet and tap Mark ad.	Abre el menú de compartir de un video y toca Marcar anuncio.
+Skip this ad	Omitir este anuncio
+Start	Inicio
+Start earlier	Empezar antes
+Start later	Empezar después
+The part you chose is not saved.	El fragmento que elegiste no se ha guardado.
+Too little sound to recognise. Choose a louder part.	Hay muy poco sonido para reconocerlo. Elige una parte más fuerte.
+Try again	Reintentar
+Turn on the shared base in settings to share.	Activa la base compartida en los ajustes para compartir.
+Weak sound. A longer or louder part is found more reliably.	Sonido débil. Una parte más larga o más fuerte se encuentra con más fiabilidad.
+Zoom in	Acercar
+Zoom out	Alejar

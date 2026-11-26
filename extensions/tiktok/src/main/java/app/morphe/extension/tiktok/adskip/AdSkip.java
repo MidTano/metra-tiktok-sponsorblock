@@ -60,6 +60,8 @@ public final class AdSkip {
     private static volatile boolean paused;
     private static boolean askedThisPlay;
 
+    /** A jump from this close to the end to this close to the start is the video looping. */
+    private static final long LOOP_END_MS = 3000, LOOP_START_MS = 1500;
     /** How far from the end a skip may land. */
     private static final long END_GUARD_MS = 600;
     /** With Save traffic on, a video is scanned once it has played this long, so one swiped past costs no download. */
@@ -130,14 +132,19 @@ public final class AdSkip {
     // endregion
 
     private static boolean shouldScan() {
-        if (AdSegmentStore.index().isEmpty()) return false;
-        if (!Settings.AD_SKIP_MOBILE_DATA.get() && Utils.getNetworkType() == Utils.NetworkType.MOBILE) return false;
-        return true;
+        return !AdSegmentStore.index().isEmpty() && mayDownload();
+    }
+
+    /** Whether the network in use allows a scan's download now; asked again when a queued scan starts. */
+    static boolean mayDownload() {
+        return Settings.AD_SKIP_MOBILE_DATA.get() || Utils.getNetworkType() != Utils.NetworkType.MOBILE;
     }
 
     private static synchronized void tick(String aid, long position, long duration) {
         long now = android.os.SystemClock.uptimeMillis();
         if (!aid.equals(sessionAid)) {
+            // The notice belongs to the video before: its Watch it must not seek this one.
+            if (sessionAid != null) Utils.runOnMainThread(AdSkipToast::dismiss);
             sessionAid = aid;
             skipped.clear();
             allowed.clear();
@@ -168,7 +175,13 @@ public final class AdSkip {
         // Played round to the start again, or the reader dragged back before an ad: it may
         // be skipped again. Only a real jump back counts, never a tick right after a seek.
         if (lastTick >= 0 && position + 3000 < lastTick && now - seekAt > SEEK_SETTLE_MS) {
-            skipped.removeIf(start -> position < start - 500);
+            // Back to before an ad, or onto its first half second: an ad at the very start of
+            // the video can't be gone back before, and a loop lands there.
+            skipped.removeIf(start -> position < start + 500);
+            if (position < LOOP_START_MS && lastTick > duration - LOOP_END_MS) {
+                // The video looped: a new play as far as the skip budget goes.
+                seeksThisPlay = 0;
+            }
         }
         lastTick = position;
         if (seeksThisPlay >= MAX_SEEKS_PER_PLAY) return;
@@ -244,6 +257,8 @@ public final class AdSkip {
         AdSegmentStore.recordSkip(match.segment, savedMs);
         AdSkipLog.add(aid, "skipped " + match.segment.name + ", saved " + savedMs + "ms");
         notice(match.segment.name, match.segment.sharedServerId, () -> {
+            // Only the video the ad was skipped in: after a swipe the notice is stale.
+            if (!aid.equals(playingAid)) return;
             long back = Math.max(0, match.startMs);
             synchronized (AdSkip.class) {
                 allowed.add(match.startMs);

@@ -32,6 +32,7 @@ final class AdSegmentList {
     private final Activity activity;
     private final Dialog dialog;
     private LinearLayout list;
+    private boolean logOpen;
 
     private AdSegmentList(Activity activity) {
         this.activity = activity;
@@ -85,12 +86,7 @@ final class AdSegmentList {
         List<AdSegment> segments = AdSegmentStore.all();
 
         list.addView(statistics());
-        if (segments.isEmpty()) {
-            TextView empty = AdSkipUi.text(c, L10n.t("No ads marked yet. Open a video's share sheet and tap Mark ad."),
-                    13, AdSkipUi.TEXT_2, false);
-            empty.setPadding(dp(4), dp(4), dp(4), dp(12));
-            list.addView(empty);
-        }
+        if (segments.isEmpty()) list.addView(empty());
 
         List<AdSegment> disliked = new java.util.ArrayList<>();
         for (int i = segments.size() - 1; i >= 0; i--) {
@@ -110,8 +106,8 @@ final class AdSegmentList {
         }
 
         if (!segments.isEmpty()) {
-            TextView clear = AdSkipUi.chip(c, L10n.t("Delete all"), false);
-            clear.setTextColor(AdSkipUi.ACCENT);
+            AdSkipUi.IconChip clear = new AdSkipUi.IconChip(c, AdSkipUi.SURFACE, AdSkipUi.ACCENT, true);
+            clear.set(AdIcons.Icon.DELETE, L10n.t("Delete all"));
             clear.setOnClickListener(v -> confirm(L10n.t("Delete every marked ad?"), () -> {
                 AdSegmentStore.clear();
                 AdScanner.clearAll();
@@ -125,9 +121,14 @@ final class AdSegmentList {
 
         List<String> log = AdSkipLog.lines();
         if (!log.isEmpty()) {
-            TextView heading = AdSkipUi.text(c, L10n.t("Recent checks"), 13, AdSkipUi.TEXT, true);
-            heading.setPadding(dp(4), dp(24), 0, dp(6));
-            list.addView(heading);
+            // The log is for troubleshooting, so it stays folded until asked for.
+            TextView heading = AdSkipUi.text(c, L10n.t("Recent checks"), 13, AdSkipUi.TEXT_2, true);
+            heading.setGravity(Gravity.CENTER_VERTICAL);
+            heading.setPadding(dp(4), dp(10), dp(4), dp(10));
+            heading.setCompoundDrawablePadding(dp(6));
+            LinearLayout.LayoutParams headingParams = new LinearLayout.LayoutParams(-1, -2);
+            headingParams.topMargin = dp(16);
+            list.addView(heading, headingParams);
             StringBuilder text = new StringBuilder();
             for (String line : log) text.append(line).append('\n');
             TextView lines = AdSkipUi.text(c, text.toString().trim(), 11, AdSkipUi.TEXT_2, false);
@@ -135,7 +136,16 @@ final class AdSegmentList {
             lines.setBackground(AdSkipUi.round(AdSkipUi.SURFACE, dp(12)));
             lines.setPadding(dp(12), dp(10), dp(12), dp(10));
             lines.setTextIsSelectable(true);
+            lines.setVisibility(logOpen ? View.VISIBLE : View.GONE);
             list.addView(lines);
+            Runnable showState = () -> heading.setCompoundDrawablesRelative(null, null,
+                    AdIcons.of(c, logOpen ? AdIcons.Icon.EXPAND_LESS : AdIcons.Icon.EXPAND_MORE, AdSkipUi.TEXT_2, 18), null);
+            showState.run();
+            heading.setOnClickListener(v -> {
+                logOpen = !logOpen;
+                lines.setVisibility(logOpen ? View.VISIBLE : View.GONE);
+                showState.run();
+            });
         }
     }
 
@@ -210,6 +220,28 @@ final class AdSegmentList {
         return box;
     }
 
+    /** No ads yet: the waveform sign, what this list is, and how to fill it. */
+    private View empty() {
+        Context c = activity;
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setPadding(dp(24), dp(28), dp(24), dp(28));
+        ImageView icon = new ImageView(c);
+        icon.setScaleType(ImageView.ScaleType.CENTER);
+        icon.setImageDrawable(AdIcons.of(c, AdIcons.Icon.GRAPHIC_EQ, AdSkipBar.MARK, 28));
+        icon.setBackground(AdSkipUi.round(AdSkipUi.SURFACE, dp(32)));
+        box.addView(icon, new LinearLayout.LayoutParams(dp(64), dp(64)));
+        TextView title = AdSkipUi.text(c, L10n.t("No ads marked yet"), 16, AdSkipUi.TEXT, true);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, dp(14), 0, dp(4));
+        box.addView(title);
+        TextView how = AdSkipUi.text(c, L10n.t("Open a video's share sheet and tap Mark ad."), 13, AdSkipUi.TEXT_2, false);
+        how.setGravity(Gravity.CENTER);
+        box.addView(how);
+        return box;
+    }
+
     private View tile(String value, String label) {
         LinearLayout tile = new LinearLayout(activity);
         tile.setOrientation(LinearLayout.VERTICAL);
@@ -260,14 +292,25 @@ final class AdSegmentList {
         card.setOrientation(LinearLayout.HORIZONTAL);
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setBackground(AdSkipUi.round(AdSkipUi.SURFACE, dp(14)));
-        card.setPadding(dp(14), dp(12), dp(8), dp(12));
+        card.setPadding(dp(12), dp(12), dp(6), dp(12));
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
         cardParams.bottomMargin = dp(8);
         card.setLayoutParams(cardParams);
 
+        boolean down = SharedDb.myVote(segment.sharedServerId) < 0;
+        ImageView glyph = new ImageView(c);
+        glyph.setScaleType(ImageView.ScaleType.CENTER);
+        glyph.setBackground(AdSkipUi.round(AdSkipUi.SURFACE_HI, dp(12)));
+        LinearLayout.LayoutParams glyphParams = new LinearLayout.LayoutParams(dp(40), dp(40));
+        glyphParams.rightMargin = dp(12);
+        card.addView(glyph, glyphParams);
+        paintGlyph(glyph, segment.enabled && !down);
+
         LinearLayout text = new LinearLayout(c);
         text.setOrientation(LinearLayout.VERTICAL);
         TextView name = AdSkipUi.text(c, segment.name, 15, segment.enabled ? AdSkipUi.TEXT : AdSkipUi.TEXT_2, true);
+        name.setMaxLines(2);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         text.addView(name);
         String details = L10n.f("%1$s s · skipped %2$s times · %3$s",
                 AdSkipUi.seconds(segment.durationMs), String.valueOf(segment.skips),
@@ -281,7 +324,7 @@ final class AdSegmentList {
         text.addView(detailsView);
         card.addView(text, new LinearLayout.LayoutParams(0, -2, 1f));
 
-        if (SharedDb.myVote(segment.sharedServerId) < 0) {
+        if (down) {
             name.setTextColor(AdSkipUi.TEXT_2);
             TextView undo = AdSkipUi.chip(c, L10n.t("Undo"), false);
             undo.setTextColor(AdSkipUi.ACCENT);
@@ -292,10 +335,13 @@ final class AdSegmentList {
             card.addView(undo);
         } else {
             Switch toggle = new Switch(c);
+            AdSkipUi.tint(toggle, AdSkipBar.MARK);
             toggle.setChecked(segment.enabled);
+            toggle.setContentDescription(L10n.t("Skip this ad"));
             toggle.setOnCheckedChangeListener((b, on) -> {
                 AdSegmentStore.setEnabled(segment.id, on);
                 name.setTextColor(on ? AdSkipUi.TEXT : AdSkipUi.TEXT_2);
+                paintGlyph(glyph, on);
             });
             card.addView(toggle);
         }
@@ -307,6 +353,11 @@ final class AdSegmentList {
         card.addView(more, moreParams);
         card.setOnClickListener(v -> menu(segment));
         return card;
+    }
+
+    /** The card's waveform sign: green while the ad is skipped, grey while it is not. */
+    private void paintGlyph(ImageView glyph, boolean on) {
+        glyph.setImageDrawable(AdIcons.of(activity, AdIcons.Icon.GRAPHIC_EQ, on ? AdSkipBar.MARK : AdSkipUi.TEXT_2, 20));
     }
 
     private void menu(AdSegment segment) {
