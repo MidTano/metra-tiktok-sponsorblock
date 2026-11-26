@@ -263,7 +263,7 @@ final class AdSegmentEditor {
         meterIcon = new ImageView(c);
         meter.addView(meterIcon, new LinearLayout.LayoutParams(dp(16), dp(16)));
         meterText = AdSkipUi.text(c, "", 12, AdSkipUi.TEXT_2, false);
-        meterText.setSingleLine(true);
+        meterText.setMaxLines(2);
         meterText.setEllipsize(TextUtils.TruncateAt.END);
         meterText.setPadding(dp(8), 0, dp(8), 0);
         meter.addView(meterText, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -275,7 +275,8 @@ final class AdSegmentEditor {
             meter.addView(barView, params);
             meterBars[i] = barView;
         }
-        controls.addView(meter, new LinearLayout.LayoutParams(-1, dp(24)));
+        meter.setMinimumHeight(dp(26));
+        controls.addView(meter, new LinearLayout.LayoutParams(-1, -2));
 
         // Start and end, each with a tenth of a second either way, and the length between.
         LinearLayout edges = new LinearLayout(c);
@@ -555,7 +556,7 @@ final class AdSegmentEditor {
 
     /** Closes at once when nothing was chosen; otherwise asks first. */
     private void requestClose() {
-        if (!changed || !prepared) {
+        if (!changed) {
             dialog.dismiss();
             return;
         }
@@ -588,14 +589,14 @@ final class AdSegmentEditor {
 
     private void showTip() {
         android.content.SharedPreferences prefs = AdSkipPrefs.get();
-        boolean learned = prefs != null && prefs.getInt(KEY_FINE_ZOOMS, 0) >= TIP_UNTIL;
-        if (learned) {
-            setMeter(AdIcons.Icon.GRAPHIC_EQ, AdSkipUi.TEXT_2, "", 0);
-            return;
-        }
+        tipShown = prefs == null || prefs.getInt(KEY_FINE_ZOOMS, 0) < TIP_UNTIL;
+        if (tipShown) setTipText();
+        else setMeter(AdIcons.Icon.GRAPHIC_EQ, AdSkipUi.TEXT_2, "", 0);
+    }
+
+    private void setTipText() {
         setMeter(AdIcons.Icon.INFO, AdSkipUi.TEXT_2,
                 L10n.t("Hold a handle still to zoom in. Pinch the strip to zoom."), 0);
-        tipShown = true;
     }
 
     private void learnedFineZoom() {
@@ -612,13 +613,16 @@ final class AdSegmentEditor {
      * before Save so a quiet part is fixed here rather than refused after.
      */
     private void updateSound() {
-        if (print == null || tipShown) {
-            AdSkipUi.enable(saveButton, prepared && print != null && soundCount() >= MIN_HASHES);
+        if (print == null) {
+            AdSkipUi.enable(saveButton, false);
             return;
         }
         int count = soundCount();
+        // Why Save is off always wins over the gesture tip.
         if (count < MIN_HASHES) {
             setMeter(AdIcons.Icon.WARNING, AdSkipUi.ACCENT, L10n.t("Too little sound to recognise. Choose a louder part."), 1);
+        } else if (tipShown) {
+            setTipText();
         } else if (count < STRONG_HASHES) {
             setMeter(AdIcons.Icon.GRAPHIC_EQ, AdSkipUi.WARN, L10n.t("Weak sound. A longer or louder part is found more reliably."), 2);
         } else {
@@ -1070,7 +1074,6 @@ final class AdSegmentEditor {
         long s = range.start(), e = range.end();
         Landmarks.Print cut = print.slice(Landmarks.msToFrame(s), Landmarks.msToFrame(e));
         if (cut.count < MIN_HASHES) {
-            tipShown = false;
             updateSound();
             return;
         }

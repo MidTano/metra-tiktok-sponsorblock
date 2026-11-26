@@ -166,7 +166,7 @@ final class SegmentRangeView extends View {
                 return true;
             }
         });
-        if (android.os.Build.VERSION.SDK_INT >= 23) pinch.setQuickScaleEnabled(false);
+        pinch.setQuickScaleEnabled(false);
     }
 
     void setListener(Listener listener) {
@@ -378,15 +378,21 @@ final class SegmentRangeView extends View {
             }
         }
 
+        // Before the video is loaded there is no range to show, only the empty strip.
+        if (durationMs <= 1) return;
+
         // Dim outside the range.
         canvas.drawRect(left, thumbTop, Math.max(left, xs), waveBottom, shade);
         canvas.drawRect(Math.min(right, xe), thumbTop, right, waveBottom, shade);
 
-        // Frame and handles.
-        rect.set(xs, thumbTop, xe, waveBottom);
+        // Frame and handles, kept to the strip and its handle margin when an edge is out of view.
+        canvas.save();
+        canvas.clipRect(left - 16 * density, 0, right + 16 * density, h);
+        rect.set(Math.max(xs, left - 2 * density), thumbTop, Math.min(xe, right + 2 * density), waveBottom);
         canvas.drawRoundRect(rect, 4 * density, 4 * density, frame);
-        drawHandle(canvas, xs, thumbTop, waveBottom, true, dragging == START);
-        drawHandle(canvas, xe, thumbTop, waveBottom, false, dragging == END);
+        if (xs >= left - 1) drawHandle(canvas, xs, thumbTop, waveBottom, true, dragging == START);
+        if (xe <= right + 1) drawHandle(canvas, xe, thumbTop, waveBottom, false, dragging == END);
+        canvas.restore();
 
         // Play head.
         if (playMs >= viewStart && playMs <= viewEnd) {
@@ -504,6 +510,9 @@ final class SegmentRangeView extends View {
                 lastX = x;
                 if (Math.abs(x - holdX) > HOLD_SLOP_DP * density) {
                     holdX = x;
+                    // The finger moves on: a zoom still easing in stops where it is, so the handle
+                    // follows the finger rather than the point where it rested.
+                    if (viewAnimator != null) viewAnimator.cancel();
                     if (fineLevel < FINE_LEVELS) scheduleHold(fineLevel == 0 ? HOLD_MS : NEXT_HOLD_MS);
                 }
                 drag(x);
@@ -605,7 +614,7 @@ final class SegmentRangeView extends View {
     private final Runnable holdCheck = new Runnable() {
         @Override
         public void run() {
-            if ((dragging != START && dragging != END) || pinching || fineLevel >= FINE_LEVELS) return;
+            if ((dragging != START && dragging != END) || pinching || panning || fineLevel >= FINE_LEVELS) return;
             long span = viewEnd - viewStart;
             long floor = Math.min(FINE_SPAN_MS, durationMs);
             long target = Math.max(floor, fineLevel == 0 ? Math.min(span / 4, 8000) : span / 3);

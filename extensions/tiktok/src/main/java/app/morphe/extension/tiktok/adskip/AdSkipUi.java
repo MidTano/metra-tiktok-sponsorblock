@@ -31,6 +31,9 @@ final class AdSkipUi {
     static final int ACCENT = 0xFFFE2C55;
     static final int GOOD = 0xFF35C76F;
     static final int WARN = 0xFFF5A623;
+    /** A switch that is off: a light thumb on a dark track. */
+    static final int SWITCH_THUMB_OFF = 0xFFC8C8CE;
+    static final int SWITCH_TRACK_OFF = 0xFF4A4A50;
 
     private AdSkipUi() {}
 
@@ -152,8 +155,8 @@ final class AdSkipUi {
     /** A switch in the accent colour, so it matches the sheet rather than the phone's theme. */
     static void tint(android.widget.Switch toggle, int on) {
         int[][] states = {{android.R.attr.state_checked}, {}};
-        toggle.setThumbTintList(new ColorStateList(states, new int[]{Color.WHITE, 0xFFC8C8CE}));
-        toggle.setTrackTintList(new ColorStateList(states, new int[]{on, 0xFF4A4A50}));
+        toggle.setThumbTintList(new ColorStateList(states, new int[]{Color.WHITE, SWITCH_THUMB_OFF}));
+        toggle.setTrackTintList(new ColorStateList(states, new int[]{on, SWITCH_TRACK_OFF}));
     }
 
     /** A spinner in the accent colour. */

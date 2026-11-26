@@ -4,8 +4,6 @@
  */
 package app.morphe.extension.tiktok.adskip;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.res.ColorStateList;
@@ -227,8 +225,9 @@ final class AdSkipToast {
     static final class Pill extends LinearLayout {
         final Ring ring;
         private final int slop;
-        private ValueAnimator timer;
         private Runnable onTimeUp;
+        private long total = 1, remaining, resumedAt;
+        private boolean running;
         private float downX, downY;
         private boolean swiping;
 
@@ -241,40 +240,63 @@ final class AdSkipToast {
             slop = android.view.ViewConfiguration.get(activity).getScaledTouchSlop();
         }
 
+        /**
+         * Goes after ms of time on screen, not counting time held. The deadline runs on the
+         * clock, not on the animation, so a phone with animations turned off still shows the
+         * notice for the whole time; the ring only draws it.
+         */
         void countDown(long ms, Runnable done) {
             onTimeUp = done;
-            timer = ValueAnimator.ofFloat(1f, 0f);
-            timer.setDuration(ms);
-            timer.setInterpolator(new LinearInterpolator());
-            timer.addUpdateListener(a -> ring.setLeft((float) a.getAnimatedValue()));
-            timer.addListener(new AnimatorListenerAdapter() {
-                private boolean cancelled;
+            total = ms;
+            remaining = ms;
+            resumeTimer();
+        }
 
-                @Override
-                public void onAnimationCancel(Animator animation) {
-                    cancelled = true;
-                }
+        private final Runnable expire = () -> {
+            remaining = 0;
+            if (onTimeUp != null) onTimeUp.run();
+        };
 
-                @Override
-                public void onAnimationEnd(Animator animation) {
-                    if (!cancelled && onTimeUp != null) onTimeUp.run();
-                }
-            });
-            timer.start();
+        private void resumeTimer() {
+            if (onTimeUp == null || remaining <= 0 || running) return;
+            running = true;
+            resumedAt = android.os.SystemClock.uptimeMillis();
+            postDelayed(expire, remaining);
+            if (ring.drawing != null) ring.drawing.cancel();
+            ValueAnimator draw = ValueAnimator.ofFloat(remaining / (float) total, 0f);
+            draw.setDuration(remaining);
+            draw.setInterpolator(new LinearInterpolator());
+            draw.addUpdateListener(a -> ring.setLeft((float) a.getAnimatedValue()));
+            ring.drawing = draw;
+            draw.start();
+        }
+
+        private void pauseTimer() {
+            if (!running) return;
+            running = false;
+            removeCallbacks(expire);
+            remaining = Math.max(0, remaining - (android.os.SystemClock.uptimeMillis() - resumedAt));
+            if (ring.drawing != null) ring.drawing.cancel();
+            ring.setLeft(remaining / (float) total);
         }
 
         void stopTimer() {
-            if (timer != null) timer.cancel();
+            pauseTimer();
+            onTimeUp = null;
         }
 
         @Override
         public boolean dispatchTouchEvent(MotionEvent event) {
             int action = event.getActionMasked();
-            if (timer != null) {
-                if (action == MotionEvent.ACTION_DOWN) timer.pause();
-                else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) timer.resume();
-            }
+            if (action == MotionEvent.ACTION_DOWN) pauseTimer();
+            else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) resumeTimer();
             return super.dispatchTouchEvent(event);
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            super.onDetachedFromWindow();
+            stopTimer();
         }
 
         @Override
@@ -348,6 +370,8 @@ final class AdSkipToast {
         private final RectF oval = new RectF();
         private final AdIcons icon;
         private float left = 1f;
+        /** The animation drawing the countdown; the deadline itself is the pill's. */
+        ValueAnimator drawing;
 
         Ring(Activity activity) {
             super(activity);
