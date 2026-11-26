@@ -386,10 +386,16 @@ final class SegmentRangeView extends View {
         canvas.drawRect(Math.min(right, xe), thumbTop, right, waveBottom, shade);
 
         // Frame and handles, kept to the strip and its handle margin when an edge is out of view.
+        // An edge out of view draws no side: the frame runs on past the strip instead, so it
+        // never looks as if the part ended at the strip's edge.
+        canvas.save();
+        canvas.clipRect(left, 0, right, h);
+        float outside = 24 * density;
+        rect.set(xs < left - 1 ? left - outside : xs, thumbTop, xe > right + 1 ? right + outside : xe, waveBottom);
+        canvas.drawRoundRect(rect, 4 * density, 4 * density, frame);
+        canvas.restore();
         canvas.save();
         canvas.clipRect(left - 16 * density, 0, right + 16 * density, h);
-        rect.set(Math.max(xs, left - 2 * density), thumbTop, Math.min(xe, right + 2 * density), waveBottom);
-        canvas.drawRoundRect(rect, 4 * density, 4 * density, frame);
         if (xs >= left - 1) drawHandle(canvas, xs, thumbTop, waveBottom, true, dragging == START);
         if (xe <= right + 1) drawHandle(canvas, xe, thumbTop, waveBottom, false, dragging == END);
         canvas.restore();
