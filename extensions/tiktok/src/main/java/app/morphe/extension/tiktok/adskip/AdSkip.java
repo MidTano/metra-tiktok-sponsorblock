@@ -121,6 +121,10 @@ public final class AdSkip {
         playingAid = aid;
         positionMs = position;
         durationMs = duration;
+        if (paused) {
+            holdFeed();
+            return;
+        }
         if (!active()) return;
         try {
             tick(aid, position, duration);
@@ -375,6 +379,21 @@ public final class AdSkip {
     }
 
     /** Whether TikTok's own player is playing; the editor pauses it while it plays its copy. */
+    private static long lastHold;
+
+    /**
+     * The editor is open, yet the feed behind it reports progress: TikTok started it again, as it
+     * does when the app comes back from the background. Pause it again, at most twice a second.
+     */
+    private static void holdFeed() {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastHold < 500) return;
+        lastHold = now;
+        Utils.runOnMainThread(() -> {
+            if (paused) setFeedPlaying(false);
+        });
+    }
+
     static void setFeedPlaying(boolean play) {
         try {
             app.morphe.extension.tiktok.wellbeing.SessionPlaybackHold.setCurrentPlaying(play);

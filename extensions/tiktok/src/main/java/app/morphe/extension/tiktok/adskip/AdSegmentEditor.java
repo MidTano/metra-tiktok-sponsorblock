@@ -376,6 +376,14 @@ final class AdSegmentEditor {
                     android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::requestClose);
         }
         dialog.setOnDismissListener(d -> release());
+        // Leaving the app pauses the editor's video; coming back pauses the feed again, which
+        // TikTok starts by itself on return, so its sound never plays behind the editor.
+        focusListener = hasFocus -> {
+            if (hasFocus) AdSkip.setFeedPlaying(false);
+            else pause();
+        };
+        root.getViewTreeObserver().addOnWindowFocusChangeListener(focusListener);
+        focusRoot = root;
         AdSkip.setPaused(true);
         AdSkip.setFeedPlaying(false);
         enableControls(false);
@@ -1113,7 +1121,14 @@ final class AdSegmentEditor {
 
     // endregion
 
+    private android.view.ViewTreeObserver.OnWindowFocusChangeListener focusListener;
+    private View focusRoot;
+
     private void release() {
+        if (focusRoot != null && focusListener != null && focusRoot.getViewTreeObserver().isAlive()) {
+            focusRoot.getViewTreeObserver().removeOnWindowFocusChangeListener(focusListener);
+        }
+        focusListener = null;
         cancel.set(true);
         main.removeCallbacksAndMessages(null);
         for (MediaPlayer player : new MediaPlayer[]{picture, sound}) {
