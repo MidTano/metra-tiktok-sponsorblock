@@ -2325,3 +2325,15 @@ Turn on the shared base in settings to share.	Attiva la base condivisa nelle imp
 Weak sound. A longer or louder part is found more reliably.	Audio debole. Una parte più lunga o più forte viene trovata in modo più affidabile.
 Zoom in	Ingrandisci
 Zoom out	Rimpicciolisci
+# context: Skip ads by sound, backup of the marked ads in the list
+There are no ads to export yet	Non ci sono ancora annunci da esportare
+Couldn't open the file picker. Try again.	Impossibile aprire la scelta file. Riprova.
+Exported %1$s ads	%1$s annunci esportati
+Couldn't save the backup. Try another folder.	Impossibile salvare il backup. Prova un'altra cartella.
+Imported %1$s ads, %2$s were already in the list	%1$s annunci importati, %2$s erano già nell'elenco
+Imported %1$s ads	%1$s annunci importati
+This file is not a Metra ad backup	Questo file non è un backup di annunci Metra
+Backup	Backup
+Save your ads to a file, or bring them back on another phone.	Salva i tuoi annunci in un file o riportali su un altro telefono.
+Export	Esporta
+Import	Importa

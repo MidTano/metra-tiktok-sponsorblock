@@ -86,6 +86,8 @@ final class AdScanner {
     private static final Map<String, Job> JOBS = new java.util.HashMap<>();
     private static int workers;
     private static final int MAX_WORKERS = 2;
+    /** One more thread, only for the video on screen when the others are busy with the feed around it. */
+    private static final int MAX_WORKERS_URGENT = 3;
     private static final String CACHE_FILE = "metra-adskip-scans.json";
     private static boolean restored;
     private static volatile Listener listener;
@@ -94,6 +96,10 @@ final class AdScanner {
         final String aid;
         final WeakReference<Object> aweme;
         final AtomicBoolean cancel = new AtomicBoolean();
+        /** The video on screen: it runs at normal priority, the feed around it in the background. */
+        volatile boolean urgent;
+        /** The worker thread running it, 0 while queued. */
+        volatile int tid;
 
         Job(String aid, Object aweme) {
             this.aid = aid;
@@ -164,7 +170,11 @@ final class AdScanner {
             synchronized (QUEUE) {
                 Job current = JOBS.get(aid);
                 if (current != null && !current.cancel.get()) {
-                    if (urgent && QUEUE.remove(current)) QUEUE.addFirst(current);
+                    if (urgent) {
+                        if (QUEUE.remove(current)) QUEUE.addFirst(current);
+                        hurry(current);
+                        startWorker(true);
+                    }
                     return;
                 }
             }
@@ -176,6 +186,7 @@ final class AdScanner {
             return;
         }
         Job job = new Job(aid, aweme);
+        job.urgent = urgent;
         List<Job> dropped = new ArrayList<>();
         synchronized (QUEUE) {
             JOBS.put(aid, job);
@@ -187,15 +198,38 @@ final class AdScanner {
                 if (JOBS.get(gone.aid) == gone) JOBS.remove(gone.aid);
                 dropped.add(gone);
             }
-            if (workers < MAX_WORKERS) {
-                workers++;
-                Utils.runOnOwnThread("metra-adskip", AdScanner::work);
-            }
+            startWorker(urgent);
         }
         if (!dropped.isEmpty()) {
             synchronized (RESULTS) {
                 for (Job gone : dropped) RESULTS.remove(gone.aid);
             }
+        }
+    }
+
+    /**
+     * Starts a worker when one is free. For the video on screen a third may start, so it never
+     * waits behind scans of the videos around it.
+     */
+    private static void startWorker(boolean urgent) {
+        synchronized (QUEUE) {
+            if (QUEUE.isEmpty()) return;
+            if (workers < MAX_WORKERS || (urgent && workers < MAX_WORKERS_URGENT)) {
+                workers++;
+                Utils.runOnOwnThread("metra-adskip", AdScanner::work);
+            }
+        }
+    }
+
+    /** The video now on screen was being scanned in the background: give it the full CPU. */
+    private static void hurry(Job job) {
+        job.urgent = true;
+        int tid = job.tid;
+        if (tid == 0) return;
+        try {
+            Process.setThreadPriority(tid, Process.THREAD_PRIORITY_DEFAULT);
+        } catch (Throwable ignored) {
+            // Not fatal: it finishes a little later.
         }
     }
 
@@ -240,11 +274,6 @@ final class AdScanner {
     }
 
     private static void work() {
-        try {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
-        } catch (Throwable ignored) {
-            // Not fatal.
-        }
         while (true) {
             Job job;
             synchronized (QUEUE) {
@@ -254,6 +283,14 @@ final class AdScanner {
                     return;
                 }
                 RUNNING.add(job);
+                job.tid = Process.myTid();
+            }
+            try {
+                // The background group gets a sliver of CPU while TikTok plays a video, which
+                // made the video on screen wait seconds for its own scan.
+                Process.setThreadPriority(job.urgent ? Process.THREAD_PRIORITY_DEFAULT : Process.THREAD_PRIORITY_BACKGROUND);
+            } catch (Throwable ignored) {
+                // Not fatal.
             }
             try {
                 run(job);
@@ -279,6 +316,7 @@ final class AdScanner {
             Context context = Utils.getContext();
             if (context == null) throw new IllegalStateException("No context");
             AdAudioSource.Pcm pcm = AdAudioSource.load(context, aweme, Landmarks.SAMPLE_RATE, MAX_SCAN_MS, job.cancel);
+            long loaded = System.currentTimeMillis() - started;
             List<AdMatcher.Match> matches = scan(pcm.samples, pcm.length, job.cancel);
             long took = System.currentTimeMillis() - started;
             Result result = new Result(State.DONE, generation, matches, pcm.durationMs(), took, null);
@@ -287,7 +325,8 @@ final class AdScanner {
             persist();
             AdSkipLog.add(job.aid, (matches.isEmpty()
                     ? "no ad in " + pcm.durationMs() / 1000 + "s"
-                    : "found " + matches) + ", " + pcm.downloadedBytes / 1024 + " KB " + (AdAudioSource.separateSound(aweme) ? "dash" : "muxed") + " in " + took + "ms");
+                    : "found " + matches) + ", " + pcm.downloadedBytes / 1024 + " KB " + (AdAudioSource.separateSound(aweme) ? "dash" : "muxed")
+                    + " in " + took + "ms (load " + loaded + ", match " + (took - loaded) + (job.urgent ? ", on screen)" : ")"));
             Listener l = listener;
             if (l != null) l.scanned(job.aid, result);
             if (!matches.isEmpty()) Utils.runOnMainThread(AdSkipBar::refresh);
@@ -358,9 +397,11 @@ final class AdScanner {
         }
     }
 
-    /** With Save traffic on, loads the scans of earlier runs that still hold for the list of ads as it is now. */
+    /**
+     * Loads the scans of earlier runs that still hold for the list of ads as it is now, so a
+     * video seen before is known at once and not downloaded again.
+     */
     private static void restoreOnce() {
-        if (!Settings.AD_SKIP_SAVE_TRAFFIC.get()) return;
         Context context = Utils.getContext();
         if (context == null) return;
         synchronized (RESULTS) {
@@ -401,7 +442,6 @@ final class AdScanner {
 
     /** Writes every finished scan of the current list, so a restart does not download them again. */
     private static void persist() {
-        if (!Settings.AD_SKIP_SAVE_TRAFFIC.get()) return;
         Context context = Utils.getContext();
         if (context == null) return;
         String fingerprint = fingerprint();
