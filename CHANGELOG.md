@@ -1,3 +1,16 @@
+## [0.15.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.15.0...v0.15.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **adskip:** after the nightly snapshot, fetch the changes since it ([#5](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/5)) ([2a99d67](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/2a99d672c93887054815fc7faa815b7a9d4c9ad2))
+
+
+
+
+
+## 0.15.1
+
 # [0.15.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.14.1...v0.15.0) (2026-11-26)
 
 
