@@ -96,6 +96,95 @@ public class SharedDbTest {
         assertEquals(0, requests);
     }
 
+    private final List<String> urls = new ArrayList<>();
+
+    private void route(Map<String, Integer> codes, Map<String, Map<String, String>> headers, byte[] body) {
+        SharedDb.connectionFactory = endpoint -> {
+            urls.add(endpoint);
+            String host = new URL(endpoint).getHost();
+            Integer status = codes.get(host);
+            if (status == null) throw new UnknownHostException(host);
+            return new HttpURLConnection(new URL(endpoint)) {
+                final ByteArrayOutputStream sent = new ByteArrayOutputStream();
+                public void connect() {}
+                public void disconnect() {}
+                public boolean usingProxy() { return false; }
+                public OutputStream getOutputStream() { return sent; }
+                public int getResponseCode() { return status; }
+                public String getHeaderField(String name) {
+                    return headers.getOrDefault(host, Collections.emptyMap()).get(name);
+                }
+                public long getHeaderFieldDate(String name, long fallback) {
+                    String value = getHeaderField(name);
+                    return value == null ? fallback : Long.parseLong(value);
+                }
+                public InputStream getInputStream() { return new ByteArrayInputStream(body); }
+            };
+        };
+    }
+
+    private static byte[] emptyBase() {
+        return java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putInt(0x4244414D).putInt(2).putInt(0).array();
+    }
+
+    private void download() throws Exception {
+        invoke("download", new Class<?>[]{SharedPreferences.class}, prefs);
+    }
+
+    @Test public void firstSyncTakesTheSnapshotFromStorage() throws Exception {
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("cdn.sponblocktikitoki.dpdns.org", Collections.singletonMap("x-amz-meta-as_of", "1795654800"));
+        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
+        download();
+        assertEquals(Collections.singletonList(SharedDb.SNAPSHOT_URL), urls);
+        assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void snapshotWithoutMetadataStartsAnHourBeforeItsUpload() throws Exception {
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("cdn.sponblocktikitoki.dpdns.org", Collections.singletonMap("Last-Modified", String.valueOf(1795656123_000L)));
+        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
+        download();
+        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void deltaOverQuotaFallsBackToTheSnapshot() throws Exception {
+        prefs.edit().putLong("sync_as_of", 1795600000L).putString("sync_cursor", "").commit();
+        Map<String, Integer> codes = new HashMap<>();
+        codes.put("api.sponblocktikitoki.dpdns.org", 429);
+        codes.put("cdn.sponblocktikitoki.dpdns.org", 200);
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("cdn.sponblocktikitoki.dpdns.org", Collections.singletonMap("x-amz-meta-as_of", "1795654800"));
+        route(codes, headers, emptyBase());
+        download();
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL), urls);
+        assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void unreachableDomainFallsBackToWorkersDev() throws Exception {
+        prefs.edit().putLong("sync_as_of", 1795600000L).commit();
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("metra-adskip.falker600.workers.dev", Collections.singletonMap("X-Db-Time", "1795654800"));
+        route(Collections.singletonMap("metra-adskip.falker600.workers.dev", 200), headers, emptyBase());
+        download();
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000",
+                SharedDb.FALLBACK_URL + "/v1/db/since?t=1795600000"), urls);
+        assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void postGoesToFallbackOnlyWhenNothingWasSent() throws Exception {
+        route(Collections.singletonMap("metra-adskip.falker600.workers.dev", 200), new HashMap<>(), "{}".getBytes(StandardCharsets.UTF_8));
+        enqueue("first");
+        drain();
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/segments", SharedDb.FALLBACK_URL + "/v1/segments"), urls);
+        urls.clear();
+        route(Collections.singletonMap("api.sponblocktikitoki.dpdns.org", 503), new HashMap<>(), new byte[0]);
+        enqueue("second");
+        drain();
+        assertEquals(Collections.singletonList(SharedDb.BASE_URL + "/v1/segments"), urls);
+    }
+
     @Test public void queueSurvivesConnectionFailureAndRetries() throws Exception {
         enqueue("first"); enqueue("second");
         fail = true;

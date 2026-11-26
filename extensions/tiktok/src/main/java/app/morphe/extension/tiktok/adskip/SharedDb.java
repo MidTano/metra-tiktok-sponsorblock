@@ -24,8 +24,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +35,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import javax.net.ssl.SSLException;
 
 /**
  * The phone's side of the shared ad base: the daily download, sending the reader's own cuts,
@@ -57,9 +61,17 @@ import java.util.Map;
  * The server names the moment its data is current as of in {@code X-Db-Time}; the next delta asks
  * from there, so nothing sent between a snapshot's build and its download is missed. A delta
  * that filled a whole page says so in {@code X-Db-More}, and the next page is asked for at once.
+ * <p>
+ * The API sits behind a firewall on its own domain. The full snapshot also comes straight from
+ * storage on {@link #SNAPSHOT_URL}, without the API, so phones keep getting the base on a day the
+ * API is over its quota. When the domain does not answer, requests go to {@link #FALLBACK_URL}.
  */
 public final class SharedDb {
-    public static final String BASE_URL = "https://metra-adskip.falker600.workers.dev";
+    public static final String BASE_URL = "https://api.sponblocktikitoki.dpdns.org";
+    /** The same API without the firewall, for when the domain is down. */
+    static final String FALLBACK_URL = "https://metra-adskip.falker600.workers.dev";
+    /** The nightly snapshot, served from storage through the CDN. */
+    static final String SNAPSHOT_URL = "https://cdn.sponblocktikitoki.dpdns.org/db.bin";
     /** Server ids carry this prefix on the phone. */
     public static final String SHARED_PREFIX = "s_";
 
@@ -168,17 +180,30 @@ public final class SharedDb {
         for (int page = 0; more && page < MAX_DELTA_PAGES; page++) {
             long since = prefs.getLong(KEY_LAST_EPOCH, 0);
             String cursor = prefs.getString("sync_cursor", "");
-            String endpoint = since > 0 ? BASE_URL + "/v1/db/since?t=" + since
-                    + (cursor.isEmpty() ? "" : "&after=" + cursor) : BASE_URL + "/v1/db.bin";
-            HttpURLConnection connection = open(endpoint);
-            int code = connection.getResponseCode();
-            if (code != 200) throw new IOException("HTTP " + code + " from " + endpoint);
-            long asOf;
-            try {
-                asOf = Long.parseLong(connection.getHeaderField("X-Db-Time"));
-            } catch (Exception missing) {
-                asOf = System.currentTimeMillis() / 1000L - 86_400L;
+            String path = since > 0 ? "/v1/db/since?t=" + since + (cursor.isEmpty() ? "" : "&after=" + cursor) : null;
+            HttpURLConnection connection = null;
+            if (path != null) {
+                try {
+                    connection = get(path);
+                    if (connection.getResponseCode() != 200) {
+                        if (page > 0) throw new IOException("HTTP " + connection.getResponseCode() + " from " + path);
+                        connection = null;
+                    }
+                } catch (IOException failure) {
+                    if (page > 0) throw failure;
+                    connection = null;
+                }
+                if (connection == null) {
+                    // The API is down or over its quota: start again from the snapshot in storage.
+                    since = 0;
+                    cursor = "";
+                    prefs.edit().remove("sync_cursor").remove("sync_replay").apply();
+                }
             }
+            if (connection == null) connection = snapshot();
+            int code = connection.getResponseCode();
+            if (code != 200) throw new IOException("HTTP " + code + " from the shared base");
+            long asOf = asOf(connection);
             String nextCursor = connection.getHeaderField("X-Db-Cursor");
             if (nextCursor == null) nextCursor = "";
             if (!nextCursor.isEmpty() && !nextCursor.matches("[0-9a-fA-F-]{36}"))
@@ -517,13 +542,13 @@ public final class SharedDb {
             }
             JSONObject mine = null;
             JSONObject base = null;
-            HttpURLConnection me = open(BASE_URL + "/v1/me");
+            HttpURLConnection me = get("/v1/me");
             if (me.getResponseCode() == 200) {
                 mine = readJson(me);
                 base = mine.optJSONObject("base");
             }
             if (base == null) {
-                HttpURLConnection global = open(BASE_URL + "/v1/stats");
+                HttpURLConnection global = get("/v1/stats");
                 if (global.getResponseCode() != 200) return cachedStats(prefs);
                 base = readJson(global);
             }
@@ -595,12 +620,53 @@ public final class SharedDb {
         return connection;
     }
 
+    /**
+     * The moment a snapshot or delta is current as of. Storage names it in the snapshot's metadata;
+     * failing that, the hour before the upload is safe, since asking for a little more is harmless.
+     */
+    private static long asOf(HttpURLConnection connection) {
+        for (String header : new String[]{"X-Db-Time", "x-amz-meta-as_of"}) {
+            try {
+                return Long.parseLong(connection.getHeaderField(header));
+            } catch (Exception missing) {
+                // try the next one
+            }
+        }
+        long uploaded = connection.getHeaderFieldDate("Last-Modified", 0) / 1000L;
+        if (uploaded > 0) return uploaded - uploaded % 3600 - 3600;
+        return System.currentTimeMillis() / 1000L - 86_400L;
+    }
+
+    /** A GET on the API, on the fallback address when the domain does not answer or fails. */
+    private static HttpURLConnection get(String path) throws IOException {
+        try {
+            HttpURLConnection connection = open(BASE_URL + path);
+            if (connection.getResponseCode() < 500) return connection;
+        } catch (IOException unreachable) {
+            if (!enabled() || AdSkipPrefs.token() == null) throw unreachable;
+        }
+        return open(FALLBACK_URL + path);
+    }
+
+    /** The full snapshot: from storage first, then from the API. */
+    private static HttpURLConnection snapshot() throws IOException {
+        try {
+            HttpURLConnection connection = open(SNAPSHOT_URL);
+            if (connection.getResponseCode() == 200) return connection;
+        } catch (IOException unreachable) {
+            if (!enabled() || AdSkipPrefs.token() == null) throw unreachable;
+        }
+        return get("/v1/db.bin");
+    }
+
     private static Reply post(String path, byte[] body) throws IOException {
-        HttpURLConnection connection = open(BASE_URL + path);
-        connection.setDoOutput(true);
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.getOutputStream().write(body);
+        HttpURLConnection connection;
+        try {
+            connection = send(BASE_URL + path, body);
+        } catch (UnknownHostException | ConnectException | SSLException unreachable) {
+            // Nothing reached the server, so sending again cannot count twice.
+            connection = send(FALLBACK_URL + path, body);
+        }
         int code = connection.getResponseCode();
         JSONObject json = null;
         if (code < 400) {
@@ -611,6 +677,15 @@ public final class SharedDb {
             }
         }
         return new Reply(code, json);
+    }
+
+    private static HttpURLConnection send(String endpoint, byte[] body) throws IOException {
+        HttpURLConnection connection = open(endpoint);
+        connection.setDoOutput(true);
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.getOutputStream().write(body);
+        return connection;
     }
 
     private static JSONObject readJson(HttpURLConnection connection) throws Exception {
