@@ -276,7 +276,8 @@ public class SharedDbTest {
         fail = true;
         assertEquals(8, SharedDb.fetchStats().segments);
         assertEquals(8, SharedDb.fetchStats().segments);
-        assertEquals(1, requests);
+        // The failed attempt tried the domain and then workers.dev; the cooldown stops the second.
+        assertEquals(2, requests);
     }
 
     @Test public void statsCacheLastsADayAndThenExpires() {
