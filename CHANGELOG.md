@@ -1,3 +1,16 @@
+## [0.14.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.14.0...v0.14.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **adskip:** no feed sound behind the editor; shared base retried in minutes ([#3](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/3)) ([54c58bd](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/54c58bdd38387349fa4cf2afa076b18974530298))
+
+
+
+
+
+## 0.14.1
+
 # [0.14.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.13.0...v0.14.0) (2026-11-26)
 
 
