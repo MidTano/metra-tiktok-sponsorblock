@@ -43,7 +43,9 @@ final class Landmarks {
      * dense reading still holds most of the ad's pairs, so they still vote. Measured on speech
      * and song ads under other music after an AAC round trip: under music 14 dB louder than the
      * ad, 23 of 25 found instead of 8; with no ad, no match. The ad side is unchanged, so every
-     * mark already made and the shared base keep working.
+     * mark already made and the shared base keep working. A video is read both ways
+     * ({@link AdMatcher#find}): the sparse reading places an ad's ends best when it hears the ad
+     * clearly, the dense one adds the ads it missed.
      */
     static final int QUERY_TIME_RADIUS = 2;
     static final int QUERY_FREQ_RADIUS = 3;

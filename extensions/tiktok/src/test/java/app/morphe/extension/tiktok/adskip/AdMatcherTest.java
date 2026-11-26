@@ -85,7 +85,7 @@ public class AdMatcherTest {
 
     private static List<AdMatcher.Match> find(AdSegment segment, short[] video) {
         AdMatcher.Index index = AdMatcher.Index.build(Collections.singletonList(segment));
-        return AdMatcher.match(index, Landmarks.computeQuery(video, video.length), AdMatcher.Strictness.NORMAL);
+        return AdMatcher.find(index, video, video.length, AdMatcher.Strictness.NORMAL);
     }
 
     @Test
@@ -158,11 +158,11 @@ public class AdMatcherTest {
         short[] video = place(melody(99, 40, 1.0), fast, 10 * SR);
         AdSegment segment = segment(ad);
         AdMatcher.Index index = AdMatcher.Index.build(Collections.singletonList(segment));
-        List<AdMatcher.Match> plain = AdMatcher.match(index, Landmarks.computeQuery(video, video.length), AdMatcher.Strictness.NORMAL);
+        List<AdMatcher.Match> plain = AdMatcher.find(index, video, video.length, AdMatcher.Strictness.NORMAL);
         List<AdMatcher.Match> found = new ArrayList<>(plain);
         if (found.isEmpty()) {
             short[] slowed = AdScanner.stretch(video, video.length, 1.05f);
-            for (AdMatcher.Match m : AdMatcher.match(index, Landmarks.computeQuery(slowed, slowed.length), AdMatcher.Strictness.NORMAL)) {
+            for (AdMatcher.Match m : AdMatcher.match(index, Landmarks.computeQuery(slowed, slowed.length), AdMatcher.Strictness.NORMAL, true)) {
                 found.add(new AdMatcher.Match(m.segment, Math.round(m.startMs / 1.05f), Math.round(m.endMs / 1.05f), m.votes, m.partial));
             }
         }

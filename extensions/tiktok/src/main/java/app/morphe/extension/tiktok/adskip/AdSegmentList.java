@@ -294,7 +294,7 @@ final class AdSegmentList {
         ImageView chevron = new ImageView(c);
         chevron.setImageDrawable(AdIcons.of(c, AdIcons.Icon.CHEVRON_RIGHT, AdSkipUi.TEXT_2, 18));
         row.addView(chevron, new LinearLayout.LayoutParams(dp(18), dp(18)));
-        row.setContentDescription(title + ". " + detail);
+        // TalkBack reads the title and the detail in turn; nothing to join.
         return row;
     }
 

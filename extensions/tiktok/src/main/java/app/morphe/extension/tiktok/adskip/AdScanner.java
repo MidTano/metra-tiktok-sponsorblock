@@ -355,13 +355,12 @@ final class AdScanner {
     static List<AdMatcher.Match> scan(short[] pcm, int length, AtomicBoolean cancel) throws IOException {
         AdMatcher.Index index = AdSegmentStore.index();
         AdMatcher.Strictness strictness = AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get());
-        Landmarks.Print print = Landmarks.computeQuery(pcm, length);
-        List<AdMatcher.Match> found = AdMatcher.match(index, print, strictness);
+        List<AdMatcher.Match> found = AdMatcher.find(index, pcm, length, strictness);
         if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
         for (float rate : RATES) {
             if (cancel != null && cancel.get()) throw new IOException("Cancelled");
             short[] stretched = stretch(pcm, length, rate);
-            List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.computeQuery(stretched, stretched.length), strictness);
+            List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.computeQuery(stretched, stretched.length), strictness, true);
             if (retimed.isEmpty()) continue;
             List<AdMatcher.Match> mapped = new ArrayList<>();
             for (AdMatcher.Match m : retimed) {
