@@ -88,6 +88,37 @@ final class AdSegmentStore {
         return generation;
     }
 
+    /**
+     * Adds the ads of a backup the list doesn't have yet: one with the same sound, or the same
+     * shared id, is already here and stays as it is. Returns how many were added.
+     */
+    static int importAll(List<AdSegment> incoming) {
+        synchronized (LOCK) {
+            ensureLoaded();
+            int added = 0;
+            long id = System.currentTimeMillis();
+            for (AdSegment s : segments) if (s.id >= id) id = s.id + 1;
+            for (AdSegment in : incoming) {
+                boolean known = false;
+                for (AdSegment s : segments) {
+                    if (sameSound(s, in.hashes, in.times)
+                            || (in.sharedServerId != null && in.sharedServerId.equals(s.sharedServerId))) {
+                        known = true;
+                        break;
+                    }
+                }
+                if (known) continue;
+                AdSegment copy = new AdSegment(id++, in.name, in.createdAt > 0 ? in.createdAt : System.currentTimeMillis(),
+                        in.durationMs, in.sourceAid, in.hashes, in.times, in.frames, in.enabled, in.skips, in.lastSkipAt);
+                copy.sharedServerId = in.sharedServerId;
+                segments.add(copy);
+                added++;
+            }
+            if (added > 0) changed();
+            return added;
+        }
+    }
+
     static AdSegment add(String name, long durationMs, String sourceAid, Landmarks.Print print) {
         synchronized (LOCK) {
             ensureLoaded();

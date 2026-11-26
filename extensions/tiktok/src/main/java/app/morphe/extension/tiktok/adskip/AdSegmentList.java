@@ -105,6 +105,8 @@ final class AdSegmentList {
             for (AdSegment segment : disliked) list.addView(card(segment));
         }
 
+        list.addView(backup(!segments.isEmpty()));
+
         if (!segments.isEmpty()) {
             AdSkipUi.IconChip clear = new AdSkipUi.IconChip(c, AdSkipUi.SURFACE, AdSkipUi.ACCENT, true);
             clear.set(AdIcons.Icon.DELETE, L10n.t("Delete all"));
@@ -217,6 +219,37 @@ final class AdSegmentList {
                         AdSkipStats.duration(stats.savedMs), L10n.t("Saved everyone")));
             });
         });
+        return box;
+    }
+
+    /** Export and import of the whole list, side by side; Export only once there is something to save. */
+    private View backup(boolean any) {
+        Context c = activity;
+        LinearLayout box = new LinearLayout(c);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(4), dp(16), dp(4), 0);
+        TextView heading = AdSkipUi.text(c, L10n.t("Backup"), 13, AdSkipUi.TEXT, true);
+        box.addView(heading);
+        TextView hint = AdSkipUi.text(c, L10n.t("Save your ads to a file, or bring them back on another phone."),
+                12, AdSkipUi.TEXT_2, false);
+        hint.setPadding(0, dp(2), 0, dp(8));
+        box.addView(hint);
+        LinearLayout row = new LinearLayout(c);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        AdSkipUi.IconChip export = new AdSkipUi.IconChip(c, false);
+        export.set(AdIcons.Icon.DOWNLOAD, L10n.t("Export"));
+        export.setOnClickListener(v -> AdBackup.export(activity));
+        AdSkipUi.enable(export, any);
+        LinearLayout.LayoutParams left = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        left.rightMargin = dp(8);
+        row.addView(export, left);
+        AdSkipUi.IconChip importButton = new AdSkipUi.IconChip(c, false);
+        importButton.set(AdIcons.Icon.UPLOAD, L10n.t("Import"));
+        importButton.setOnClickListener(v -> AdBackup.importFile(activity, () -> {
+            if (dialog.isShowing()) refresh();
+        }));
+        row.addView(importButton, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        box.addView(row);
         return box;
     }
 

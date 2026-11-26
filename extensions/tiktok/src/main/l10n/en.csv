@@ -283,6 +283,7 @@ Avatar and follow button,Avatar and follow button
 Back,Back
 Back to defaults,Back to defaults
 Back up settings,Back up settings
+Backup,Backup
 Backup and restore,Backup and restore
 Balanced,Balanced
 Bigger progress bar handle,Bigger progress bar handle
@@ -451,6 +452,7 @@ Couldn't open that settings section. Reopen settings and try again.,Couldn't ope
 Couldn't open the ad editor. Close the share sheet and try again.,Couldn't open the ad editor. Close the share sheet and try again.
 Couldn't open the file picker to export. Try again.,Couldn't open the file picker to export. Try again.
 Couldn't open the file picker to import. Try again.,Couldn't open the file picker to import. Try again.
+Couldn't open the file picker. Try again.,Couldn't open the file picker. Try again.
 Couldn't play this video. Close the editor and try again.,Couldn't play this video. Close the editor and try again.
 Couldn't put back the diagnostic data. Try again.,Couldn't put back the diagnostic data. Try again.
 Couldn't put the saved videos back. Try again.,Couldn't put the saved videos back. Try again.
@@ -466,6 +468,7 @@ Couldn't reset this override. Try again.,Couldn't reset this override. Try again
 Couldn't restart TikTok. Close it and open it again.,Couldn't restart TikTok. Close it and open it again.
 Couldn't restore seen history. Your saved history is unchanged.,Couldn't restore seen history. Your saved history is unchanged.
 Couldn't restore the settings. Try again.,Couldn't restore the settings. Try again.
+Couldn't save the backup. Try another folder.,Couldn't save the backup. Try another folder.
 Couldn't save the change. Try again.,Couldn't save the change. Try again.
 Couldn't save the font in TikTok's storage. Free up some space and try again.,Couldn't save the font in TikTok's storage. Free up some space and try again.
 Couldn't save the seen-history file. Try again.,Couldn't save the seen-history file. Try again.
@@ -600,6 +603,7 @@ Everyone with Metra skips this ad too.,Everyone with Metra skips this ad too.
 Everything this list has loaded is picked or saved. Scroll down to load more.,Everything this list has loaded is picked or saved. Scroll down to load more.
 Expand activity list,Expand activity list
 Explore or Community,Explore or Community
+Export,Export
 Export CSV,Export CSV
 Export JSON,Export JSON
 Export comments,Export comments
@@ -607,6 +611,7 @@ Export diagnostic report,Export diagnostic report
 Export loaded values,Export loaded values
 Exported %1$d comments and %2$d replies,Exported %1$d comments and %2$d replies
 Exported %1$d loaded values,Exported %1$d loaded values
+Exported %1$s ads.,Exported %1$s ads.
 Exported 1 loaded value,Exported 1 loaded value
 "Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.","Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10."
 Fade the feed out before the hold,Fade the feed out before the hold
@@ -916,12 +921,15 @@ I tap a dimmed control,I tap a dimmed control
 I tap the video,I tap the video
 "If that name is taken, Android adds a number to the new file.","If that name is taken, Android adds a number to the new file."
 "If that name is taken, Metra adds a number to the new file.","If that name is taken, Metra adds a number to the new file."
+Import,Import
 Import a font file,Import a font file
 Import finished,Import finished
 Import loaded values,Import loaded values
 Import watch history,Import watch history
 Imported %1$d values,Imported %1$d values
 Imported %1$d values. Undo last Lab change is in the menu.,Imported %1$d values. Undo last Lab change is in the menu.
+"Imported %1$s ads, %2$s were already in the list.","Imported %1$s ads, %2$s were already in the list."
+Imported %1$s ads.,Imported %1$s ads.
 Imported: %1$s. Pick another file to replace it.,Imported: %1$s. Pick another file to replace it.
 Importing new history ended Undo for the earlier clear. You can clear the imported history.,Importing new history ended Undo for the earlier clear. You can clear the imported history.
 Importing watch history,Importing watch history
@@ -1510,6 +1518,7 @@ Save the video's cover,Save the video's cover
 "Save the videos @%1$s has seen, and when, to a JSON file. Anyone who opens the file can see that viewing history.","Save the videos @%1$s has seen, and when, to a JSON file. Anyone who opens the file can see that viewing history."
 "Save this account's seen videos, and when they were watched, to a JSON file. Anyone who opens the file can see that viewing history.","Save this account's seen videos, and when they were watched, to a JSON file. Anyone who opens the file can see that viewing history."
 Save videos without sound,Save videos without sound
+"Save your ads to a file, or bring them back on another phone.","Save your ads to a file, or bring them back on another phone."
 "Save, restore, reset and undo your settings","Save, restore, reset and undo your settings"
 Saved,Saved
 "Saved ""%1$s"", but its sound is weak. A longer or louder cut is found more reliably.","Saved ""%1$s"", but its sound is weak. A longer or louder cut is found more reliably."
@@ -1988,6 +1997,7 @@ The video couldn't be made from these photos. Try again.,The video couldn't be m
 "The voice and video call buttons leave the top of a chat. Calls still ring, and the chat details button stays.","The voice and video call buttons leave the top of a chat. Calls still ring, and the chat details button stays."
 "The words under the bottom tab icons go away. The icons stay, and each tab opens what it always did.","The words under the bottom tab icons go away. The icons stay, and each tab opens what it always did."
 "Their usernames, separated by commas or new lines. Each person must already have a chat with you.","Their usernames, separated by commas or new lines. Each person must already have a chat with you."
+There are no ads to export yet.,There are no ads to export yet.
 There is no Lab change to undo.,There is no Lab change to undo.
 There is no diagnostic data to clear,There is no diagnostic data to clear
 There is no diagnostic data to put back,There is no diagnostic data to put back
@@ -2004,6 +2014,7 @@ This catalog entry is no longer available. Refresh the Lab and try again.,This c
 This change couldn't be saved. Try again.,This change couldn't be saved. Try again.
 This configuration has no fields that can be copied and changed safely on this build.,This configuration has no fields that can be copied and changed safely on this build.
 This file has no loaded values in it.,This file has no loaded values in it.
+This file is not a Metra ad backup.,This file is not a Metra ad backup.
 This file isn't a loaded-values export from the Feature Gate Lab.,This file isn't a loaded-values export from the Feature Gate Lab.
 This gate type isn't supported.,This gate type isn't supported.
 "This is the video's own sound, so YouTube Music won't have it","This is the video's own sound, so YouTube Music won't have it"

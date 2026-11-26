@@ -2325,3 +2325,15 @@ Turn on the shared base in settings to share.	Paylaşmak için ayarlardan ortak 
 Weak sound. A longer or louder part is found more reliably.	Zayıf ses. Daha uzun veya daha yüksek sesli bir bölüm daha güvenilir bulunur.
 Zoom in	Yakınlaştır
 Zoom out	Uzaklaştır
+# context: Skip ads by sound, backup of the marked ads in the list
+There are no ads to export yet.	Henüz dışa aktarılacak reklam yok.
+Couldn't open the file picker. Try again.	Dosya seçici açılamadı. Tekrar deneyin.
+Exported %1$s ads.	%1$s reklam dışa aktarıldı.
+Couldn't save the backup. Try another folder.	Yedek kaydedilemedi. Başka bir klasör deneyin.
+Imported %1$s ads, %2$s were already in the list.	%1$s reklam içe aktarıldı, %2$s zaten listedeydi.
+Imported %1$s ads.	%1$s reklam içe aktarıldı.
+This file is not a Metra ad backup.	Bu dosya bir Metra reklam yedeği değil.
+Backup	Yedek
+Save your ads to a file, or bring them back on another phone.	Reklamlarınızı bir dosyaya kaydedin veya başka bir telefonda geri yükleyin.
+Export	Dışa aktar
+Import	İçe aktar

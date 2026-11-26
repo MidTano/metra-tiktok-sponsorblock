@@ -2328,3 +2328,15 @@ Turn on the shared base in settings to share.	Schalte die gemeinsame Datenbank i
 Weak sound. A longer or louder part is found more reliably.	Schwacher Ton. Ein längerer oder lauterer Abschnitt wird zuverlässiger gefunden.
 Zoom in	Heranzoomen
 Zoom out	Herauszoomen
+# context: Skip ads by sound, backup of the marked ads in the list
+There are no ads to export yet.	Noch keine Werbung zum Exportieren.
+Couldn't open the file picker. Try again.	Die Dateiauswahl ließ sich nicht öffnen. Versuche es erneut.
+Exported %1$s ads.	%1$s Werbungen exportiert.
+Couldn't save the backup. Try another folder.	Die Sicherung ließ sich nicht speichern. Wähle einen anderen Ordner.
+Imported %1$s ads, %2$s were already in the list.	%1$s Werbungen importiert, %2$s waren schon in der Liste.
+Imported %1$s ads.	%1$s Werbungen importiert.
+This file is not a Metra ad backup.	Diese Datei ist keine Metra-Werbesicherung.
+Backup	Sicherung
+Save your ads to a file, or bring them back on another phone.	Speichere deine Werbungen in einer Datei oder hole sie auf einem anderen Handy zurück.
+Export	Exportieren
+Import	Importieren

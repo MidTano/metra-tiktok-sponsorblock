@@ -265,6 +265,28 @@ public class SharedDbTest {
         assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
     }
 
+    @Test public void aBackupComesBackWholeAndOnlyOnce() throws Exception {
+        AdSegmentStore.clear();
+        int[][] a = sound(21), b = sound(22);
+        AdSegment first = AdSegmentStore.add("Первая", 5000, "7300000000000000003", new Landmarks.Print(a[0], a[1], a[0].length, 160, -1));
+        AdSegmentStore.add("Second", 4000, "7300000000000000004", new Landmarks.Print(b[0], b[1], b[0].length, 160, -1));
+        AdSegmentStore.setEnabled(first.id, false);
+        String file = AdBackup.toJson(AdSegmentStore.all());
+        AdSegmentStore.clear();
+        List<AdSegment> read = AdBackup.fromJson(file);
+        assertEquals(2, AdSegmentStore.importAll(read));
+        List<AdSegment> all = AdSegmentStore.all();
+        assertEquals(2, all.size());
+        AdSegment back = all.get(0).name.equals("Первая") ? all.get(0) : all.get(1);
+        assertFalse(back.enabled);
+        assertArrayEquals(a[0], back.hashes);
+        assertArrayEquals(a[1], back.times);
+        assertEquals(0, AdSegmentStore.importAll(AdBackup.fromJson(file)));
+        try { AdBackup.fromJson("{\"format\":\"other\",\"ads\":[]}"); fail("read a foreign file"); }
+        catch (IOException expected) {}
+        AdSegmentStore.clear();
+    }
+
     @Test public void theFirstSkipEverIsCountedOnce() {
         AdSegmentStore.clear();
         prefs.edit().clear().commit();
