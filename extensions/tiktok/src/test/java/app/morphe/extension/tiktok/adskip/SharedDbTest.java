@@ -96,6 +96,85 @@ public class SharedDbTest {
         assertEquals(0, requests);
     }
 
+    private final List<String> urls = new ArrayList<>();
+
+    private void route(Map<String, Integer> codes, Map<String, Map<String, String>> headers, byte[] body) {
+        SharedDb.connectionFactory = endpoint -> {
+            urls.add(endpoint);
+            String host = new URL(endpoint).getHost();
+            Integer status = codes.get(host);
+            if (status == null) throw new UnknownHostException(host);
+            return new HttpURLConnection(new URL(endpoint)) {
+                final ByteArrayOutputStream sent = new ByteArrayOutputStream();
+                public void connect() {}
+                public void disconnect() {}
+                public boolean usingProxy() { return false; }
+                public OutputStream getOutputStream() { return sent; }
+                public int getResponseCode() { return status; }
+                public String getHeaderField(String name) {
+                    return headers.getOrDefault(host, Collections.emptyMap()).get(name);
+                }
+                public long getHeaderFieldDate(String name, long fallback) {
+                    String value = getHeaderField(name);
+                    return value == null ? fallback : Long.parseLong(value);
+                }
+                public InputStream getInputStream() { return new ByteArrayInputStream(body); }
+            };
+        };
+    }
+
+    private static byte[] emptyBase() {
+        return java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putInt(0x4244414D).putInt(2).putInt(0).array();
+    }
+
+    private void download() throws Exception {
+        invoke("download", new Class<?>[]{SharedPreferences.class}, prefs);
+    }
+
+    private static Map<String, String> lastModified(long millis) {
+        return Collections.singletonMap("Last-Modified", String.valueOf(millis));
+    }
+
+    @Test public void firstSyncTakesTheSnapshotFromStorage() throws Exception {
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
+        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
+        download();
+        assertEquals(Collections.singletonList(SharedDb.SNAPSHOT_URL), urls);
+        // The hour before the upload: the build began in that hour or the next.
+        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void snapshotWithoutLastModifiedIsNotAcknowledged() throws Exception {
+        route(Collections.singletonMap("cdn.sponblocktikitoki.dpdns.org", 200), new HashMap<>(), emptyBase());
+        try { download(); fail("accepted a snapshot with no time"); } catch (IOException expected) {}
+        assertEquals(0, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void deltaOverQuotaFallsBackToTheSnapshot() throws Exception {
+        prefs.edit().putLong("sync_as_of", 1795600000L).putString("sync_cursor", "").commit();
+        Map<String, Integer> codes = new HashMap<>();
+        codes.put("api.sponblocktikitoki.dpdns.org", 429);
+        codes.put("cdn.sponblocktikitoki.dpdns.org", 200);
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("cdn.sponblocktikitoki.dpdns.org", lastModified(1795656123_000L));
+        route(codes, headers, emptyBase());
+        download();
+        assertEquals(Arrays.asList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000", SharedDb.SNAPSHOT_URL), urls);
+        assertEquals(1795651200L, prefs.getLong("sync_as_of", 0));
+    }
+
+    @Test public void deltaAdvancesToItsNamedTime() throws Exception {
+        prefs.edit().putLong("sync_as_of", 1795600000L).commit();
+        Map<String, Map<String, String>> headers = new HashMap<>();
+        headers.put("api.sponblocktikitoki.dpdns.org", Collections.singletonMap("X-Db-Time", "1795654800"));
+        route(Collections.singletonMap("api.sponblocktikitoki.dpdns.org", 200), headers, emptyBase());
+        download();
+        assertEquals(Collections.singletonList(SharedDb.BASE_URL + "/v1/db/since?t=1795600000"), urls);
+        assertEquals(1795654800L, prefs.getLong("sync_as_of", 0));
+    }
+
     @Test public void queueSurvivesConnectionFailureAndRetries() throws Exception {
         enqueue("first"); enqueue("second");
         fail = true;
@@ -150,7 +229,10 @@ public class SharedDbTest {
     @Test public void malformedDownloadIsNotAcknowledged() throws Exception {
         for (byte[] bytes : new byte[][] {new byte[0], new byte[12],
                 java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
-                        .putInt(0x4244414D).putInt(2).putInt(1).array()}) {
+                        .putInt(0x4244414D).putInt(2).putInt(1).array(),
+                // Version 1 is no longer read.
+                java.nio.ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                        .putInt(0x4244414D).putInt(1).putInt(0).array()}) {
             try { invoke("merge", new Class<?>[]{byte[].class}, bytes); fail("accepted corrupt database"); }
             catch (IOException expected) {}
         }

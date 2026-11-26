@@ -45,21 +45,22 @@ import java.util.Map;
  *
  * <p>The snapshot is little-endian:
  * <pre>
- *   [4] magic MADB   [4] version 2 (1 is still read)   [4] segment count
+ *   [4] magic MADB   [4] version 2   [4] segment count
  *   per segment:
- *     [16] uuid
- *     [4] number in the base, the N of adN   (version 2)
- *     [4] flags, bit 0: hidden by votes      (version 2)
- *     [4] frames                             (version 2)
- *     [4] duration ms   [4] score   [4] hash count
+ *     [16] uuid   [4] number in the base, the N of adN   [4] flags, bit 0: hidden by votes
+ *     [4] frames   [4] duration ms   [4] score   [4] hash count
  *     [4 x count] hashes   [4 x count] times
  * </pre>
- * The server names the moment its data is current as of in {@code X-Db-Time}; the next delta asks
- * from there, so nothing sent between a snapshot's build and its download is missed. A delta
- * that filled a whole page says so in {@code X-Db-More}, and the next page is asked for at once.
+ * The full snapshot comes straight from storage on {@link #SNAPSHOT_URL}, without the API, so the
+ * base keeps arriving on a day the API is over its quota. It is current as of the start of the
+ * hour its build began, so the first delta asks from the hour before its {@code Last-Modified}.
+ * A delta names the moment its data is current as of in {@code X-Db-Time}, and one that filled a
+ * whole page says so in {@code X-Db-More}; the next page is asked for at once.
  */
 public final class SharedDb {
-    public static final String BASE_URL = "https://metra-adskip.falker600.workers.dev";
+    public static final String BASE_URL = "https://api.sponblocktikitoki.dpdns.org";
+    /** The nightly snapshot, served from storage through the CDN. */
+    static final String SNAPSHOT_URL = "https://cdn.sponblocktikitoki.dpdns.org/db.bin";
     /** Server ids carry this prefix on the phone. */
     public static final String SHARED_PREFIX = "s_";
 
@@ -168,17 +169,31 @@ public final class SharedDb {
         for (int page = 0; more && page < MAX_DELTA_PAGES; page++) {
             long since = prefs.getLong(KEY_LAST_EPOCH, 0);
             String cursor = prefs.getString("sync_cursor", "");
-            String endpoint = since > 0 ? BASE_URL + "/v1/db/since?t=" + since
-                    + (cursor.isEmpty() ? "" : "&after=" + cursor) : BASE_URL + "/v1/db.bin";
-            HttpURLConnection connection = open(endpoint);
-            int code = connection.getResponseCode();
-            if (code != 200) throw new IOException("HTTP " + code + " from " + endpoint);
-            long asOf;
-            try {
-                asOf = Long.parseLong(connection.getHeaderField("X-Db-Time"));
-            } catch (Exception missing) {
-                asOf = System.currentTimeMillis() / 1000L - 86_400L;
+            HttpURLConnection connection = null;
+            if (since > 0) {
+                String endpoint = BASE_URL + "/v1/db/since?t=" + since + (cursor.isEmpty() ? "" : "&after=" + cursor);
+                try {
+                    connection = open(endpoint);
+                    if (connection.getResponseCode() != 200) {
+                        if (page > 0) throw new IOException("HTTP " + connection.getResponseCode() + " from " + endpoint);
+                        connection = null;
+                    }
+                } catch (IOException failure) {
+                    if (page > 0) throw failure;
+                }
+                if (connection == null) {
+                    // The API is down or over its quota: start again from the snapshot in storage.
+                    since = 0;
+                    cursor = "";
+                    prefs.edit().remove("sync_cursor").remove("sync_replay").apply();
+                }
             }
+            if (connection == null) {
+                connection = open(SNAPSHOT_URL);
+                if (connection.getResponseCode() != 200)
+                    throw new IOException("HTTP " + connection.getResponseCode() + " from " + SNAPSHOT_URL);
+            }
+            long asOf = asOf(connection);
             String nextCursor = connection.getHeaderField("X-Db-Cursor");
             if (nextCursor == null) nextCursor = "";
             if (!nextCursor.isEmpty() && !nextCursor.matches("[0-9a-fA-F-]{36}"))
@@ -208,18 +223,17 @@ public final class SharedDb {
         if (data.length < 12) throw new IOException("Truncated shared database");
         ByteBuffer buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         if (buf.getInt() != MAGIC) throw new IOException("Invalid shared database magic");
-        int version = buf.getInt();
-        if (version != 1 && version != 2) throw new IOException("Unsupported shared database version");
+        if (buf.getInt() != 2) throw new IOException("Unsupported shared database version");
         int count = buf.getInt();
         if (count < 0) throw new IOException("Invalid shared database count");
         List<AdSegmentStore.Shared> entries = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            if (buf.remaining() < (version == 2 ? 40 : 28)) throw new IOException("Truncated shared database row");
+            if (buf.remaining() < 40) throw new IOException("Truncated shared database row");
             byte[] id = new byte[16];
             buf.get(id);
-            int number = version == 2 ? buf.getInt() : 0;
-            int flags = version == 2 ? buf.getInt() : 0;
-            int frames = version == 2 ? buf.getInt() : 0;
+            int number = buf.getInt();
+            int flags = buf.getInt();
+            int frames = buf.getInt();
             int durationMs = buf.getInt();
             int score = buf.getInt();
             int hashCount = buf.getInt();
@@ -232,7 +246,6 @@ public final class SharedDb {
             int[] times = new int[hashCount];
             for (int k = 0; k < hashCount; k++) hashes[k] = buf.getInt();
             for (int k = 0; k < hashCount; k++) times[k] = buf.getInt();
-            if (frames <= 0) frames = durationMs * Landmarks.FRAMES_PER_SECOND / 1000;
             if (!isValid(number, durationMs, frames, hashes, times)) continue;
             boolean hidden = (flags & 1) != 0 || score < -2;
             entries.add(new AdSegmentStore.Shared(SHARED_PREFIX + hex(id), number, hidden, durationMs, frames,
@@ -490,8 +503,7 @@ public final class SharedDb {
 
     /**
      * The base's totals and what the reader's own cuts saved others. An answer is kept for a day,
-     * so opening the list again costs no request. /v1/me carries the totals too; a server that
-     * predates that is asked /v1/stats as well.
+     * so opening the list again costs no request. /v1/me carries the totals too.
      */
     @Nullable
     static Stats fetchStats() {
@@ -515,22 +527,15 @@ public final class SharedDb {
                 if (now - prefs.getLong(KEY_STATS_ATTEMPT, 0) < RETRY_INTERVAL_MS) return cachedStats(prefs);
                 prefs.edit().putLong(KEY_STATS_ATTEMPT, now).apply();
             }
-            JSONObject mine = null;
-            JSONObject base = null;
             HttpURLConnection me = open(BASE_URL + "/v1/me");
-            if (me.getResponseCode() == 200) {
-                mine = readJson(me);
-                base = mine.optJSONObject("base");
-            }
-            if (base == null) {
-                HttpURLConnection global = open(BASE_URL + "/v1/stats");
-                if (global.getResponseCode() != 200) return cachedStats(prefs);
-                base = readJson(global);
-            }
+            if (me.getResponseCode() != 200) return cachedStats(prefs);
+            JSONObject mine = readJson(me);
+            JSONObject base = mine.optJSONObject("base");
+            if (base == null) return cachedStats(prefs);
             if (prefs != null) {
                 prefs.edit()
                         .putString(KEY_STATS_BASE, base.toString())
-                        .putString(KEY_STATS_MINE, mine == null ? null : mine.toString())
+                        .putString(KEY_STATS_MINE, mine.toString())
                         .putLong(KEY_STATS_AT, System.currentTimeMillis())
                         .apply();
             }
@@ -593,6 +598,24 @@ public final class SharedDb {
         connection.setRequestProperty("User-Agent", USER_AGENT);
         connection.setRequestProperty("X-SB-Token", token);
         return connection;
+    }
+
+    /**
+     * The moment a delta or snapshot is current as of: a delta names it in {@code X-Db-Time}; for
+     * the snapshot, the hour before its upload is safe, since asking for more changes is harmless.
+     */
+    private static long asOf(HttpURLConnection connection) throws IOException {
+        String named = connection.getHeaderField("X-Db-Time");
+        if (named != null) {
+            try {
+                return Long.parseLong(named);
+            } catch (NumberFormatException invalid) {
+                throw new IOException("Invalid X-Db-Time");
+            }
+        }
+        long uploaded = connection.getHeaderFieldDate("Last-Modified", 0) / 1000L;
+        if (uploaded <= 0) throw new IOException("The snapshot has no Last-Modified");
+        return uploaded - uploaded % 3600 - 3600;
     }
 
     private static Reply post(String path, byte[] body) throws IOException {
