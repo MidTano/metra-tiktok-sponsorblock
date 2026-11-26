@@ -1,3 +1,16 @@
+# [0.13.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.2...v0.13.0) (2026-11-26)
+
+
+### Features
+
+* **adskip:** use the shared base's own domain, snapshot from the CDN ([#1](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/1)) ([6d513e3](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/6d513e31c2e3a1dbb3cae978630897c9aa8425f9))
+
+
+
+
+
+## 0.13.0
+
 ## [0.12.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.1...v0.12.2) (2026-11-25)
 
 

@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-25T21:44:06",
-  "description": "## [0.12.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.1...v0.12.2) (2026-11-25)\n\n\n### Performance Improvements\n\n* **tiktok:** talk to the shared ad base once a day ([81eb038](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/81eb038aff27e025770e79931a28289f42101571))\n\n\n\n\n\n## 0.12.2",
-  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.12.2/patches-0.12.2.mpp",
+  "created_at": "2026-11-26T17:47:10",
+  "description": "# [0.13.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.12.2...v0.13.0) (2026-11-26)\n\n\n### Features\n\n* **adskip:** use the shared base's own domain, snapshot from the CDN ([#1](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/1)) ([6d513e3](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/6d513e31c2e3a1dbb3cae978630897c9aa8425f9))\n\n\n\n\n\n## 0.13.0",
+  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.13.0/patches-0.13.0.mpp",
   "signature_download_url": "",
-  "version": "0.12.2"
+  "version": "0.13.0"
 }
