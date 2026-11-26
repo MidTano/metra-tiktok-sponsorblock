@@ -2326,13 +2326,13 @@ Weak sound. A longer or louder part is found more reliably.	Som fraco. Um trecho
 Zoom in	Aproximar
 Zoom out	Afastar
 # context: Skip ads by sound, backup of the marked ads in the list
-There are no ads to export yet.	Ainda não há anúncios para exportar.
+There are no ads to export yet	Ainda não há anúncios para exportar
 Couldn't open the file picker. Try again.	Não foi possível abrir o seletor de arquivos. Tente de novo.
-Exported %1$s ads.	%1$s anúncios exportados.
+Exported %1$s ads	%1$s anúncios exportados
 Couldn't save the backup. Try another folder.	Não foi possível salvar o backup. Tente outra pasta.
-Imported %1$s ads, %2$s were already in the list.	%1$s anúncios importados, %2$s já estavam na lista.
-Imported %1$s ads.	%1$s anúncios importados.
-This file is not a Metra ad backup.	Este arquivo não é um backup de anúncios do Metra.
+Imported %1$s ads, %2$s were already in the list	%1$s anúncios importados, %2$s já estavam na lista
+Imported %1$s ads	%1$s anúncios importados
+This file is not a Metra ad backup	Este arquivo não é um backup de anúncios do Metra
 Backup	Backup
 Save your ads to a file, or bring them back on another phone.	Salve seus anúncios em um arquivo ou recupere-os em outro celular.
 Export	Exportar

@@ -611,7 +611,7 @@ Export diagnostic report,Export diagnostic report
 Export loaded values,Export loaded values
 Exported %1$d comments and %2$d replies,Exported %1$d comments and %2$d replies
 Exported %1$d loaded values,Exported %1$d loaded values
-Exported %1$s ads.,Exported %1$s ads.
+Exported %1$s ads,Exported %1$s ads
 Exported 1 loaded value,Exported 1 loaded value
 "Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.","Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10."
 Fade the feed out before the hold,Fade the feed out before the hold
@@ -928,8 +928,8 @@ Import loaded values,Import loaded values
 Import watch history,Import watch history
 Imported %1$d values,Imported %1$d values
 Imported %1$d values. Undo last Lab change is in the menu.,Imported %1$d values. Undo last Lab change is in the menu.
-"Imported %1$s ads, %2$s were already in the list.","Imported %1$s ads, %2$s were already in the list."
-Imported %1$s ads.,Imported %1$s ads.
+Imported %1$s ads,Imported %1$s ads
+"Imported %1$s ads, %2$s were already in the list","Imported %1$s ads, %2$s were already in the list"
 Imported: %1$s. Pick another file to replace it.,Imported: %1$s. Pick another file to replace it.
 Importing new history ended Undo for the earlier clear. You can clear the imported history.,Importing new history ended Undo for the earlier clear. You can clear the imported history.
 Importing watch history,Importing watch history
@@ -1997,7 +1997,7 @@ The video couldn't be made from these photos. Try again.,The video couldn't be m
 "The voice and video call buttons leave the top of a chat. Calls still ring, and the chat details button stays.","The voice and video call buttons leave the top of a chat. Calls still ring, and the chat details button stays."
 "The words under the bottom tab icons go away. The icons stay, and each tab opens what it always did.","The words under the bottom tab icons go away. The icons stay, and each tab opens what it always did."
 "Their usernames, separated by commas or new lines. Each person must already have a chat with you.","Their usernames, separated by commas or new lines. Each person must already have a chat with you."
-There are no ads to export yet.,There are no ads to export yet.
+There are no ads to export yet,There are no ads to export yet
 There is no Lab change to undo.,There is no Lab change to undo.
 There is no diagnostic data to clear,There is no diagnostic data to clear
 There is no diagnostic data to put back,There is no diagnostic data to put back
@@ -2014,7 +2014,7 @@ This catalog entry is no longer available. Refresh the Lab and try again.,This c
 This change couldn't be saved. Try again.,This change couldn't be saved. Try again.
 This configuration has no fields that can be copied and changed safely on this build.,This configuration has no fields that can be copied and changed safely on this build.
 This file has no loaded values in it.,This file has no loaded values in it.
-This file is not a Metra ad backup.,This file is not a Metra ad backup.
+This file is not a Metra ad backup,This file is not a Metra ad backup
 This file isn't a loaded-values export from the Feature Gate Lab.,This file isn't a loaded-values export from the Feature Gate Lab.
 This gate type isn't supported.,This gate type isn't supported.
 "This is the video's own sound, so YouTube Music won't have it","This is the video's own sound, so YouTube Music won't have it"

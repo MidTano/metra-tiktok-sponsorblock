@@ -2506,13 +2506,13 @@ Weak sound. A longer or louder part is found more reliably.	Слабый зву�
 Zoom in	Приблизить
 Zoom out	Отдалить
 # context: Skip ads by sound, backup of the marked ads in the list
-There are no ads to export yet.	Пока нечего экспортировать.
+There are no ads to export yet	Пока нечего экспортировать
 Couldn't open the file picker. Try again.	Не удалось открыть выбор файла. Попробуйте ещё раз.
-Exported %1$s ads.	Экспортировано реклам: %1$s.
+Exported %1$s ads	Экспортировано реклам: %1$s
 Couldn't save the backup. Try another folder.	Не удалось сохранить копию. Выберите другую папку.
-Imported %1$s ads, %2$s were already in the list.	Импортировано реклам: %1$s, уже были в списке: %2$s.
-Imported %1$s ads.	Импортировано реклам: %1$s.
-This file is not a Metra ad backup.	Это не резервная копия рекламы Metra.
+Imported %1$s ads, %2$s were already in the list	Импортировано реклам: %1$s, уже были в списке: %2$s
+Imported %1$s ads	Импортировано реклам: %1$s
+This file is not a Metra ad backup	Это не резервная копия рекламы Metra
 Backup	Резервная копия
 Save your ads to a file, or bring them back on another phone.	Сохраните рекламу в файл или верните её на другом телефоне.
 Export	Экспорт

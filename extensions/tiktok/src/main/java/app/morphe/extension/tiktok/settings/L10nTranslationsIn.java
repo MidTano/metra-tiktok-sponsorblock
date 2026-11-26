@@ -1313,8 +1313,8 @@ final class L10nTranslationsIn {
                 "%1$d komentar dan %2$d balasan diekspor");
         table.put("Exported %1$d loaded values",
                 "%1$d nilai yang dimuat diekspor");
-        table.put("Exported %1$s ads.",
-                "%1$s iklan diekspor.");
+        table.put("Exported %1$s ads",
+                "%1$s iklan diekspor");
         table.put("Exported 1 loaded value",
                 "1 nilai yang dimuat diekspor");
         table.put("Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.",
@@ -1962,10 +1962,10 @@ final class L10nTranslationsIn {
                 "%1$d nilai diimpor");
         table.put("Imported %1$d values. Undo last Lab change is in the menu.",
                 "%1$d nilai diimpor. Batalkan perubahan Lab terakhir ada di menu.");
-        table.put("Imported %1$s ads, %2$s were already in the list.",
-                "%1$s iklan diimpor, %2$s sudah ada di daftar.");
-        table.put("Imported %1$s ads.",
-                "%1$s iklan diimpor.");
+        table.put("Imported %1$s ads",
+                "%1$s iklan diimpor");
+        table.put("Imported %1$s ads, %2$s were already in the list",
+                "%1$s iklan diimpor, %2$s sudah ada di daftar");
         table.put("Imported: %1$s. Pick another file to replace it.",
                 "Diimpor: %1$s. Pilih berkas lain untuk menggantinya.");
         table.put("Importing new history ended Undo for the earlier clear. You can clear the imported history.",
@@ -4154,8 +4154,8 @@ final class L10nTranslationsIn {
                 "Tulisan di bawah ikon tab bawah hilang. Ikonnya tetap ada, dan setiap tab membuka hal yang sama seperti biasa.");
         table.put("Their usernames, separated by commas or new lines. Each person must already have a chat with you.",
                 "Nama pengguna mereka, dipisahkan dengan koma atau baris baru. Kamu harus sudah memiliki chat dengan setiap orang.");
-        table.put("There are no ads to export yet.",
-                "Belum ada iklan untuk diekspor.");
+        table.put("There are no ads to export yet",
+                "Belum ada iklan untuk diekspor");
         table.put("There is no Lab change to undo.",
                 "Tidak ada perubahan Lab yang bisa dibatalkan.");
         table.put("There is no diagnostic data to clear",
@@ -4188,8 +4188,8 @@ final class L10nTranslationsIn {
                 "Konfigurasi ini tidak punya bidang yang bisa disalin dan diubah dengan aman di build ini.");
         table.put("This file has no loaded values in it.",
                 "Berkas ini tidak berisi nilai yang dimuat.");
-        table.put("This file is not a Metra ad backup.",
-                "File ini bukan cadangan iklan Metra.");
+        table.put("This file is not a Metra ad backup",
+                "File ini bukan cadangan iklan Metra");
         table.put("This file isn't a loaded-values export from the Feature Gate Lab.",
                 "Berkas ini bukan ekspor nilai yang dimuat dari Feature Gate Lab.");
         table.put("This gate type isn't supported.",

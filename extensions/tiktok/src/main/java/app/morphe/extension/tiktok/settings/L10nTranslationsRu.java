@@ -1562,8 +1562,8 @@ final class L10nTranslationsRu {
                 "Экспортировано %1$d загруженных значений");
         table.put("Exported %1$d loaded values|one",
                 "Экспортировано %1$d загруженное значение");
-        table.put("Exported %1$s ads.",
-                "Экспортировано реклам: %1$s.");
+        table.put("Exported %1$s ads",
+                "Экспортировано реклам: %1$s");
         table.put("Exported 1 loaded value",
                 "Экспортировано 1 загруженное значение");
         table.put("Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.",
@@ -2235,10 +2235,10 @@ final class L10nTranslationsRu {
                 "Импортировано значений: %1$d");
         table.put("Imported %1$d values. Undo last Lab change is in the menu.",
                 "Импортировано значений: %1$d. Пункт «Отменить последнее изменение Lab» находится в меню.");
-        table.put("Imported %1$s ads, %2$s were already in the list.",
-                "Импортировано реклам: %1$s, уже были в списке: %2$s.");
-        table.put("Imported %1$s ads.",
-                "Импортировано реклам: %1$s.");
+        table.put("Imported %1$s ads",
+                "Импортировано реклам: %1$s");
+        table.put("Imported %1$s ads, %2$s were already in the list",
+                "Импортировано реклам: %1$s, уже были в списке: %2$s");
         table.put("Imported: %1$s. Pick another file to replace it.",
                 "Импортирован: %1$s. Выберите другой файл, чтобы заменить его.");
         table.put("Importing new history ended Undo for the earlier clear. You can clear the imported history.",
@@ -4496,8 +4496,8 @@ final class L10nTranslationsRu {
                 "Слова под значками нижних вкладок исчезают. Значки остаются, и каждая вкладка открывает то же, что и раньше.");
         table.put("Their usernames, separated by commas or new lines. Each person must already have a chat with you.",
                 "Имена пользователей через запятую или с новой строки. У вас уже должен быть чат с каждым из них.");
-        table.put("There are no ads to export yet.",
-                "Пока нечего экспортировать.");
+        table.put("There are no ads to export yet",
+                "Пока нечего экспортировать");
         table.put("There is no Lab change to undo.",
                 "Нет изменений Lab, которые можно было бы отменить.");
         table.put("There is no diagnostic data to clear",
@@ -4530,8 +4530,8 @@ final class L10nTranslationsRu {
                 "В этой конфигурации нет полей, которые можно безопасно скопировать и изменить в этой сборке.");
         table.put("This file has no loaded values in it.",
                 "В этом файле нет загруженных значений.");
-        table.put("This file is not a Metra ad backup.",
-                "Это не резервная копия рекламы Metra.");
+        table.put("This file is not a Metra ad backup",
+                "Это не резервная копия рекламы Metra");
         table.put("This file isn't a loaded-values export from the Feature Gate Lab.",
                 "Этот файл не является экспортом загруженных значений из Feature Gate Lab.");
         table.put("This gate type isn't supported.",

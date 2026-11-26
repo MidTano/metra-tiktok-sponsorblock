@@ -1313,8 +1313,8 @@ final class L10nTranslationsAz {
                 "%1$d şərh və %2$d cavab ixrac edildi");
         table.put("Exported %1$d loaded values",
                 "%1$d yüklənmiş dəyər ixrac edildi");
-        table.put("Exported %1$s ads.",
-                "%1$s reklam ixrac edildi.");
+        table.put("Exported %1$s ads",
+                "%1$s reklam ixrac edildi");
         table.put("Exported 1 loaded value",
                 "1 yüklənmiş dəyər ixrac edildi");
         table.put("Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.",
@@ -1962,10 +1962,10 @@ final class L10nTranslationsAz {
                 "%1$d dəyər idxal edildi");
         table.put("Imported %1$d values. Undo last Lab change is in the menu.",
                 "%1$d dəyər idxal edildi. Son Lab dəyişikliyini geri qaytarmaq menyudadır.");
-        table.put("Imported %1$s ads, %2$s were already in the list.",
-                "%1$s reklam idxal edildi, %2$s artıq siyahıda idi.");
-        table.put("Imported %1$s ads.",
-                "%1$s reklam idxal edildi.");
+        table.put("Imported %1$s ads",
+                "%1$s reklam idxal edildi");
+        table.put("Imported %1$s ads, %2$s were already in the list",
+                "%1$s reklam idxal edildi, %2$s artıq siyahıda idi");
         table.put("Imported: %1$s. Pick another file to replace it.",
                 "İdxal edilib: %1$s. Onu əvəz etmək üçün başqa fayl seçin.");
         table.put("Importing new history ended Undo for the earlier clear. You can clear the imported history.",
@@ -4154,8 +4154,8 @@ final class L10nTranslationsAz {
                 "Alt paneldəki ikonların altındakı sözlər yox olur. İkonlar qalır və hər bölmə əvvəlki kimi açılır.");
         table.put("Their usernames, separated by commas or new lines. Each person must already have a chat with you.",
                 "Onların istifadəçi adları, vergüllə və ya yeni sətirlərlə ayrılmış. Hər kəsin sizinlə artıq söhbəti olmalıdır.");
-        table.put("There are no ads to export yet.",
-                "Hələ ixrac ediləcək reklam yoxdur.");
+        table.put("There are no ads to export yet",
+                "Hələ ixrac ediləcək reklam yoxdur");
         table.put("There is no Lab change to undo.",
                 "Geri qaytarılacaq Lab dəyişikliyi yoxdur.");
         table.put("There is no diagnostic data to clear",
@@ -4188,8 +4188,8 @@ final class L10nTranslationsAz {
                 "Bu konfiqurasiyada bu buildə təhlükəsiz kopyalanıb dəyişdirilə bilən sahə yoxdur.");
         table.put("This file has no loaded values in it.",
                 "Bu faylda heç bir yüklənmiş dəyər yoxdur.");
-        table.put("This file is not a Metra ad backup.",
-                "Bu fayl Metra reklam ehtiyat nüsxəsi deyil.");
+        table.put("This file is not a Metra ad backup",
+                "Bu fayl Metra reklam ehtiyat nüsxəsi deyil");
         table.put("This file isn't a loaded-values export from the Feature Gate Lab.",
                 "Bu fayl Feature Gate Lab-dan yüklənmiş dəyərlərin ixracı deyil.");
         table.put("This gate type isn't supported.",

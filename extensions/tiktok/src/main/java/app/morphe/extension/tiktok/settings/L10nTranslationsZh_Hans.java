@@ -1313,8 +1313,8 @@ final class L10nTranslationsZh_Hans {
                 "已导出 %1$d 条评论和 %2$d 条回复");
         table.put("Exported %1$d loaded values",
                 "已导出 %1$d 个已加载的值");
-        table.put("Exported %1$s ads.",
-                "已导出 %1$s 条广告。");
+        table.put("Exported %1$s ads",
+                "已导出 %1$s 条广告");
         table.put("Exported 1 loaded value",
                 "已导出 1 个已加载的值");
         table.put("Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.",
@@ -1962,10 +1962,10 @@ final class L10nTranslationsZh_Hans {
                 "已导入 %1$d 个值");
         table.put("Imported %1$d values. Undo last Lab change is in the menu.",
                 "已导入 %1$d 个值。菜单里有“撤销上次实验室更改”。");
-        table.put("Imported %1$s ads, %2$s were already in the list.",
-                "已导入 %1$s 条广告，%2$s 条已在列表中。");
-        table.put("Imported %1$s ads.",
-                "已导入 %1$s 条广告。");
+        table.put("Imported %1$s ads",
+                "已导入 %1$s 条广告");
+        table.put("Imported %1$s ads, %2$s were already in the list",
+                "已导入 %1$s 条广告，%2$s 条已在列表中");
         table.put("Imported: %1$s. Pick another file to replace it.",
                 "已导入：%1$s。选择其他文件会替换它。");
         table.put("Importing new history ended Undo for the earlier clear. You can clear the imported history.",
@@ -4154,8 +4154,8 @@ final class L10nTranslationsZh_Hans {
                 "底部标签页图标下的文字消失。图标保留，每个标签页打开的内容不变。");
         table.put("Their usernames, separated by commas or new lines. Each person must already have a chat with you.",
                 "他们的用户名，用逗号或换行分隔。每个人必须已经和你有过会话。");
-        table.put("There are no ads to export yet.",
-                "还没有可导出的广告。");
+        table.put("There are no ads to export yet",
+                "还没有可导出的广告");
         table.put("There is no Lab change to undo.",
                 "没有可撤消的实验室更改。");
         table.put("There is no diagnostic data to clear",
@@ -4188,8 +4188,8 @@ final class L10nTranslationsZh_Hans {
                 "此配置没有可在此版本上安全复制和修改的字段。");
         table.put("This file has no loaded values in it.",
                 "此文件中没有已加载数值。");
-        table.put("This file is not a Metra ad backup.",
-                "此文件不是 Metra 广告备份。");
+        table.put("This file is not a Metra ad backup",
+                "此文件不是 Metra 广告备份");
         table.put("This file isn't a loaded-values export from the Feature Gate Lab.",
                 "此文件不是功能门控实验室导出的已加载数值文件。");
         table.put("This gate type isn't supported.",

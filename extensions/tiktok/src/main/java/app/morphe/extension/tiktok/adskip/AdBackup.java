@@ -61,7 +61,7 @@ final class AdBackup {
 
     static void export(Activity activity) {
         if (AdSegmentStore.size() == 0) {
-            Utils.showToastShort(L10n.t("There are no ads to export yet."));
+            Utils.showToastShort(L10n.t("There are no ads to export yet"));
             return;
         }
         ask(activity, true, null);
@@ -181,7 +181,7 @@ final class AdBackup {
                     out.write(data);
                 }
                 int count = AdSegmentStore.size();
-                Utils.runOnMainThread(() -> Utils.showToastLong(L10n.f("Exported %1$s ads.", String.valueOf(count))));
+                Utils.runOnMainThread(() -> Utils.showToastLong(L10n.f("Exported %1$s ads", String.valueOf(count))));
             } catch (Throwable failure) {
                 Logger.printException(() -> "Ad skip: export failed", failure);
                 Utils.runOnMainThread(() -> Utils.showToastLong(L10n.t("Couldn't save the backup. Try another folder.")));
@@ -211,14 +211,14 @@ final class AdBackup {
                 AdScanner.clearAll();
                 Utils.runOnMainThread(() -> {
                     Utils.showToastLong(skipped > 0
-                            ? L10n.f("Imported %1$s ads, %2$s were already in the list.", String.valueOf(added), String.valueOf(skipped))
-                            : L10n.f("Imported %1$s ads.", String.valueOf(added)));
+                            ? L10n.f("Imported %1$s ads, %2$s were already in the list", String.valueOf(added), String.valueOf(skipped))
+                            : L10n.f("Imported %1$s ads", String.valueOf(added)));
                     if (done != null) done.imported();
                     AdSkipBar.refresh();
                 });
             } catch (Throwable failure) {
                 Logger.printException(() -> "Ad skip: import failed", failure);
-                Utils.runOnMainThread(() -> Utils.showToastLong(L10n.t("This file is not a Metra ad backup.")));
+                Utils.runOnMainThread(() -> Utils.showToastLong(L10n.t("This file is not a Metra ad backup")));
             }
         });
     }

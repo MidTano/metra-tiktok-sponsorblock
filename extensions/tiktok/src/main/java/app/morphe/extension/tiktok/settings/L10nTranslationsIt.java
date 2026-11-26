@@ -1313,8 +1313,8 @@ final class L10nTranslationsIt {
                 "Esportati %1$d commenti e %2$d risposte");
         table.put("Exported %1$d loaded values",
                 "%1$d valori caricati esportati");
-        table.put("Exported %1$s ads.",
-                "%1$s annunci esportati.");
+        table.put("Exported %1$s ads",
+                "%1$s annunci esportati");
         table.put("Exported 1 loaded value",
                 "1 valore caricato esportato");
         table.put("Fade the buttons, caption and tabs over the video to this level instead of hiding them. 100 leaves them as TikTok draws them. Faded controls still take taps. At 0 the buttons and caption are hidden, and the tabs stay at 10.",
@@ -1962,10 +1962,10 @@ final class L10nTranslationsIt {
                 "%1$d valori importati");
         table.put("Imported %1$d values. Undo last Lab change is in the menu.",
                 "%1$d valori importati. Annulla l'ultima modifica del Lab si trova nel menu.");
-        table.put("Imported %1$s ads, %2$s were already in the list.",
-                "%1$s annunci importati, %2$s erano già nell'elenco.");
-        table.put("Imported %1$s ads.",
-                "%1$s annunci importati.");
+        table.put("Imported %1$s ads",
+                "%1$s annunci importati");
+        table.put("Imported %1$s ads, %2$s were already in the list",
+                "%1$s annunci importati, %2$s erano già nell'elenco");
         table.put("Imported: %1$s. Pick another file to replace it.",
                 "Importato: %1$s. Scegli un altro file per sostituirlo.");
         table.put("Importing new history ended Undo for the earlier clear. You can clear the imported history.",
@@ -4154,8 +4154,8 @@ final class L10nTranslationsIt {
                 "Le parole sotto le icone delle schede in basso scompaiono. Le icone restano e ogni scheda apre ciò che ha sempre aperto.");
         table.put("Their usernames, separated by commas or new lines. Each person must already have a chat with you.",
                 "I loro nomi utente, separati da virgole o righe nuove. Devi già avere una chat con ciascuna persona.");
-        table.put("There are no ads to export yet.",
-                "Non ci sono ancora annunci da esportare.");
+        table.put("There are no ads to export yet",
+                "Non ci sono ancora annunci da esportare");
         table.put("There is no Lab change to undo.",
                 "Non c'è nessuna modifica del Lab da annullare.");
         table.put("There is no diagnostic data to clear",
@@ -4188,8 +4188,8 @@ final class L10nTranslationsIt {
                 "Questa configurazione non ha campi che si possano copiare e modificare in sicurezza in questa build.");
         table.put("This file has no loaded values in it.",
                 "Questo file non contiene valori caricati.");
-        table.put("This file is not a Metra ad backup.",
-                "Questo file non è un backup di annunci Metra.");
+        table.put("This file is not a Metra ad backup",
+                "Questo file non è un backup di annunci Metra");
         table.put("This file isn't a loaded-values export from the Feature Gate Lab.",
                 "Questo file non è un'esportazione di valori caricati dal Feature Gate Lab.");
         table.put("This gate type isn't supported.",
