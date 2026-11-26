@@ -389,7 +389,7 @@ public class SharedDbTest {
                 .putLong("stats_attempt", System.currentTimeMillis() - 3 * 60_000L).commit();
         assertNotNull(SharedDb.fetchStats());
         assertEquals(1, requests);
-        assertEquals(0, prefs.getInt("stats_fails", 9));
+        assertFalse(prefs.contains("stats_fails"));
     }
 
     @Test public void anAttemptAgainstAnotherServerDoesNotHoldBackThisOne() {
