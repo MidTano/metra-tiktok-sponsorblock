@@ -77,6 +77,11 @@ final class AdScanner {
         }
     };
     private static final LinkedList<Job> QUEUE = new LinkedList<>();
+    /** Jobs a worker is on now, so scrolling away or turning the feature off can stop them. */
+    private static final List<Job> RUNNING = new ArrayList<>();
+    /** The videos asked for most recently, newest first: the feed around the one on screen. */
+    private static final LinkedList<String> WANTED = new LinkedList<>();
+    private static final int WANTED_SIZE = 4;
     private static int workers;
     private static final int MAX_WORKERS = 2;
     private static final String CACHE_FILE = "metra-adskip-scans.json";
@@ -105,9 +110,20 @@ final class AdScanner {
         restoreOnce();
         synchronized (RESULTS) {
             Result r = RESULTS.get(aid);
-            if (r != null && r.generation != AdSegmentStore.generation() && r.state == State.DONE) return null;
+            if (r != null && r.generation != stamp() && r.state == State.DONE) return null;
             return r;
         }
+    }
+
+    /**
+     * What a result was computed for: the list of ads, the strictness and whether retimed copies
+     * are tried. A result for other settings is stale, so switching to Strict after a false skip
+     * takes effect on the next look rather than after the cache forgets the video.
+     */
+    static int stamp() {
+        int config = AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get()).ordinal() * 2
+                + (Settings.AD_SKIP_RETIMED.get() ? 1 : 0);
+        return AdSegmentStore.generation() * 16 + config;
     }
 
     static void forget(String aid) {
@@ -122,35 +138,63 @@ final class AdScanner {
         if (aid == null) return;
         if (AdSegmentStore.index().isEmpty()) return;
         restoreOnce();
+        int stamp = stamp();
+        want(aid, urgent);
+        // RESULTS and QUEUE are never held together, so a bind on one thread and progress on
+        // another can't lock each other out.
+        boolean promote = false;
         synchronized (RESULTS) {
             Result r = RESULTS.get(aid);
             if (r != null && (r.state == State.QUEUED || r.state == State.RUNNING)) {
-                if (urgent) promote(aid);
-                return;
+                promote = urgent;
+            } else {
+                if (r != null && r.state == State.DONE && r.generation == stamp) return;
+                if (r != null && r.state == State.FAILED && r.generation == stamp && !urgent) return;
+                RESULTS.put(aid, new Result(State.QUEUED, stamp, Collections.emptyList(), 0, 0, null));
             }
-            if (r != null && r.state == State.DONE && r.generation == AdSegmentStore.generation()) return;
-            if (r != null && r.state == State.FAILED && r.generation == AdSegmentStore.generation() && !urgent) return;
-            RESULTS.put(aid, new Result(State.QUEUED, AdSegmentStore.generation(), Collections.emptyList(), 0, 0, null));
+        }
+        if (promote) {
+            promote(aid);
+            return;
         }
         if (isPhotoPost(aweme)) {
-            store(aid, new Result(State.DONE, AdSegmentStore.generation(), Collections.emptyList(), 0, 0, null));
+            store(aid, new Result(State.DONE, stamp, Collections.emptyList(), 0, 0, null));
             return;
         }
         Job job = new Job(aid, aweme);
+        List<Job> dropped = new ArrayList<>();
         synchronized (QUEUE) {
             if (urgent) QUEUE.addFirst(job);
             else QUEUE.addLast(job);
-            while (QUEUE.size() > MAX_QUEUE) {
-                Job dropped = QUEUE.removeLast();
-                synchronized (RESULTS) {
-                    RESULTS.remove(dropped.aid);
-                }
-            }
+            while (QUEUE.size() > MAX_QUEUE) dropped.add(QUEUE.removeLast());
             if (workers < MAX_WORKERS) {
                 workers++;
                 Utils.runOnOwnThread("metra-adskip", AdScanner::work);
             }
         }
+        if (!dropped.isEmpty()) {
+            synchronized (RESULTS) {
+                for (Job gone : dropped) RESULTS.remove(gone.aid);
+            }
+        }
+    }
+
+    /**
+     * Notes a video as wanted and stops the running scans of videos the feed has left behind:
+     * a swipe through ten videos must not keep ten downloads going.
+     */
+    private static void want(String aid, boolean urgent) {
+        List<Job> stale = new ArrayList<>();
+        synchronized (QUEUE) {
+            WANTED.remove(aid);
+            if (urgent) WANTED.addFirst(aid);
+            else WANTED.add(Math.min(1, WANTED.size()), aid);
+            while (WANTED.size() > WANTED_SIZE) WANTED.removeLast();
+            for (Job running : RUNNING) {
+                if (!WANTED.contains(running.aid)) stale.add(running);
+            }
+        }
+        for (Job job : stale) job.cancel.set(true);
     }
 
     private static void promote(String aid) {
@@ -185,15 +229,22 @@ final class AdScanner {
                     workers--;
                     return;
                 }
+                RUNNING.add(job);
             }
-            run(job);
+            try {
+                run(job);
+            } finally {
+                synchronized (QUEUE) {
+                    RUNNING.remove(job);
+                }
+            }
         }
     }
 
     private static void run(Job job) {
         Object aweme = job.aweme.get();
-        int generation = AdSegmentStore.generation();
-        if (aweme == null) {
+        int generation = stamp();
+        if (aweme == null || job.cancel.get() || !AdSkip.active() || !AdSkip.mayDownload()) {
             forget(job.aid);
             return;
         }
@@ -203,7 +254,7 @@ final class AdScanner {
             Context context = Utils.getContext();
             if (context == null) throw new IllegalStateException("No context");
             AdAudioSource.Pcm pcm = AdAudioSource.load(context, aweme, Landmarks.SAMPLE_RATE, MAX_SCAN_MS, job.cancel);
-            List<AdMatcher.Match> matches = scan(pcm.samples, pcm.length);
+            List<AdMatcher.Match> matches = scan(pcm.samples, pcm.length, job.cancel);
             long took = System.currentTimeMillis() - started;
             Result result = new Result(State.DONE, generation, matches, pcm.durationMs(), took, null);
             store(job.aid, result);
@@ -215,6 +266,12 @@ final class AdScanner {
             if (l != null) l.scanned(job.aid, result);
             if (!matches.isEmpty()) Utils.runOnMainThread(AdSkipBar::refresh);
         } catch (Throwable failure) {
+            if (job.cancel.get()) {
+                // Left behind, not broken: asked again, it is scanned again.
+                forget(job.aid);
+                AdSkipLog.add(job.aid, "scan stopped, the feed moved on");
+                return;
+            }
             long took = System.currentTimeMillis() - started;
             store(job.aid, new Result(State.FAILED, generation, Collections.emptyList(), 0, took,
                     failure.getClass().getSimpleName() + ": " + failure.getMessage()));
@@ -224,13 +281,18 @@ final class AdScanner {
     }
 
     /** All ads in this PCM: the plain pass, then retimed copies when that found nothing. */
-    static List<AdMatcher.Match> scan(short[] pcm, int length) {
+    static List<AdMatcher.Match> scan(short[] pcm, int length) throws IOException {
+        return scan(pcm, length, null);
+    }
+
+    static List<AdMatcher.Match> scan(short[] pcm, int length, AtomicBoolean cancel) throws IOException {
         AdMatcher.Index index = AdSegmentStore.index();
         AdMatcher.Strictness strictness = AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get());
         Landmarks.Print print = Landmarks.compute(pcm, length);
         List<AdMatcher.Match> found = AdMatcher.match(index, print, strictness);
         if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
         for (float rate : RATES) {
+            if (cancel != null && cancel.get()) throw new IOException("Cancelled");
             short[] stretched = stretch(pcm, length, rate);
             List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.compute(stretched, stretched.length), strictness);
             if (retimed.isEmpty()) continue;
@@ -285,7 +347,7 @@ final class AdScanner {
         try {
             JSONObject all = new JSONObject(new String(readFile(file), StandardCharsets.UTF_8));
             String fingerprint = fingerprint();
-            int generation = AdSegmentStore.generation();
+            int generation = stamp();
             Iterator<String> aids = all.keys();
             while (aids.hasNext()) {
                 String aid = aids.next();
@@ -317,7 +379,7 @@ final class AdScanner {
         Context context = Utils.getContext();
         if (context == null) return;
         String fingerprint = fingerprint();
-        int generation = AdSegmentStore.generation();
+        int generation = stamp();
         try {
             JSONObject all = new JSONObject();
             synchronized (RESULTS) {
@@ -340,7 +402,7 @@ final class AdScanner {
     }
 
     private static String fingerprint() {
-        StringBuilder text = new StringBuilder();
+        StringBuilder text = new StringBuilder(String.valueOf(stamp() % 16)).append('|');
         for (AdSegment segment : AdSegmentStore.index().segments) {
             text.append(segment.id).append(':').append(segment.hashes.length).append(';');
         }
@@ -367,6 +429,7 @@ final class AdScanner {
     static void clearAll() {
         synchronized (QUEUE) {
             for (Job job : QUEUE) job.cancel.set(true);
+            for (Job job : RUNNING) job.cancel.set(true);
             QUEUE.clear();
         }
         synchronized (RESULTS) {

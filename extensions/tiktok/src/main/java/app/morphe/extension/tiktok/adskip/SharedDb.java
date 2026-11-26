@@ -163,6 +163,12 @@ public final class SharedDb {
         });
     }
 
+    /** Starts the next sync from a full snapshot: the local list lost what earlier syncs brought. */
+    static void forgetSyncProgress() {
+        SharedPreferences prefs = AdSkipPrefs.get();
+        if (prefs != null) prefs.edit().remove(KEY_LAST_EPOCH).remove("sync_cursor").remove("sync_replay").apply();
+    }
+
     private static void download(SharedPreferences prefs) throws IOException {
         int added = 0;
         boolean more = true;
@@ -180,6 +186,9 @@ public final class SharedDb {
                     }
                 } catch (IOException failure) {
                     if (page > 0) throw failure;
+                    // Opened, then failed on the way (DNS, timeout): drop it and use storage.
+                    if (connection != null) connection.disconnect();
+                    connection = null;
                 }
                 if (connection == null) {
                     // The API is down or over its quota: start again from the snapshot in storage.
@@ -205,7 +214,9 @@ public final class SharedDb {
             try (InputStream in = connection.getInputStream()) {
                 data = readAll(in, MAX_DB_BYTES);
             }
-            added += merge(data);
+            // A full snapshot is the whole visible base: what is not in it was hidden or removed.
+            added += merge(data, since == 0);
+            if (AdSegmentStore.lastSaveFailed()) throw new IOException("Could not store the shared base");
             long replay = prefs.getLong("sync_replay", asOf);
             long nextEpoch = !more && since > 0 && (prefs.contains("sync_replay") || !cursor.isEmpty())
                     ? Math.min(asOf, replay - replay % 3600) : asOf;
@@ -220,6 +231,10 @@ public final class SharedDb {
     }
 
     private static int merge(byte[] data) throws IOException {
+        return merge(data, false);
+    }
+
+    private static int merge(byte[] data, boolean full) throws IOException {
         if (data.length < 12) throw new IOException("Truncated shared database");
         ByteBuffer buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
         if (buf.getInt() != MAGIC) throw new IOException("Invalid shared database magic");
@@ -247,11 +262,12 @@ public final class SharedDb {
             for (int k = 0; k < hashCount; k++) hashes[k] = buf.getInt();
             for (int k = 0; k < hashCount; k++) times[k] = buf.getInt();
             if (!isValid(number, durationMs, frames, hashes, times)) continue;
-            boolean hidden = (flags & 1) != 0 || score < -2;
+            // The server decides: a segment the maintainer restored stays visible at any score.
+            boolean hidden = (flags & 1) != 0;
             entries.add(new AdSegmentStore.Shared(SHARED_PREFIX + hex(id), number, hidden, durationMs, frames,
                     hashes, times, score));
         }
-        return AdSegmentStore.mergeShared(entries);
+        return AdSegmentStore.mergeShared(entries, full);
     }
 
     private static boolean isValid(int number, int durationMs, int frames, int[] hashes, int[] times) {
