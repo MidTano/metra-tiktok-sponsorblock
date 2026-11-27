@@ -87,7 +87,7 @@ final class AdScanner {
     private static int workers;
     private static final int MAX_WORKERS = 2;
     /** The version of how a video is read and matched; kept scans of another are dropped. */
-    private static final int ALGORITHM = 2;
+    private static final int ALGORITHM = 3;
     /** One more thread, only for the video on screen when the others are busy with the feed around it. */
     private static final int MAX_WORKERS_URGENT = 3;
     private static final String CACHE_FILE = "metra-adskip-scans.json";

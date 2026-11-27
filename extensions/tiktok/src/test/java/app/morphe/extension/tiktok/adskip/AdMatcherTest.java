@@ -191,4 +191,29 @@ public class AdMatcherTest {
                 full, AdMatcher.Strictness.STRICT);
         assertFoundAt(matches, 8000, 20000, 100);
     }
+
+    /*
+     * Numbers measured on real TikTok sound against the shared base (28 ads): an ad under a
+     * cartoon's voice-over, a rhythmic ad on a techno track, and an ad that plays clearly.
+     */
+    @Test public void realAdUnderVoiceIsFoundOneVoteUnderTheFixedThreshold() {
+        int dense = AdMatcher.Strictness.NORMAL.denseMinVotes;
+        assertEquals(14, dense);
+        assertTrue(AdMatcher.accepts(13, 5, dense, 145, 3500, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+    }
+
+    @Test public void rhythmicNoiseOnManyBeatsIsNotAnAd() {
+        assertTrue(!AdMatcher.accepts(15, 14, 14, 429, 1040, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+        assertTrue(!AdMatcher.accepts(9, 7, 14, 178, 1040, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+    }
+
+    @Test public void aLoneWeakPeakNeedsAnImprobableScoreNotJustAFewVotes() {
+        assertTrue(AdMatcher.chanceScore(13, 145, 3500, 28) > 15);
+        assertTrue(AdMatcher.chanceScore(9, 178, 1040, 28) < 7);
+        assertTrue(!AdMatcher.accepts(8, 3, 14, 178, 1040, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+    }
+
+    @Test public void aClearAdIsTakenEvenIfItPlaysTwice() {
+        assertTrue(AdMatcher.accepts(133, 120, 14, 136, 3500, 28, AdMatcher.Strictness.STRICT.chanceScore));
+    }
 }

@@ -150,6 +150,7 @@ public final class AdSkipBar {
         private final WeakReference<ProgressBar> seekBar;
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF rect = new RectF();
+        private final Rect visible = new Rect();
         @Nullable private String aid;
 
         Marks(ProgressBar seekBar) {
@@ -173,14 +174,18 @@ public final class AdSkipBar {
             }
             String playing = AdSkip.playingAid();
             long duration = AdSkip.playingDuration();
-            if (playing != null && duration > 0) {
+            // Two bars can both sit near 0% while the feed pages. Only the bar whose whole height is
+            // on screen belongs to the video playing, so the neighbour never borrows its marks.
+            boolean onScreen = bar != null && bar.getGlobalVisibleRect(visible) && visible.height() >= bar.getHeight();
+            if (playing != null && duration > 0 && onScreen) {
                 float expected = AdSkip.playingPosition() * 100f / duration;
                 if (Math.abs(expected - percent) < 2.5f) {
                     setAid(playing);
                     return;
                 }
             }
-            if (percent < 0.5f && aid != null && !aid.equals(playing)) setAid(null);
+            if (aid != null && !onScreen) setAid(null);
+            else if (percent < 0.5f && aid != null && !aid.equals(playing)) setAid(null);
         }
 
         @Override

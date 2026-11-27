@@ -23,9 +23,9 @@ import java.util.Map;
 final class AdMatcher {
     /** How sure a match has to be. */
     enum Strictness {
-        LOOSE(8, 0.006f, 25, 12, 0.010f, 30),
-        NORMAL(12, 0.015f, 40, 14, 0.015f, 40),
-        STRICT(20, 0.040f, 80, 20, 0.040f, 80);
+        LOOSE(8, 0.006f, 25, 12, 0.010f, 30, 7),
+        NORMAL(12, 0.015f, 40, 14, 0.015f, 40, 9),
+        STRICT(20, 0.040f, 80, 20, 0.040f, 80, 12);
 
         final int minVotes;
         final float ratio;
@@ -39,14 +39,21 @@ final class AdMatcher {
         final int denseMinVotes;
         final float denseRatio;
         final int denseMaxVotes;
+        /**
+         * How improbable a peak must be by chance alone (minus log10 of the odds, counting every
+         * offset and every ad tried) for it to count even when it is under the vote threshold.
+         */
+        final int chanceScore;
 
-        Strictness(int minVotes, float ratio, int maxVotes, int denseMinVotes, float denseRatio, int denseMaxVotes) {
+        Strictness(int minVotes, float ratio, int maxVotes, int denseMinVotes, float denseRatio, int denseMaxVotes,
+                int chanceScore) {
             this.minVotes = minVotes;
             this.ratio = ratio;
             this.maxVotes = maxVotes;
             this.denseMinVotes = denseMinVotes;
             this.denseRatio = denseRatio;
             this.denseMaxVotes = denseMaxVotes;
+            this.chanceScore = chanceScore;
         }
 
         static Strictness of(String value) {
@@ -63,6 +70,10 @@ final class AdMatcher {
      * matches any sound that holds it, so it is left out of the index.
      */
     private static final int MAX_REPEATS = 8;
+    /** Fewest votes a peak needs to be judged by chance alone. */
+    private static final int MIN_CHANCE_VOTES = 7;
+    /** A peak with this many votes is taken without asking for a lone peak. */
+    private static final int SURE_VOTES = 20;
 
     static final class Match {
         final AdSegment segment;
@@ -201,7 +212,7 @@ final class AdMatcher {
         }
         boolean any = false;
         for (int s = 0; s < segmentCount; s++) {
-            if (totals[s] >= required[s]) {
+            if (totals[s] >= Math.min(required[s], MIN_CHANCE_VOTES)) {
                 votes[s] = new int[video.frames + base[s] + 2];
                 any = true;
             }
@@ -244,15 +255,54 @@ final class AdMatcher {
                         best = i;
                     }
                 }
-                if (best < 0 || bestVotes < required[s]) break;
+                if (best < 0 || bestVotes < MIN_CHANCE_VOTES) break;
+                int from = Math.max(0, best - suppress), to = Math.min(n - 1, best + suppress);
+                int second = 0;
+                for (int i = 0; i < n; i++) {
+                    if ((i < from || i > to) && smooth[i] > second) second = smooth[i];
+                }
+                if (!accepts(bestVotes, second, required[s], totals[s], n, segmentCount, strictness.chanceScore)) break;
                 Match match = describe(segment, s, index, video, best - base[s], bestVotes);
                 if (match != null) found.add(match);
-                int from = Math.max(0, best - suppress), to = Math.min(n - 1, best + suppress);
                 for (int i = from; i <= to; i++) smooth[i] = 0;
             }
         }
         Collections.sort(found, (a, b) -> Long.compare(a.startMs, b.startMs));
         return merge(found);
+    }
+
+    /**
+     * Whether a peak is an ad. A weak peak must stand alone: rhythmic music piles votes on many
+     * offsets one beat apart, so a second peak close to the first says the match is the beat, not
+     * the ad. Past the vote threshold the peak counts; under it the peak still counts when chance
+     * could hardly have made it, judged against how many hashes the ad shares with this video at
+     * all. That is what finds a real ad under a voice-over, one vote short of a fixed threshold,
+     * without letting an ad that merely shares many hashes with a song through.
+     */
+    static boolean accepts(int votes, int second, int required, int shared, int offsets, int ads, int chanceScore) {
+        if (votes < SURE_VOTES && second * 5 > votes * 3) return false;
+        if (votes >= required) return true;
+        if (votes < MIN_CHANCE_VOTES) return false;
+        return chanceScore(votes, shared, offsets, ads) >= chanceScore;
+    }
+
+    /**
+     * Minus log10 of the odds that some offset of some ad collects this many votes by chance.
+     * Votes at an offset are Poisson with the ad's shared hashes spread over all offsets; the
+     * smoothed peak sums three neighbours.
+     */
+    static double chanceScore(int votes, int shared, int offsets, int ads) {
+        double lambda = Math.max(1e-6, 3.0 * shared / Math.max(1, offsets));
+        double logFactorial = 0;
+        for (int i = 2; i <= votes; i++) logFactorial += Math.log(i);
+        double logHead = -lambda + votes * Math.log(lambda) - logFactorial;
+        double tail = 1, term = 1;
+        for (int i = 1; i < 80; i++) {
+            term *= lambda / (votes + i);
+            tail += term;
+            if (term < 1e-12) break;
+        }
+        return -(logHead + Math.log(tail)) / Math.log(10) - Math.log10(Math.max(1, offsets)) - Math.log10(Math.max(1, ads));
     }
 
     /**
