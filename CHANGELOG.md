@@ -1,3 +1,16 @@
+## [0.16.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.1...v0.16.2) (2026-11-27)
+
+
+### Performance Improvements
+
+* **adskip:** answer a video as soon as the plain reading is done ([70e1fdb](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/70e1fdb57d1ce7e2f00c0fed23f19d2245c49d52))
+
+
+
+
+
+## 0.16.2
+
 ## [0.16.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.0...v0.16.1) (2026-11-27)
 
 

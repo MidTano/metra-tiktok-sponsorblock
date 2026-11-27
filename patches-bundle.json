@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-27T13:15:32",
-  "description": "## [0.16.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.0...v0.16.1) (2026-11-27)\n\n\n### Bug Fixes\n\n* **adskip:** find an ad one vote under the fixed threshold, and stop the beat of a song matching as an ad ([5a88989](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/5a88989bbd138625afe894028a5b0b7b17169f15))\n\n\n\n\n\n## 0.16.1",
-  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.16.1/patches-0.16.1.mpp",
+  "created_at": "2026-11-27T14:18:05",
+  "description": "## [0.16.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.1...v0.16.2) (2026-11-27)\n\n\n### Performance Improvements\n\n* **adskip:** answer a video as soon as the plain reading is done ([70e1fdb](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/70e1fdb57d1ce7e2f00c0fed23f19d2245c49d52))\n\n\n\n\n\n## 0.16.2",
+  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.16.2/patches-0.16.2.mpp",
   "signature_download_url": "",
-  "version": "0.16.1"
+  "version": "0.16.2"
 }
