@@ -1,3 +1,16 @@
+# [0.17.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.2...v0.17.0) (2026-11-27)
+
+
+### Features
+
+* **adskip:** move match strictness one step harder and offer a very strict level ([e4a6954](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/e4a695484f7e4a88fc4e3e5b316fcdb8c6cc944e))
+
+
+
+
+
+## 0.17.0
+
 ## [0.16.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.1...v0.16.2) (2026-11-27)
 
 
