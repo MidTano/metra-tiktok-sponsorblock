@@ -15,7 +15,7 @@ final class L10nTranslationsZh_Hans {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4630);
+        Map<String, String> table = new HashMap<>(4632);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -2242,8 +2242,6 @@ final class L10nTranslationsZh_Hans {
                 "正在寻找应用");
         table.put("Loop a story",
                 "循环播放日常");
-        table.put("Loose: finds more, may skip by mistake",
-                "宽松：找到更多，可能误跳");
         table.put("Lowest",
                 "最低");
         table.put("MENUS",
@@ -2270,11 +2268,11 @@ final class L10nTranslationsZh_Hans {
                 "分享面板中的“标记广告”");
         table.put("Mark an ad",
                 "标记广告");
+        table.put("Mark an ad once in any video, and wherever its sound plays again, even under music or noise, Metra skips past it.",
+                "在任意视频中标记一次广告，之后无论它的声音在哪里再次出现，即使混在音乐或噪音中，Metra 都会跳过它。");
     }
 
     private static void fill18(Map<String, String> table) {
-        table.put("Mark an ad once in any video, and wherever its sound plays again, even under music or noise, Metra skips past it.",
-                "在任意视频中标记一次广告，之后无论它的声音在哪里再次出现，即使混在音乐或噪音中，Metra 都会跳过它。");
         table.put("Mark saved videos",
                 "标记已保存的视频");
         table.put("Marked ads",
@@ -2393,11 +2391,11 @@ final class L10nTranslationsZh_Hans {
                 "下一条消息：明天 %1$s。");
         table.put("No",
                 "否");
+        table.put("No ads marked yet",
+                "还没有标记的广告");
     }
 
     private static void fill19(Map<String, String> table) {
-        table.put("No ads marked yet",
-                "还没有标记的广告");
         table.put("No app on this phone opens that file",
                 "此手机上没有应用程序可以打开该文件");
         table.put("No app on this phone opens web links",
@@ -2490,6 +2488,8 @@ final class L10nTranslationsZh_Hans {
                 "正常");
         table.put("Normal-weight captions",
                 "正常粗细的字幕");
+        table.put("Normal: finds more, may skip by mistake",
+                "普通：找到更多，可能误跳");
         table.put("Not a handle or id, so ignored: %1$s",
                 "不是句柄或 ID，因此被忽略：%1$s");
         table.put("Not a part Metra fills in, so it's kept as typed: %1$s",
@@ -4579,6 +4579,8 @@ final class L10nTranslationsZh_Hans {
                 "TikTok %2$s 的版本 %1$s");
         table.put("Version, changes and licenses",
                 "版本、变更和许可");
+        table.put("Very strict: only the clearest matches",
+                "非常严格：只保留最明确的匹配");
         table.put("Video",
                 "视频");
         table.put("Video (MP4)",
@@ -4605,11 +4607,11 @@ final class L10nTranslationsZh_Hans {
                 "视频播放器设置");
         table.put("Video saved",
                 "视频已保存");
-        table.put("Video saved in %1$s, but only %2$s of %3$s subtitles came with it",
-                "视频已保存到 %1$s，但 %3$s 条字幕只附带 %2$s 条");
     }
 
     private static void fill37(Map<String, String> table) {
+        table.put("Video saved in %1$s, but only %2$s of %3$s subtitles came with it",
+                "视频已保存到 %1$s，但 %3$s 条字幕只附带 %2$s 条");
         table.put("Video saved with %1$s subtitles in %2$s",
                 "视频已带 %1$s 条字幕保存到 %2$s");
         table.put("Videos can't be saved to the folder in that file, so your video folder was kept",
@@ -4728,11 +4730,11 @@ final class L10nTranslationsZh_Hans {
                 "YTDLnis 下载类型");
         table.put("Yes",
                 "是");
-        table.put("You can pick up to %1$s at a time",
-                "一次最多可选择 %1$s 个");
     }
 
     private static void fill38(Map<String, String> table) {
+        table.put("You can pick up to %1$s at a time",
+                "一次最多可选择 %1$s 个");
         table.put("YouTube Music couldn't be opened. Open it yourself and search for the sound.",
                 "无法打开 YouTube Music。请自行打开并搜索该音乐。");
         table.put("YouTube Music isn't installed",

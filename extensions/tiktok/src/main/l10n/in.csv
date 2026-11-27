@@ -2236,7 +2236,7 @@ In the shared base,Di basis data bersama
 "Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.","Mendengarkan video berikutnya di feed sebelum kamu sampai ke sana, jadi iklan yang ditandai dilewati sejak detik pertamanya."
 Loading the shared base…,Memuat basis data bersama…
 Loading the video and its sound…,Memuat video dan suaranya…
-"Loose: finds more, may skip by mistake","Longgar: menemukan lebih banyak, bisa salah melewati"
+"Normal: finds more, may skip by mistake","Normal: menemukan lebih banyak, bisa salah melewati"
 Mark ad,Tandai iklan
 Mark ad in the share sheet,Tandai iklan di menu bagikan
 Mark an ad,Tandai iklan
@@ -2264,6 +2264,7 @@ Skip ads by sound,Lewati iklan berdasarkan suara
 Skip marked ads,Lewati iklan yang ditandai
 Skipped for others,Dilewati orang lain
 Strict: only clear matches,Ketat: hanya kecocokan yang jelas
+"Very strict: only the clearest matches","Sangat ketat: hanya kecocokan paling jelas"
 The shared base can't be reached right now.,Basis data bersama tidak dapat dijangkau saat ini.
 Time saved,Waktu dihemat
 Use shared ad database,Gunakan basis data iklan bersama

@@ -197,23 +197,37 @@ public class AdMatcherTest {
      * cartoon's voice-over, a rhythmic ad on a techno track, and an ad that plays clearly.
      */
     @Test public void realAdUnderVoiceIsFoundOneVoteUnderTheFixedThreshold() {
-        int dense = AdMatcher.Strictness.NORMAL.denseMinVotes;
-        assertEquals(14, dense);
-        assertTrue(AdMatcher.accepts(13, 5, dense, 145, 3500, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+        AdMatcher.Strictness normal = AdMatcher.Strictness.of("normal");
+        assertEquals(20, normal.denseMinVotes);
+        assertTrue(AdMatcher.accepts(13, 5, normal.denseMinVotes, 145, 3500, 28, normal.chanceScore));
     }
 
     @Test public void rhythmicNoiseOnManyBeatsIsNotAnAd() {
-        assertTrue(!AdMatcher.accepts(15, 14, 14, 429, 1040, 28, AdMatcher.Strictness.NORMAL.chanceScore));
-        assertTrue(!AdMatcher.accepts(9, 7, 14, 178, 1040, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+        AdMatcher.Strictness normal = AdMatcher.Strictness.of("normal");
+        assertTrue(!AdMatcher.accepts(15, 14, normal.denseMinVotes, 429, 1040, 28, normal.chanceScore));
+        assertTrue(!AdMatcher.accepts(9, 7, normal.denseMinVotes, 178, 1040, 28, normal.chanceScore));
     }
 
     @Test public void aLoneWeakPeakNeedsAnImprobableScoreNotJustAFewVotes() {
         assertTrue(AdMatcher.chanceScore(13, 145, 3500, 28) > 15);
         assertTrue(AdMatcher.chanceScore(9, 178, 1040, 28) < 7);
-        assertTrue(!AdMatcher.accepts(8, 3, 14, 178, 1040, 28, AdMatcher.Strictness.NORMAL.chanceScore));
+        assertTrue(!AdMatcher.accepts(8, 3, AdMatcher.Strictness.of("normal").denseMinVotes, 178, 1040, 28, 12));
     }
 
     @Test public void aClearAdIsTakenEvenIfItPlaysTwice() {
-        assertTrue(AdMatcher.accepts(133, 120, 14, 136, 3500, 28, AdMatcher.Strictness.STRICT.chanceScore));
+        assertTrue(AdMatcher.accepts(133, 120, 20, 136, 3500, 28, 12));
+    }
+
+    /** The levels moved one step harder: what Normal was is gone, and a saved value follows. */
+    @Test public void theLevelsMovedOneStepHarder() {
+        assertEquals(AdMatcher.Strictness.LOOSE, AdMatcher.Strictness.of("normal"));
+        assertEquals(AdMatcher.Strictness.LOOSE, AdMatcher.Strictness.of("loose"));
+        assertEquals(AdMatcher.Strictness.LOOSE, AdMatcher.Strictness.of(null));
+        assertEquals(AdMatcher.Strictness.NORMAL, AdMatcher.Strictness.of("strict"));
+        assertEquals(AdMatcher.Strictness.STRICT, AdMatcher.Strictness.of("verystrict"));
+        assertTrue(AdMatcher.Strictness.LOOSE.minVotes > AdMatcher.Strictness.of("loose").minVotes - 1);
+        assertTrue(AdMatcher.Strictness.LOOSE.minVotes < AdMatcher.Strictness.NORMAL.minVotes);
+        assertTrue(AdMatcher.Strictness.NORMAL.minVotes < AdMatcher.Strictness.STRICT.minVotes);
+        assertTrue(AdMatcher.Strictness.LOOSE.chanceScore < AdMatcher.Strictness.NORMAL.chanceScore);
     }
 }

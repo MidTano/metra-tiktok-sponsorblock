@@ -23,9 +23,10 @@ import java.util.Map;
 final class AdMatcher {
     /** How sure a match has to be. */
     enum Strictness {
-        LOOSE(8, 0.006f, 25, 12, 0.010f, 30, 7),
-        NORMAL(12, 0.015f, 40, 14, 0.015f, 40, 9),
-        STRICT(20, 0.040f, 80, 20, 0.040f, 80, 12);
+        /** What Normal asks for, kept from the release before: a lone weak peak needs 1 in 10^12. */
+        LOOSE(20, 0.040f, 80, 20, 0.040f, 80, 12),
+        NORMAL(28, 0.055f, 110, 30, 0.060f, 120, 18),
+        STRICT(40, 0.080f, 160, 44, 0.090f, 180, 25);
 
         final int minVotes;
         final float ratio;
@@ -57,9 +58,10 @@ final class AdMatcher {
         }
 
         static Strictness of(String value) {
-            if ("loose".equals(value)) return LOOSE;
-            if ("strict".equals(value)) return STRICT;
-            return NORMAL;
+            if ("strict".equals(value)) return NORMAL;
+            if ("verystrict".equals(value)) return STRICT;
+            // Anything else, a value saved before the levels moved included, is Normal.
+            return LOOSE;
         }
     }
 

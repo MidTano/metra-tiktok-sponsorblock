@@ -15,7 +15,7 @@ final class L10nTranslationsRu {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4990);
+        Map<String, String> table = new HashMap<>(4992);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -2524,8 +2524,6 @@ final class L10nTranslationsRu {
     private static void fill20(Map<String, String> table) {
         table.put("Loop a story",
                 "Повторять историю");
-        table.put("Loose: finds more, may skip by mistake",
-                "Мягко: находит больше, может ошибиться");
         table.put("Lowest",
                 "Самое низкое");
         table.put("MENUS",
@@ -2642,11 +2640,11 @@ final class L10nTranslationsRu {
                 "Переместить вправо");
         table.put("Move to the next video when the current one ends. Pauses, open dialogs and screen-time holds stop it. Restart TikTok to apply this.",
                 "Переходить к следующему видео, когда текущее заканчивается. Паузы, открытые диалоги и ограничения экранного времени останавливают это. Перезапустите TikTok, чтобы это применить.");
+        table.put("Move up",
+                "Переместить вверх");
     }
 
     private static void fill21(Map<String, String> table) {
-        table.put("Move up",
-                "Переместить вверх");
         table.put("Music disc",
                 "Музыкальный диск");
         table.put("Mute feed videos",
@@ -2765,13 +2763,15 @@ final class L10nTranslationsRu {
                 "Ничего не записано");
         table.put("None yet. In a video, tap Share, then Mark ad, and choose where the ad starts and ends.",
                 "Пока нет. В видео нажмите «Поделиться», затем «Отметить рекламу» и выберите начало и конец рекламы.");
+        table.put("Normal",
+                "Обычная");
     }
 
     private static void fill22(Map<String, String> table) {
-        table.put("Normal",
-                "Обычная");
         table.put("Normal-weight captions",
                 "Субтитры обычной толщины");
+        table.put("Normal: finds more, may skip by mistake",
+                "Обычно: находит больше, может ошибиться");
         table.put("Not a handle or id, so ignored: %1$s",
                 "Не имя аккаунта и не id, поэтому проигнорировано: %1$s");
         table.put("Not a part Metra fills in, so it's kept as typed: %1$s",
@@ -4945,6 +4945,8 @@ final class L10nTranslationsRu {
                 "Версия %1$s для TikTok %2$s");
         table.put("Version, changes and licenses",
                 "Версия, изменения и лицензии");
+        table.put("Very strict: only the clearest matches",
+                "Очень строго: только самые явные совпадения");
         table.put("Video",
                 "Видео");
         table.put("Video (MP4)",
@@ -4977,11 +4979,11 @@ final class L10nTranslationsRu {
                 "Видео с %1$s субтитрами сохранено в %2$s");
         table.put("Videos can't be saved to the folder in that file, so your video folder was kept",
                 "Видео нельзя сохранить в папку из этого файла, поэтому ваша папка для видео осталась прежней");
-        table.put("Videos in search results show their cover and play when you open them. The feed and the videos you open play as usual.",
-                "Видео в результатах поиска показывают обложку и запускаются, когда вы их открываете. Лента и открытые вами видео воспроизводятся как обычно.");
     }
 
     private static void fill40(Map<String, String> table) {
+        table.put("Videos in search results show their cover and play when you open them. The feed and the videos you open play as usual.",
+                "Видео в результатах поиска показывают обложку и запускаются, когда вы их открываете. Лента и открытые вами видео воспроизводятся как обычно.");
         table.put("Views range",
                 "Диапазон просмотров");
         table.put("Visual search",
@@ -5100,11 +5102,11 @@ final class L10nTranslationsRu {
                 "Тип загрузки YTDLnis");
         table.put("Yes",
                 "Да");
-        table.put("You can pick up to %1$s at a time",
-                "За раз можно выбрать не больше %1$s");
     }
 
     private static void fill41(Map<String, String> table) {
+        table.put("You can pick up to %1$s at a time",
+                "За раз можно выбрать не больше %1$s");
         table.put("YouTube Music couldn't be opened. Open it yourself and search for the sound.",
                 "Не удалось открыть YouTube Music. Откройте его самостоятельно и найдите звук.");
         table.put("YouTube Music isn't installed",

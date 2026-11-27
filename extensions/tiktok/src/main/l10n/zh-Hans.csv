@@ -2236,7 +2236,7 @@ In the shared base,已在共享库中
 "Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.",在你刷到之前先监听信息流中的后续视频，这样已标记的广告从第一秒起就会被跳过。
 Loading the shared base…,正在加载共享库…
 Loading the video and its sound…,正在加载视频和声音…
-"Loose: finds more, may skip by mistake",宽松：找到更多，可能误跳
+"Normal: finds more, may skip by mistake",普通：找到更多，可能误跳
 Mark ad,标记广告
 Mark ad in the share sheet,分享面板中的“标记广告”
 Mark an ad,标记广告
@@ -2264,6 +2264,7 @@ Skip ads by sound,按声音跳过广告
 Skip marked ads,跳过已标记的广告
 Skipped for others,他人跳过次数
 Strict: only clear matches,严格：仅限明确匹配
+"Very strict: only the clearest matches","非常严格：只保留最明确的匹配"
 The shared base can't be reached right now.,目前无法连接共享库。
 Time saved,节省的时间
 Use shared ad database,使用共享广告库

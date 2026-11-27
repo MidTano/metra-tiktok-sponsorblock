@@ -2262,7 +2262,7 @@ In the shared base	In der gemeinsamen Datenbank
 Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.	Hört die nächsten Videos im Feed ab, bevor du dort ankommst, damit markierte Werbung ab der ersten Sekunde übersprungen wird.
 Loading the shared base…	Gemeinsame Datenbank wird geladen…
 Loading the video and its sound…	Video und Ton werden geladen…
-Loose: finds more, may skip by mistake	Locker: findet mehr, kann versehentlich überspringen
+Normal: finds more, may skip by mistake	Normal: findet mehr, kann versehentlich überspringen
 Mark ad	Werbung markieren
 Mark ad in the share sheet	„Werbung markieren“ im Teilen-Menü
 Mark an ad	Werbung markieren
@@ -2290,6 +2290,7 @@ Skip ads by sound	Werbung per Ton überspringen
 Skip marked ads	Markierte Werbung überspringen
 Skipped for others	Bei anderen übersprungen
 Strict: only clear matches	Streng: nur eindeutige Treffer
+Very strict: only the clearest matches	Sehr streng: nur die klarsten Treffer
 The shared base can't be reached right now.	Die gemeinsame Datenbank ist gerade nicht erreichbar.
 Time saved	Gesparte Zeit
 Use shared ad database	Gemeinsame Werbedatenbank nutzen

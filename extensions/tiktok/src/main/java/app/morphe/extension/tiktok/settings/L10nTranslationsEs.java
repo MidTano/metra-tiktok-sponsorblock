@@ -15,7 +15,7 @@ final class L10nTranslationsEs {
     }
 
     static Map<String, String> build() {
-        Map<String, String> table = new HashMap<>(4630);
+        Map<String, String> table = new HashMap<>(4632);
         fill0(table);
         fill1(table);
         fill2(table);
@@ -2242,8 +2242,6 @@ final class L10nTranslationsEs {
                 "Buscando apps");
         table.put("Loop a story",
                 "Repetir una historia");
-        table.put("Loose: finds more, may skip by mistake",
-                "Flexible: encuentra más, puede saltar por error");
         table.put("Lowest",
                 "La más baja");
         table.put("MENUS",
@@ -2270,11 +2268,11 @@ final class L10nTranslationsEs {
                 "Marcar anuncio en el panel de compartir");
         table.put("Mark an ad",
                 "Marcar un anuncio");
+        table.put("Mark an ad once in any video, and wherever its sound plays again, even under music or noise, Metra skips past it.",
+                "Marca un anuncio una vez en cualquier vídeo y, dondequiera que su sonido vuelva a sonar, incluso bajo música o ruido, Metra lo saltará.");
     }
 
     private static void fill18(Map<String, String> table) {
-        table.put("Mark an ad once in any video, and wherever its sound plays again, even under music or noise, Metra skips past it.",
-                "Marca un anuncio una vez en cualquier vídeo y, dondequiera que su sonido vuelva a sonar, incluso bajo música o ruido, Metra lo saltará.");
         table.put("Mark saved videos",
                 "Marcar los vídeos guardados");
         table.put("Marked ads",
@@ -2393,11 +2391,11 @@ final class L10nTranslationsEs {
                 "Próximo mensaje: mañana a las %1$s.");
         table.put("No",
                 "No");
+        table.put("No ads marked yet",
+                "Aún no hay anuncios marcados");
     }
 
     private static void fill19(Map<String, String> table) {
-        table.put("No ads marked yet",
-                "Aún no hay anuncios marcados");
         table.put("No app on this phone opens that file",
                 "Ninguna app de este teléfono abre ese archivo");
         table.put("No app on this phone opens web links",
@@ -2490,6 +2488,8 @@ final class L10nTranslationsEs {
                 "Normal");
         table.put("Normal-weight captions",
                 "Subtítulos con grosor normal");
+        table.put("Normal: finds more, may skip by mistake",
+                "Normal: encuentra más, puede saltar por error");
         table.put("Not a handle or id, so ignored: %1$s",
                 "No es un nombre de cuenta ni un id, así que se ignora: %1$s");
         table.put("Not a part Metra fills in, so it's kept as typed: %1$s",
@@ -4579,6 +4579,8 @@ final class L10nTranslationsEs {
                 "Versión %1$s para TikTok %2$s");
         table.put("Version, changes and licenses",
                 "Versión, cambios y licencias");
+        table.put("Very strict: only the clearest matches",
+                "Muy estricto: solo las coincidencias más claras");
         table.put("Video",
                 "Vídeo");
         table.put("Video (MP4)",
@@ -4605,11 +4607,11 @@ final class L10nTranslationsEs {
                 "Ajustes del reproductor de vídeo");
         table.put("Video saved",
                 "Vídeo guardado");
-        table.put("Video saved in %1$s, but only %2$s of %3$s subtitles came with it",
-                "Vídeo guardado en %1$s, pero solo llegaron %2$s de %3$s subtítulos");
     }
 
     private static void fill37(Map<String, String> table) {
+        table.put("Video saved in %1$s, but only %2$s of %3$s subtitles came with it",
+                "Vídeo guardado en %1$s, pero solo llegaron %2$s de %3$s subtítulos");
         table.put("Video saved with %1$s subtitles in %2$s",
                 "Vídeo guardado con %1$s subtítulos en %2$s");
         table.put("Videos can't be saved to the folder in that file, so your video folder was kept",
@@ -4728,11 +4730,11 @@ final class L10nTranslationsEs {
                 "Tipo de descarga de YTDLnis");
         table.put("Yes",
                 "Sí");
-        table.put("You can pick up to %1$s at a time",
-                "Puedes elegir hasta %1$s a la vez");
     }
 
     private static void fill38(Map<String, String> table) {
+        table.put("You can pick up to %1$s at a time",
+                "Puedes elegir hasta %1$s a la vez");
         table.put("YouTube Music couldn't be opened. Open it yourself and search for the sound.",
                 "No se pudo abrir YouTube Music. Ábrelo tú mismo y busca el sonido.");
         table.put("YouTube Music isn't installed",

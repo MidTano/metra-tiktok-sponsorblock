@@ -2259,7 +2259,7 @@ In the shared base	Ortak veritabanında
 Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.	Akıştaki sıradaki videoları sen onlara gelmeden dinler, böylece işaretlenen reklam ilk saniyesinden atlanır.
 Loading the shared base…	Ortak veritabanı yükleniyor…
 Loading the video and its sound…	Video ve sesi yükleniyor…
-Loose: finds more, may skip by mistake	Gevşek: daha çok bulur, yanlışlıkla atlayabilir
+Normal: finds more, may skip by mistake	Normal: daha çok bulur, yanlışlıkla atlayabilir
 Mark ad	Reklamı işaretle
 Mark ad in the share sheet	Paylaşım menüsünde Reklamı işaretle
 Mark an ad	Bir reklamı işaretle
@@ -2287,6 +2287,7 @@ Skip ads by sound	Reklamları sesle atla
 Skip marked ads	İşaretlenen reklamları atla
 Skipped for others	Başkalarında atlandı
 Strict: only clear matches	Katı: yalnızca net eşleşmeler
+Very strict: only the clearest matches	Çok katı: yalnızca en belirgin eşleşmeler
 The shared base can't be reached right now.	Ortak veritabanına şu anda ulaşılamıyor.
 Time saved	Kazanılan süre
 Use shared ad database	Ortak reklam veritabanını kullan

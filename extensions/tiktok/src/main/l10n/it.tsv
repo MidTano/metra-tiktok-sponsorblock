@@ -2259,7 +2259,7 @@ In the shared base	Nella base condivisa
 Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.	Ascolta i video successivi nel feed prima che tu ci arrivi, così un annuncio segnato viene saltato fin dal primo secondo.
 Loading the shared base…	Caricamento della base condivisa…
 Loading the video and its sound…	Caricamento del video e dell'audio…
-Loose: finds more, may skip by mistake	Permissivo: trova di più, può saltare per errore
+Normal: finds more, may skip by mistake	Normale: trova di più, può saltare per errore
 Mark ad	Segna annuncio
 Mark ad in the share sheet	Segna annuncio nel menu di condivisione
 Mark an ad	Segna un annuncio
@@ -2287,6 +2287,7 @@ Skip ads by sound	Salta gli annunci tramite l'audio
 Skip marked ads	Salta gli annunci segnati
 Skipped for others	Saltati ad altri
 Strict: only clear matches	Rigoroso: solo corrispondenze chiare
+Very strict: only the clearest matches	Molto severo: solo le corrispondenze più chiare
 The shared base can't be reached right now.	Al momento la base condivisa non è raggiungibile.
 Time saved	Tempo risparmiato
 Use shared ad database	Usa il database condiviso degli annunci

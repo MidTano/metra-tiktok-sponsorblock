@@ -2259,7 +2259,7 @@ In the shared base	Ümumi bazada
 Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.	Lentdəki növbəti videoları siz onlara çatmazdan əvvəl dinləyir, beləliklə işarələnmiş reklam ilk saniyəsindən ötürülür.
 Loading the shared base…	Ümumi baza yüklənir…
 Loading the video and its sound…	Video və səsi yüklənir…
-Loose: finds more, may skip by mistake	Yumşaq: daha çox tapır, səhvən ötürə bilər
+Normal: finds more, may skip by mistake	Normal: daha çox tapır, səhvən ötürə bilər
 Mark ad	Reklamı işarələ
 Mark ad in the share sheet	Paylaşma vərəqində Reklamı işarələ
 Mark an ad	Reklamı işarələyin
@@ -2287,6 +2287,7 @@ Skip ads by sound	Reklamları səsə görə ötürün
 Skip marked ads	İşarələnmiş reklamları ötürün
 Skipped for others	Başqalarında ötürülüb
 Strict: only clear matches	Sərt: yalnız aydın uyğunluqlar
+Very strict: only the clearest matches	Çox ciddi: yalnız ən aydın uyğunluqlar
 The shared base can't be reached right now.	Ümumi baza hazırda əlçatan deyil.
 Time saved	Qənaət olunan vaxt
 Use shared ad database	Ümumi reklam bazasından istifadə edin

@@ -2423,8 +2423,9 @@ Downloading the video…	Загружается видео…
 Each check downloads the video's sound, usually a few hundred kilobytes.	Каждая проверка скачивает звук видео, обычно несколько сотен килобайт.
 Find sped up copies	Находить ускоренные копии
 Loading the video and its sound…	Загружаются видео и звук…
-Loose: finds more, may skip by mistake	Мягко: находит больше, может ошибиться
+Normal: finds more, may skip by mistake	Обычно: находит больше, может ошибиться
 Strict: only clear matches	Строго: только явные совпадения
+Very strict: only the clearest matches	Очень строго: только самые явные совпадения
 Mark ad	Отметить рекламу
 Mark ad in the share sheet	«Отметить рекламу» в меню «Поделиться»
 Mark an ad	Отметить рекламу

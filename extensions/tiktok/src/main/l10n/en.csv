@@ -1065,7 +1065,6 @@ Long-press Home for Metra settings,Long-press Home for Metra settings
 Long-press menu on every post,Long-press menu on every post
 Looking for apps,Looking for apps
 Loop a story,Loop a story
-"Loose: finds more, may skip by mistake","Loose: finds more, may skip by mistake"
 Lowest,Lowest
 MENUS,MENUS
 Make it yours.,Make it yours.
@@ -1186,6 +1185,7 @@ None recorded,None recorded
 "None yet. In a video, tap Share, then Mark ad, and choose where the ad starts and ends.","None yet. In a video, tap Share, then Mark ad, and choose where the ad starts and ends."
 Normal,Normal
 Normal-weight captions,Normal-weight captions
+"Normal: finds more, may skip by mistake","Normal: finds more, may skip by mistake"
 "Not a handle or id, so ignored: %1$s","Not a handle or id, so ignored: %1$s"
 "Not a part Metra fills in, so it's kept as typed: %1$s","Not a part Metra fills in, so it's kept as typed: %1$s"
 Not blocked,Not blocked
@@ -2205,6 +2205,7 @@ Verified accounts,Verified accounts
 Version %1$s,Version %1$s
 Version %1$s for TikTok %2$s,Version %1$s for TikTok %2$s
 "Version, changes and licenses","Version, changes and licenses"
+Very strict: only the clearest matches,Very strict: only the clearest matches
 Video,Video
 Video (MP4),Video (MP4)
 Video ID copied,Video ID copied

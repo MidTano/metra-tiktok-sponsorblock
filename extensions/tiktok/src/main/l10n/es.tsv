@@ -2259,7 +2259,7 @@ In the shared base	En la base compartida
 Listens to the next videos in the feed before you reach them, so a marked ad is passed over from its first second.	Escucha los siguientes vídeos del feed antes de que llegues a ellos, para que un anuncio marcado se salte desde su primer segundo.
 Loading the shared base…	Cargando la base compartida…
 Loading the video and its sound…	Cargando el vídeo y su sonido…
-Loose: finds more, may skip by mistake	Flexible: encuentra más, puede saltar por error
+Normal: finds more, may skip by mistake	Normal: encuentra más, puede saltar por error
 Mark ad	Marcar anuncio
 Mark ad in the share sheet	Marcar anuncio en el panel de compartir
 Mark an ad	Marcar un anuncio
@@ -2287,6 +2287,7 @@ Skip ads by sound	Saltar anuncios por sonido
 Skip marked ads	Saltar los anuncios marcados
 Skipped for others	Saltados a otros
 Strict: only clear matches	Estricto: solo coincidencias claras
+Very strict: only the clearest matches	Muy estricto: solo las coincidencias más claras
 The shared base can't be reached right now.	Ahora mismo no se puede acceder a la base compartida.
 Time saved	Tiempo ahorrado
 Use shared ad database	Usar la base de datos de anuncios compartida
