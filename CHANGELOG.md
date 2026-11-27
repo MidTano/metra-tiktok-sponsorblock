@@ -1,3 +1,16 @@
+# [0.18.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.17.0...v0.18.0) (2026-11-27)
+
+
+### Features
+
+* **adskip:** speed up audio scanning, add Kawaii Lottie skip notice, and instant mark preview ([af71e0a](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/af71e0a1d114a70fe52f66e43558a75e3386099e))
+
+
+
+
+
+## 0.18.0
+
 # [0.17.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.2...v0.17.0) (2026-11-27)
 
 
