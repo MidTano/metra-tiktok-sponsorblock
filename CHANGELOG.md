@@ -1,3 +1,16 @@
+## [0.16.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.0...v0.16.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **adskip:** find an ad one vote under the fixed threshold, and stop the beat of a song matching as an ad ([5a88989](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/5a88989bbd138625afe894028a5b0b7b17169f15))
+
+
+
+
+
+## 0.16.1
+
 # [0.16.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.15.1...v0.16.0) (2026-11-26)
 
 

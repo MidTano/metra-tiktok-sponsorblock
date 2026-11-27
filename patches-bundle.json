@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-26T20:54:46",
-  "description": "# [0.16.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.15.1...v0.16.0) (2026-11-26)\n\n\n### Features\n\n* **adskip:** find ads under the creator's music; a tidier backup section ([#6](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/6)) ([0f00a48](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/0f00a4841e23b5ea21d5cfe402ce44833bd3fe39))\n\n\n\n\n\n## 0.16.0",
-  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.16.0/patches-0.16.0.mpp",
+  "created_at": "2026-11-27T13:15:32",
+  "description": "## [0.16.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.16.0...v0.16.1) (2026-11-27)\n\n\n### Bug Fixes\n\n* **adskip:** find an ad one vote under the fixed threshold, and stop the beat of a song matching as an ad ([5a88989](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/5a88989bbd138625afe894028a5b0b7b17169f15))\n\n\n\n\n\n## 0.16.1",
+  "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.16.1/patches-0.16.1.mpp",
   "signature_download_url": "",
-  "version": "0.16.0"
+  "version": "0.16.1"
 }
