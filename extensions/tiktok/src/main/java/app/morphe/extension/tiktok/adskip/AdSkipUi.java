@@ -90,11 +90,7 @@ final class AdSkipUi {
         return chip;
     }
 
-    /**
-     * A pill button with an icon beside its label. The two are separate views centred on one
-     * line, so the icon sits on the text's middle whatever the font, which an icon drawn inside
-     * the text does not.
-     */
+    /** Pill button with an icon and a single-line text label. */
     static final class IconChip extends LinearLayout {
         private final ImageView icon;
         private final TextView label;
@@ -104,7 +100,6 @@ final class AdSkipUi {
             this(context, primary ? ACCENT : SURFACE_HI, primary ? Color.WHITE : TEXT, primary);
         }
 
-        /** A chip in any fill, its icon and label in one colour. */
         IconChip(Context context, int fill, int color, boolean bold) {
             super(context);
             this.color = color;
@@ -171,11 +166,7 @@ final class AdSkipUi {
         chip.setAlpha(enabled ? 1f : 0.4f);
     }
 
-    /**
-     * Keeps a full-screen sheet clear of the status bar, the camera cutout and the navigation
-     * bar. TikTok targets Android 15, where every window is drawn edge to edge, so a dialog's
-     * content starts under the camera unless it pads itself.
-     */
+    /** Applies system bar, display cutout, and IME insets as padding on {@code root}. */
     static void padForSystemBars(View root) {
         int left = root.getPaddingLeft(), top = root.getPaddingTop();
         int right = root.getPaddingRight(), bottom = root.getPaddingBottom();

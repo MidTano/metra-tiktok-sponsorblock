@@ -5,28 +5,18 @@
 package app.morphe.extension.tiktok.adskip;
 
 /**
- * Audio landmarks in the way Shazam describes them (Wang, 2003): the loudest points of a
- * spectrogram, paired with the points that follow them, each pair packed into one hash.
- *
- * <p>A peak is a time-frequency cell louder than every other cell in a block around it, so it
- * survives noise, a different volume, a new encode or a phone microphone in the street: noise
- * fills the quiet cells, but rarely beats the loudest one in a block. A hash holds two peaks'
- * frequencies and the time between them, never an absolute time, so it means the same thing
- * wherever the sound turns up in another video. Matching is then a vote over time offsets in
- * {@link AdMatcher}.
- *
- * <p>Mono 16-bit PCM at {@link #SAMPLE_RATE} in, one frame every {@link #HOP} samples (32 ms).
+ * Shazam-style audio landmark fingerprinting (Wang, 2003) on mono 16-bit PCM at {@link #SAMPLE_RATE} Hz
+ * with a {@link #HOP}-sample (32 ms) hop. Packs peak pairs as {@code (f1 << 15) | (f2 << 6) | dt}.
  */
 final class Landmarks {
     static final int SAMPLE_RATE = 8000;
     static final int WINDOW = 1024;
     static final int HOP = 256;
-    /** 62.5 Hz to 3.5 kHz: where voices, jingles and music carry their energy. */
+    /** Frequency band: bins 8..448 (62.5 Hz to 3.5 kHz). */
     static final int LOW_BIN = 8;
     static final int HIGH_BIN = 448;
     static final int BINS = HIGH_BIN - LOW_BIN;
 
-    /** The block a peak has to win: about 190 ms either side and 70 Hz either way. */
     static final int TIME_RADIUS = 6;
     static final int FREQ_RADIUS = 9;
     static final float FLOOR_DB = -12f;
@@ -34,30 +24,15 @@ final class Landmarks {
     static final int FRAMES_PER_SECOND = SAMPLE_RATE / HOP; // 31
     static final int MAX_PEAKS_PER_SECOND = 30;
 
-    /*
-     * The video side looks harder than the ad side, the way Shazam does: a marked ad keeps the
-     * sparse peaks above, but a video is read with a smaller block, no loudness floor above the
-     * frame's mean, a peak budget per frequency band and a wider pairing. When the creator's
-     * music plays over the ad, the ad's peaks stop winning the big block and fall out of a
-     * sparse reading, and the music's peaks push an ad peak's partner out of the next six; a
-     * dense reading still holds most of the ad's pairs, so they still vote. Measured on speech
-     * and song ads under other music after an AAC round trip: under music 14 dB louder than the
-     * ad, 23 of 25 found instead of 8; with no ad, no match. The ad side is unchanged, so every
-     * mark already made and the shared base keep working. A video is read both ways
-     * ({@link AdMatcher#find}): the sparse reading places an ad's ends best when it hears the ad
-     * clearly, the dense one adds the ads it missed.
-     */
+    /** Dense query parameters for detecting ads mixed under background music. */
     static final int QUERY_TIME_RADIUS = 2;
     static final int QUERY_FREQ_RADIUS = 3;
     static final float QUERY_ABOVE_MEAN_DB = 0f;
     static final int QUERY_PEAKS_PER_SECOND = 150;
-    /** The budget is split over this many bands, so loud bass can't take all of it from the voice. */
     static final int QUERY_BANDS = 6;
     static final int QUERY_FAN_OUT = 20;
 
-    /** Each peak pairs with up to this many of the peaks that follow it. */
     static final int FAN_OUT = 6;
-    /** dt is 6 bits: up to 2 s ahead. */
     static final int MAX_DT = 63;
     static final int MAX_DF = 120;
 
@@ -103,12 +78,7 @@ final class Landmarks {
             return frameToMs(frames);
         }
 
-        /**
-         * The hashes of [startFrame, endFrame), both peaks inside, with times counted from
-         * startFrame. Cutting from the whole video's print rather than fingerprinting the cut
-         * keeps the peaks exactly the ones a later scan of another video will find.
-         */
-        /** How many landmarks lie wholly inside these frames: what {@link #slice} would keep. */
+        /** Count of hashes whose both peaks fall within {@code [startFrame, endFrame)}. */
         int countIn(int startFrame, int endFrame) {
             int n = 0;
             for (int i = 0; i < count; i++) {
@@ -118,6 +88,7 @@ final class Landmarks {
             return n;
         }
 
+        /** Extracts hashes within {@code [startFrame, endFrame)} with times relative to {@code startFrame}. */
         Print slice(int startFrame, int endFrame) {
             int n = countIn(startFrame, endFrame);
             int[] h = new int[n];
@@ -146,10 +117,7 @@ final class Landmarks {
                 QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT);
     }
 
-    /**
-     * A video read both ways at once: the sparse print and the dense one share one spectrogram,
-     * which is most of the work, so this costs little more than either alone.
-     */
+    /** Computes both sparse and dense landmark prints from a single shared spectrogram. */
     static Print[] computeBoth(short[] pcm, int length) {
         Spectrogram spectrogram = spectrogram(pcm, length);
         return new Print[]{
@@ -176,21 +144,62 @@ final class Landmarks {
         }
     }
 
+    private static final float[] HANN_SCALED = new float[WINDOW];
+    private static final Fft FFT = new Fft(WINDOW);
+
+    static {
+        for (int i = 0; i < WINDOW; i++) {
+            HANN_SCALED[i] = (float) ((0.5 - 0.5 * Math.cos(2 * Math.PI * i / (WINDOW - 1))) / 32768.0);
+        }
+    }
+
     private static Spectrogram spectrogram(short[] pcm, int length) {
         int frames = length < WINDOW ? 0 : (length - WINDOW) / HOP + 1;
         Spectrogram result = new Spectrogram(Math.max(0, frames));
         if (frames <= 0) return result;
-        float[] hann = new float[WINDOW];
-        for (int i = 0; i < WINDOW; i++) {
-            hann[i] = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (WINDOW - 1)));
-        }
-        Fft fft = new Fft(WINDOW);
+        float[] hann = HANN_SCALED;
+        Fft fft = FFT;
         float[] re = new float[WINDOW];
         float[] im = new float[WINDOW];
-        for (int fi = 0; fi < frames; fi++) {
+        final float invBins = 1.0f / BINS;
+        int fi = 0;
+        for (; fi + 1 < frames; fi += 2) {
+            int start0 = fi * HOP;
+            int start1 = start0 + HOP;
+            for (int i = 0; i < WINDOW; i++) {
+                float w = hann[i];
+                re[i] = pcm[start0 + i] * w;
+                im[i] = pcm[start1 + i] * w;
+            }
+            fft.transform(re, im);
+            double sum0 = 0, sum1 = 0;
+            int base0 = fi * BINS;
+            int base1 = base0 + BINS;
+            for (int b = 0; b < BINS; b++) {
+                int k = b + LOW_BIN;
+                int nk = WINDOW - k;
+                float rk = re[k], ik = im[k];
+                float rnk = re[nk], ink = im[nk];
+                float r0 = 0.5f * (rk + rnk);
+                float i0 = 0.5f * (ik - ink);
+                float r1 = 0.5f * (ik + ink);
+                float i1 = 0.5f * (rnk - rk);
+                float p0 = r0 * r0 + i0 * i0;
+                float p1 = r1 * r1 + i1 * i1;
+                float db0 = (float) (10.0 * Math.log10(p0 + 1e-12));
+                float db1 = (float) (10.0 * Math.log10(p1 + 1e-12));
+                result.db[base0 + b] = db0;
+                result.db[base1 + b] = db1;
+                sum0 += db0;
+                sum1 += db1;
+            }
+            result.mean[fi] = (float) (sum0 * invBins);
+            result.mean[fi + 1] = (float) (sum1 * invBins);
+        }
+        if (fi < frames) {
             int start = fi * HOP;
             for (int i = 0; i < WINDOW; i++) {
-                re[i] = pcm[start + i] / 32768f * hann[i];
+                re[i] = pcm[start + i] * hann[i];
                 im[i] = 0f;
             }
             fft.transform(re, im);
@@ -203,7 +212,7 @@ final class Landmarks {
                 result.db[base + b] = db;
                 sum += db;
             }
-            result.mean[fi] = (float) (sum / BINS);
+            result.mean[fi] = (float) (sum * invBins);
         }
         return result;
     }
@@ -307,22 +316,29 @@ final class Landmarks {
         return new Print(hashes.data, times.data, hashes.size, frames, peaks);
     }
 
-    /**
-     * Keeps the loudest {@code cap} of the candidates in [from, to) whose bin lies in [lo, hi).
-     * With one band this is exactly the old per-second budget, so an ad's landmarks are the same.
-     */
+    /** Keeps the loudest {@code cap} candidates in {@code [from, to)} whose bin lies in {@code [lo, hi)}. */
     private static void keepLoudest(int[] bins, float[] loudness, int from, int to, int lo, int hi, int cap,
             boolean[] keep) {
+        if (cap <= 0) return;
         int size = 0;
         for (int i = from; i < to; i++) if (bins[i] >= lo && bins[i] < hi) size++;
         if (size <= cap) {
             for (int i = from; i < to; i++) if (bins[i] >= lo && bins[i] < hi) keep[i] = true;
             return;
         }
-        Integer[] order = new Integer[size];
+        int[] order = new int[size];
         int k = 0;
         for (int i = from; i < to; i++) if (bins[i] >= lo && bins[i] < hi) order[k++] = i;
-        java.util.Arrays.sort(order, (a, b) -> Float.compare(loudness[b], loudness[a]));
+        for (int i = 1; i < size; i++) {
+            int idx = order[i];
+            float val = loudness[idx];
+            int j = i - 1;
+            while (j >= 0 && Float.compare(loudness[order[j]], val) < 0) {
+                order[j + 1] = order[j];
+                j--;
+            }
+            order[j + 1] = idx;
+        }
         for (int i = 0; i < cap; i++) keep[order[i]] = true;
     }
 

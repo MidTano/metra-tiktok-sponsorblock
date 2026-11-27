@@ -230,4 +230,14 @@ public class AdMatcherTest {
         assertTrue(AdMatcher.Strictness.NORMAL.minVotes < AdMatcher.Strictness.STRICT.minVotes);
         assertTrue(AdMatcher.Strictness.LOOSE.chanceScore < AdMatcher.Strictness.NORMAL.chanceScore);
     }
+
+    @Test public void oddAndEvenFrameCountsProduceConsistentLandmarks() {
+        short[] evenPcm = melody(42, 6, 1.0);
+        // Add one extra hop so the frame count changes parity (even <-> odd) for the paired real FFT.
+        short[] oddPcm = java.util.Arrays.copyOf(evenPcm, evenPcm.length + Landmarks.HOP);
+        Landmarks.Print pEven = Landmarks.compute(evenPcm, evenPcm.length);
+        Landmarks.Print pOdd = Landmarks.compute(oddPcm, oddPcm.length);
+        assertEquals(pEven.frames + 1, pOdd.frames);
+        assertTrue(pEven.count > 100 && pOdd.count >= pEven.count);
+    }
 }

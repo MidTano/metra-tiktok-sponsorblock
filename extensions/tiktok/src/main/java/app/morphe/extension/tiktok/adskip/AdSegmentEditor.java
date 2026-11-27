@@ -51,22 +51,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Cuts an ad out of a video: the video plays at the top with its sound, a strip of frames and
- * the waveform below it, and two handles choose where the ad starts and ends. Moving a handle
- * shows its frame in silence; "Play ad" plays just the chosen part and each edge chip plays the
- * sound by that edge, so the reader hears exactly what will be matched, when they ask to. A line
- * under the strip says before saving whether the part holds enough sound to be recognised.
- * Saving fingerprints the cut, checks it can be found again in this very video, and adds it to
- * the list.
- */
+/** Fullscreen dialog for selecting, previewing, fingerprinting, and saving an ad segment from a video. */
 final class AdSegmentEditor {
     private static final long MAX_LOAD_MS = 10L * 60 * 1000;
     private static final long DEFAULT_LENGTH_MS = 15_000;
     private static final int THUMBS = 10;
-    /** Envelope resolution: one value per 20 ms. */
     private static final int ENVELOPE_MS = 20;
-    /** Fewer hashes than this is too little sound to recognise. */
     private static final int MIN_HASHES = 40;
     private static final long MIN_LENGTH_MS = SegmentRangeView.MIN_LENGTH_MS;
     private static final long MAX_LENGTH_MS = SegmentRangeView.MAX_LENGTH_MS;
@@ -96,9 +86,7 @@ final class AdSegmentEditor {
     private AdSkipUi.IconChip playAdButton;
     private ImageView playButton, zoomButton;
     private EditText nameField;
-    /** The reader moved an edge or typed a name, so closing asks first. */
     private boolean changed;
-    /** The gesture tip holds the line under the strip until the reader has tried it. */
     private boolean tipShown;
 
     private File pictureFile, soundFile;
@@ -108,7 +96,6 @@ final class AdSegmentEditor {
     private boolean prepared;
     private long durationMs;
     private Landmarks.Print print;
-    /** When the play should stop: the end of the ad for Play ad, or -1; and where it goes back to. */
     private long stopAt = -1;
     private long returnTo;
     private long pendingSeek = -1;
@@ -116,11 +103,9 @@ final class AdSegmentEditor {
     private int seeksInFlight;
     private int seekToken;
     private boolean playWhenSeeked;
-    /** The picture is being brought back to the sound's clock. */
     private boolean resyncing;
     private static final long DRIFT_MS = 200;
     private static final long SEEK_TIMEOUT_MS = 700;
-    /** Past this length the timeline opens zoomed in on the chosen part. */
     private static final long ZOOM_FROM_MS = 45_000;
     private final long initialPositionMs;
 
@@ -420,17 +405,13 @@ final class AdSegmentEditor {
 
     private static final float BUTTON_DP = 48;
     private static final long NUDGE_MS = 100;
-    /** A nudge held down repeats: first after this long, then faster and faster down to the floor. */
     private static final long REPEAT_FIRST_MS = 380, REPEAT_MS = 110, REPEAT_FLOOR_MS = 40;
 
     private LinearLayout.LayoutParams nudgeParams() {
         return new LinearLayout.LayoutParams(dp(34), dp(34));
     }
 
-    /**
-     * Moves one end by a tenth of a second and shows that frame, without playing. Held down, it
-     * keeps going and speeds up, so a second is a short press rather than ten taps.
-     */
+    /** Adjusts the start or end boundary by {@code delta} ms, accelerating while held. */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     private View nudge(boolean start, long delta) {
         ImageView button = AdSkipUi.iconButton(activity, delta < 0 ? AdIcons.Icon.MINUS : AdIcons.Icon.PLUS,
@@ -468,10 +449,7 @@ final class AdSegmentEditor {
         return button;
     }
 
-    /**
-     * One edge's time over its caption, on a raised chip. Tapping it plays the second and a half
-     * of sound next to that edge, inside the ad, so the reader hears where the cut falls.
-     */
+    /** Chip showing the start or end timestamp; tapping previews 1.5 s of audio inside that edge. */
     private TextView edgeChip(boolean start) {
         Context c = activity;
         LinearLayout chip = new LinearLayout(c);
@@ -590,9 +568,7 @@ final class AdSegmentEditor {
     // region tips and the sound check
 
     private static final String KEY_FINE_ZOOMS = "editor_fine_zooms";
-    /** The gesture tip shows until the reader has zoomed by holding this many times. */
     private static final int TIP_UNTIL = 3;
-    /** Fewer landmarks than this in the cut and matching is unreliable; fewer than MIN_HASHES, impossible. */
     private static final int STRONG_HASHES = 150;
 
     private void showTip() {
@@ -616,10 +592,7 @@ final class AdSegmentEditor {
         }
     }
 
-    /**
-     * How well the chosen part can be recognised, from how many sound landmarks it holds, shown
-     * before Save so a quiet part is fixed here rather than refused after.
-     */
+    /** Updates the landmark-strength indicator and Save button state for the selected range. */
     private void updateSound() {
         if (print == null) {
             AdSkipUi.enable(saveButton, false);
@@ -862,13 +835,7 @@ final class AdSegmentEditor {
 
     // region playback
 
-    /*
-     * A video whose sound comes as its own file plays on two players: the picture muted and the
-     * sound beside it. The sound is the clock: it is never moved while it plays, only the picture
-     * is brought back to it, so what is heard never stutters. Every play starts only after both
-     * players report they reached the position, so the first moment heard is the right one.
-     */
-
+    /** Separate-audio posts use two MediaPlayers with the audio player as master clock. */
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
@@ -1028,10 +995,7 @@ final class AdSegmentEditor {
         playFrom(range.start());
     }
 
-    /**
-     * A second and a half of sound by one edge, inside the ad: from the start onwards, or up to
-     * the end. Only on the reader's tap; moving an edge never plays anything.
-     */
+    /** Plays 1.5 s of audio adjacent to the start or end boundary inside the selection. */
     private void listenToEdge(boolean start) {
         if (!prepared) return;
         long edge = start ? range.start() : range.end();
@@ -1102,7 +1066,16 @@ final class AdSegmentEditor {
         boolean found = false;
         for (AdMatcher.Match m : check) if (Math.abs(m.startMs - s) < 1500) found = true;
         AdSkipLog.add(aid, "saved \"" + name + "\" " + cut.count + " hashes, self-check " + (found ? "ok" : "weak"));
-        AdScanner.forget(aid);
+        List<AdMatcher.Match> fullMatches = AdMatcher.match(AdSegmentStore.index(), print,
+                AdMatcher.Strictness.of(app.morphe.extension.tiktok.settings.Settings.AD_SKIP_STRICTNESS.get()));
+        AdScanner.recordMarked(aid, segment, s, e, cut.count, durationMs);
+        if (!fullMatches.isEmpty()) {
+            for (AdMatcher.Match m : fullMatches) {
+                if (m.segment != segment) {
+                    AdScanner.recordMarked(aid, m.segment, m.startMs, m.endMs, m.votes, durationMs);
+                }
+            }
+        }
         hideKeyboard();
         dialog.dismiss();
         Utils.showToastLong(found

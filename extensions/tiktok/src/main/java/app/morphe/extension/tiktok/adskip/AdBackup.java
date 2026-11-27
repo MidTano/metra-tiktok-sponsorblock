@@ -35,22 +35,16 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * A backup of the marked ads in one file the reader keeps where they like: each ad's name, its
- * sound fingerprint, whether it is on, and its skip count. Importing adds the ads the list does
- * not have yet, so the same file can be imported twice, or into a phone that already has some.
- */
+/** JSON backup and import of marked ad segments. */
 final class AdBackup {
     static final String FORMAT = "metra-adskip-backup";
     static final int VERSION = 1;
     private static final String MIME = "application/json";
-    /** A backup larger than this is not one of ours. */
     private static final int MAX_BYTES = 32 * 1024 * 1024;
     private static final int MAX_HASHES = 20_000;
     private static final String FRAGMENT_TAG = "metra-adskip-backup";
     private static final int REQUEST = 0x4D41;
 
-    /** Called on the main thread when an import added ads, so an open list can show them. */
     interface Done {
         void imported();
     }
@@ -117,7 +111,7 @@ final class AdBackup {
                 .toString();
     }
 
-    /** The ads in a backup, checked one by one; a broken ad is left out, not the whole file. */
+    /** Parses valid segments from backup JSON, skipping malformed entries. */
     static List<AdSegment> fromJson(String text) throws Exception {
         JSONObject root = new JSONObject(text);
         if (!FORMAT.equals(root.optString("format"))) throw new IOException("Not a Metra ad backup");
@@ -145,8 +139,7 @@ final class AdBackup {
                         ad.optBoolean("enabled", true), Math.max(0, ad.optInt("skips")), ad.optLong("last_skip"));
                 if (!shared.isEmpty()) segment.sharedServerId = shared;
                 out.add(segment);
-            } catch (Exception broken) {
-                // One damaged ad: the others still import.
+            } catch (Exception ignored) {
             }
         }
         return out;
@@ -225,10 +218,7 @@ final class AdBackup {
 
     // endregion
 
-    /**
-     * A framework fragment that opens the system file picker and takes its answer, since the
-     * answer goes to whoever asked and TikTok's activities aren't ours to hook for it.
-     */
+    /** Headless fragment that launches the system document picker and receives its result. */
     public static final class Request extends Fragment {
         public Request() {}
 

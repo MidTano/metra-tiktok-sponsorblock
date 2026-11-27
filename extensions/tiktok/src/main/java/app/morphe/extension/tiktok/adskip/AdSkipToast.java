@@ -36,17 +36,13 @@ import app.morphe.extension.tiktok.settings.L10n;
 
 import java.lang.ref.WeakReference;
 
-/**
- * The skip notice: a small pill centred across the screen, 20 px above the creator's name, so
- * it sits clear of the name, the caption and the buttons. In it a skip sign whose ring runs down
- * the time left, "Ad skipped" over the ad's name, "Watch it" and the votes. It goes by itself
- * when the ring runs out; a finger on it holds it, and a sideways swipe sends it away.
- */
+/** Floating skip notice pill with countdown ring, Watch-it action, and vote controls. */
 final class AdSkipToast {
-    private static final long VISIBLE_MS = 4000;
-    /** The gap between the pill and the creator's name. */
+    private static final long VISIBLE_MS = KawaiiLottie.MIN_VISIBLE_MS;
+    private static final float BASE_ALPHA = 0.80f;
+    private static final float FADE_HEAD_FRACTION = 0.14f;
+    private static final float FADE_TAIL_FRACTION = 0.20f;
     private static final int ABOVE_NAME_PX = 20;
-    /** Where it sits when the name can't be found: about 200 px above the bottom bar's line. */
     private static final int FALLBACK_BOTTOM_PX = 200;
     private static final String NAME_ID = "title";
     private static final String BAR_ID = "video_seek_bar";
@@ -73,11 +69,6 @@ final class AdSkipToast {
                 params.bottomMargin = bottomMargin(activity, root);
                 root.addView(pill, params);
                 pill.setAlpha(0f);
-                pill.setTranslationY(dp(activity, 14));
-                pill.setScaleX(0.94f);
-                pill.setScaleY(0.94f);
-                pill.animate().alpha(1f).translationY(0).scaleX(1f).scaleY(1f).setDuration(260)
-                        .setInterpolator(new OvershootInterpolator(1.1f)).start();
                 shown = new WeakReference<>(pill);
                 pill.countDown(VISIBLE_MS, () -> {
                     if (token == generation) dismiss();
@@ -114,10 +105,7 @@ final class AdSkipToast {
         return activity.getResources().getIdentifier(name, "id", activity.getPackageName());
     }
 
-    /**
-     * The view with this id that is on screen now. The feed keeps the cells either side bound, each
-     * with its own name, so the one wanted is the one actually visible in the middle of the screen.
-     */
+    /** Finds the view with {@code id} currently visible on screen. */
     @Nullable
     private static View shownNamed(ViewGroup root, int id) {
         if (id == 0) return null;
@@ -147,14 +135,14 @@ final class AdSkipToast {
         Pill pill = new Pill(activity);
         pill.setPadding(dp(activity, 6), dp(activity, 5), dp(activity, watch == null ? 14 : 6), dp(activity, 5));
         GradientDrawable background = new GradientDrawable();
-        background.setColor(0xF0151517);
+        background.setColor(0xC0151517);
         background.setCornerRadius(dp(activity, 22));
-        background.setStroke(Math.max(1, dp(activity, 0.75f)), 0x1FFFFFFF);
+        background.setStroke(Math.max(1, dp(activity, 0.75f)), 0x18FFFFFF);
         pill.setBackground(background);
-        pill.setElevation(dp(activity, 8));
+        pill.setElevation(dp(activity, 5));
         pill.setContentDescription(L10n.f("Ad skipped: %1$s", name));
 
-        pill.addView(pill.ring, new LinearLayout.LayoutParams(dp(activity, 34), dp(activity, 34)));
+        pill.addView(pill.ring, new LinearLayout.LayoutParams(dp(activity, 36), dp(activity, 36)));
 
         LinearLayout text = new LinearLayout(activity);
         text.setOrientation(LinearLayout.VERTICAL);
@@ -266,29 +254,50 @@ final class AdSkipToast {
             ValueAnimator draw = ValueAnimator.ofFloat(remaining / (float) total, 0f);
             draw.setDuration(remaining);
             draw.setInterpolator(new LinearInterpolator());
-            draw.addUpdateListener(a -> ring.setLeft((float) a.getAnimatedValue()));
+            draw.addUpdateListener(a -> {
+                float left = (float) a.getAnimatedValue();
+                ring.setLeft(left);
+                if (!swiping) {
+                    float elapsed = 1f - left;
+                    if (elapsed < FADE_HEAD_FRACTION) {
+                        float t = Math.max(0f, elapsed / FADE_HEAD_FRACTION);
+                        setAlpha(BASE_ALPHA * t);
+                    } else if (left < FADE_TAIL_FRACTION) {
+                        float t = Math.max(0f, left / FADE_TAIL_FRACTION);
+                        setAlpha(BASE_ALPHA * t);
+                    } else if (getAlpha() != BASE_ALPHA) {
+                        setAlpha(BASE_ALPHA);
+                    }
+                }
+            });
             ring.drawing = draw;
             draw.start();
         }
 
         private void pauseTimer() {
+            pauseTimer(true);
+        }
+
+        private void pauseTimer(boolean restoreAlpha) {
             if (!running) return;
             running = false;
             removeCallbacks(expire);
             remaining = Math.max(0, remaining - (android.os.SystemClock.uptimeMillis() - resumedAt));
             if (ring.drawing != null) ring.drawing.cancel();
             ring.setLeft(remaining / (float) total);
+            // Restore full BASE_ALPHA only when the reader touches the pill, never on natural expiry/dismiss!
+            if (restoreAlpha && !swiping) setAlpha(BASE_ALPHA);
         }
 
         void stopTimer() {
-            pauseTimer();
+            pauseTimer(false);
             onTimeUp = null;
         }
 
         @Override
         public boolean dispatchTouchEvent(MotionEvent event) {
             int action = event.getActionMasked();
-            if (action == MotionEvent.ACTION_DOWN) pauseTimer();
+            if (action == MotionEvent.ACTION_DOWN) pauseTimer(true);
             else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) resumeTimer();
             return super.dispatchTouchEvent(event);
         }
@@ -338,7 +347,7 @@ final class AdSkipToast {
                     }
                     if (swiping) {
                         setTranslationX(dx);
-                        setAlpha(Math.max(0.2f, 1f - Math.abs(dx) / Math.max(1f, getWidth())));
+                        setAlpha(Math.max(0.16f, BASE_ALPHA * (1f - Math.abs(dx) / Math.max(1f, getWidth()))));
                     }
                     return true;
                 case MotionEvent.ACTION_UP:
@@ -352,7 +361,7 @@ final class AdSkipToast {
                                     if (parent != null) parent.removeView(this);
                                 }).start();
                     } else if (swiping) {
-                        animate().translationX(0).alpha(1f).setDuration(180).start();
+                        animate().translationX(0).alpha(BASE_ALPHA).setDuration(180).start();
                     }
                     swiping = false;
                     return true;
@@ -362,13 +371,15 @@ final class AdSkipToast {
         }
     }
 
-    /** The skip sign on a soft green disc, with a ring around it that empties as time runs out. */
+    /** The Kawaii Lottie emoji on a soft green disc, with a ring around it that empties as time runs out. */
     static final class Ring extends View {
         private final Paint disc = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint track = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint arc = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final RectF oval = new RectF();
-        private final AdIcons icon;
+        private final AdIcons fallbackIcon;
+        private final int emojiIdx;
+        @Nullable private android.graphics.drawable.Drawable lottie;
         private float left = 1f;
         /** The animation drawing the countdown; the deadline itself is the pill's. */
         ValueAnimator drawing;
@@ -376,19 +387,40 @@ final class AdSkipToast {
         Ring(Activity activity) {
             super(activity);
             float density = activity.getResources().getDisplayMetrics().density;
-            disc.setColor(0x262BD96B);
-            track.setColor(0x332BD96B);
+            disc.setColor(0x2E2BD96B);
+            track.setColor(0x382BD96B);
             track.setStyle(Paint.Style.STROKE);
             track.setStrokeWidth(2 * density);
             arc.setColor(AdSkipBar.MARK);
             arc.setStyle(Paint.Style.STROKE);
             arc.setStrokeWidth(2 * density);
             arc.setStrokeCap(Paint.Cap.ROUND);
-            icon = AdIcons.of(activity, AdIcons.Icon.FAST_FORWARD, AdSkipBar.MARK, 16);
+            fallbackIcon = AdIcons.of(activity, AdIcons.Icon.FAST_FORWARD, AdSkipBar.MARK, 16);
+            emojiIdx = KawaiiLottie.nextIndex();
+            lottie = KawaiiLottie.createDrawable(emojiIdx, this, ready -> {
+                lottie = ready;
+                syncLottieFrame();
+                invalidate();
+            });
+            syncLottieFrame();
+        }
+
+        long visibleDurationMs() {
+            return KawaiiLottie.visibleDurationMs(emojiIdx);
+        }
+
+        private void syncLottieFrame() {
+            if (lottie == null) return;
+            // Play exactly 2 full cycles (CYCLES_PER_SHOW = 2) over the countdown window.
+            float elapsedFraction = Math.max(0f, Math.min(1f, 1f - left));
+            float scaled = elapsedFraction * KawaiiLottie.CYCLES_PER_SHOW;
+            float cycleProgress = scaled >= KawaiiLottie.CYCLES_PER_SHOW ? 1.0f : (scaled % 1.0f);
+            KawaiiLottie.setProgress(lottie, cycleProgress);
         }
 
         void setLeft(float fraction) {
             left = fraction;
+            syncLottieFrame();
             invalidate();
         }
 
@@ -401,16 +433,26 @@ final class AdSkipToast {
             oval.set(w / 2f - r, h / 2f - r, w / 2f + r, h / 2f + r);
             canvas.drawOval(oval, track);
             canvas.drawArc(oval, -90, 360 * left, false, arc);
-            int side = icon.getBounds().width();
-            int x = Math.round((w - side) / 2f), y = Math.round((h - side) / 2f);
-            canvas.save();
-            canvas.translate(x, y);
-            icon.draw(canvas);
-            canvas.restore();
+            android.graphics.drawable.Drawable anim = lottie;
+            if (anim != null) {
+                int inner = Math.max(1, Math.round((r - stroke * 0.7f) * 1.62f));
+                int x = Math.round((w - inner) / 2f), y = Math.round((h - inner) / 2f);
+                anim.setBounds(0, 0, inner, inner);
+                canvas.save();
+                canvas.translate(x, y);
+                anim.draw(canvas);
+                canvas.restore();
+            } else {
+                int side = fallbackIcon.getBounds().width();
+                int x = Math.round((w - side) / 2f), y = Math.round((h - side) / 2f);
+                canvas.save();
+                canvas.translate(x, y);
+                fallbackIcon.draw(canvas);
+                canvas.restore();
+            }
         }
     }
 
-    /** A hairline between the pill's parts. Space draws nothing, not even its background. */
     private static View divider(Activity activity) {
         View line = new View(activity);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(activity, 1), dp(activity, 18));
@@ -483,8 +525,13 @@ final class AdSkipToast {
         if (pill == null) return;
         if (pill instanceof Pill) ((Pill) pill).stopTimer();
         pill.animate().cancel();
-        pill.animate().alpha(0f).translationY(pill.getTranslationY() + dp((Activity) pill.getContext(), 8))
-                .setDuration(160).withEndAction(() -> {
+        if (pill.getAlpha() <= 0.02f) {
+            ViewGroup parent = (ViewGroup) pill.getParent();
+            if (parent != null) parent.removeView(pill);
+            return;
+        }
+        // Pure fade out from whatever alpha it currently has, with no downward drop.
+        pill.animate().alpha(0f).setDuration(150).withEndAction(() -> {
             ViewGroup parent = (ViewGroup) pill.getParent();
             if (parent != null) parent.removeView(pill);
         }).start();

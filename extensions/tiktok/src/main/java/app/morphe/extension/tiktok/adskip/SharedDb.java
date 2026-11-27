@@ -35,33 +35,21 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * The phone's side of the shared ad base: the daily download, sending the reader's own cuts,
- * votes, and the skip counts behind the statistics.
+ * Client for the shared ad database: daily snapshot/delta synchronization, durable segment
+ * submission queue, vote synchronization, and daily skip-count reporting.
  *
- * <p>Matching only ever reads the local list. The base adds the segments other readers cut, and
- * a cut sent from this phone learns its server id, which is what makes it votable. Everything
- * here runs off the main thread and gives up quietly when the network is not there; the next
- * sync tries again.
- *
- * <p>The snapshot is little-endian:
+ * <p>Binary snapshot format (little-endian, version 2):
  * <pre>
  *   [4] magic MADB   [4] version 2   [4] segment count
  *   per segment:
- *     [16] uuid   [4] number in the base, the N of adN   [4] flags, bit 0: hidden by votes
+ *     [16] uuid   [4] number   [4] flags (bit 0: hidden)
  *     [4] frames   [4] duration ms   [4] score   [4] hash count
  *     [4 x count] hashes   [4 x count] times
  * </pre>
- * The full snapshot comes straight from storage on {@link #SNAPSHOT_URL}, without the API, so the
- * base keeps arriving on a day the API is over its quota. It is current as of the start of the
- * hour its build began, so the first delta asks from the hour before its {@code Last-Modified}.
- * A delta names the moment its data is current as of in {@code X-Db-Time}, and one that filled a
- * whole page says so in {@code X-Db-More}; the next page is asked for at once.
  */
 public final class SharedDb {
     public static final String BASE_URL = "https://api.sponblocktikitoki.dpdns.org";
-    /** The nightly snapshot, served from storage through the CDN. */
     static final String SNAPSHOT_URL = "https://cdn.sponblocktikitoki.dpdns.org/db.bin";
-    /** Server ids carry this prefix on the phone. */
     public static final String SHARED_PREFIX = "s_";
 
     private static final int MAGIC = 0x4244414D;
@@ -74,13 +62,10 @@ public final class SharedDb {
     private static final String KEY_STATS_AT = "stats_at";
     private static final String QUEUE_FILE = "metra_adskip_queue.bin";
     private static final long SYNC_INTERVAL_MS = 24 * 3600 * 1000L;
-    /** Background traffic is deliberately limited to one attempt per day. */
     private static final long REPORT_INTERVAL_MS = SYNC_INTERVAL_MS;
     private static final long STATS_INTERVAL_MS = SYNC_INTERVAL_MS;
     private static final String USER_AGENT = "Metra-AdSkip/2";
-    /** Delta pages one sync reads at most; the rest arrives with the next sync. */
     private static final int MAX_DELTA_PAGES = 10;
-    /** The limits a snapshot is read under, the same as the server's and the core library's. */
     private static final int MAX_DB_BYTES = 64 * 1024 * 1024;
     private static final int MAX_HASHES = 6_000;
     private static final int MIN_DURATION_MS = 1_000;
@@ -91,11 +76,9 @@ public final class SharedDb {
     private static volatile boolean syncing;
     private static final String KEY_ATTEMPT = "sync_attempt";
     private static final String KEY_STATS_ATTEMPT = "stats_attempt";
-    /** Failures in a row since the last success, for the sync and for the statistics. */
     private static final String KEY_FAILS = "sync_fails", KEY_STATS_FAILS = "stats_fails";
-    /** The server the attempt times above belong to; a new one is tried at once. */
     private static final String KEY_SERVER = "sync_server";
-    /** After a failure: 2 min, then 6, 18, 54 ... up to 6 h, so one bad moment can't cost a day. */
+    /** Exponential backoff on failure: 2m, 6m, 18m, 54m ... capped at 6h. */
     private static final long FIRST_RETRY_MS = 2 * 60 * 1000L, MAX_RETRY_MS = 6 * 3600 * 1000L;
     private static final String KEY_PENDING_VOTE = "pending_vote_";
     private static final long RETRY_INTERVAL_MS = SYNC_INTERVAL_MS;
@@ -143,7 +126,7 @@ public final class SharedDb {
         if (now - prefs.getLong(KEY_ATTEMPT, 0) < retryAfter(prefs, KEY_FAILS)) return;
         boolean syncDue = now - prefs.getLong(KEY_LAST_SYNC, 0) >= SYNC_INTERVAL_MS;
         boolean reportDue = now - prefs.getLong(KEY_LAST_REPORT, 0) >= REPORT_INTERVAL_MS;
-        boolean votesDue = prefs.getAll().keySet().stream().anyMatch(key -> key.startsWith(KEY_PENDING_VOTE));
+        boolean votesDue = hasPendingVotes(prefs);
         File queued = new File(context.getFilesDir(), QUEUE_FILE);
         boolean queueDue = queued.length() > 0 || new File(queued.getPath() + ".bak").exists();
         if (!syncDue && !reportDue && !votesDue && !queueDue) return;
@@ -175,10 +158,21 @@ public final class SharedDb {
         });
     }
 
-    /**
-     * How long after an attempt the next may start: a day after a success, sooner after failures
-     * so a phone that was offline, or a server that was down for a minute, isn't cut off a day.
-     */
+    private static boolean hasPendingVotes(SharedPreferences prefs) {
+        for (String key : prefs.getAll().keySet()) {
+            if (key.startsWith(KEY_PENDING_VOTE)) return true;
+        }
+        return false;
+    }
+
+    private static boolean containsPayload(List<byte[]> entries, byte[] body) {
+        for (byte[] entry : entries) {
+            if (java.util.Arrays.equals(entry, body)) return true;
+        }
+        return false;
+    }
+
+    /** Returns 24h cooldown after success, or exponential backoff after consecutive failures. */
     private static long retryAfter(SharedPreferences prefs, String failsKey) {
         int fails = prefs.getInt(failsKey, 0);
         if (fails <= 0) return RETRY_INTERVAL_MS;
@@ -187,7 +181,7 @@ public final class SharedDb {
         return Math.min(MAX_RETRY_MS, delay);
     }
 
-    /** The attempts and failures counted against an earlier server address say nothing about this one. */
+    /** Clears retry state when the configured server URL changes. */
     private static void forgetOtherServer(SharedPreferences prefs) {
         if (BASE_URL.equals(prefs.getString(KEY_SERVER, null))) return;
         prefs.edit().putString(KEY_SERVER, BASE_URL).remove(KEY_ATTEMPT).remove(KEY_STATS_ATTEMPT)
@@ -341,10 +335,7 @@ public final class SharedDb {
 
     // region submitting
 
-    /**
-     * Sends a new cut. Without a signed-in account, over the daily limit, or offline it waits in a
-     * queue on the phone, and works locally meanwhile.
-     */
+    /** Persists a new segment to the local upload queue and submits it asynchronously. */
     public static void submit(Context context, AdSegment segment) {
         if (!enabled()) return;
         byte[] body;
@@ -360,7 +351,7 @@ public final class SharedDb {
             synchronized (QUEUE_SEND_LOCK) {
                 try {
                     synchronized (QUEUE_LOCK) {
-                        if (readQueue(context).stream().noneMatch(entry -> java.util.Arrays.equals(entry, body))) return;
+                        if (!containsPayload(readQueue(context), body)) return;
                     }
                     Reply reply = post("/v1/segments", body);
                     if (!retryable(reply.code)) {
@@ -508,11 +499,7 @@ public final class SharedDb {
         return serverId != null && serverId.startsWith(SHARED_PREFIX) && AdSegmentStore.isOthers(serverId);
     }
 
-    /**
-     * Votes once per segment. The same vote again does nothing; the other one replaces it, on the
-     * server too, so a segment never carries two votes from one account. 0 takes the vote back.
-     * A segment voted down is no longer skipped for this reader until the vote is taken back.
-     */
+    /** Records a local vote (-1, 0, or 1) immediately and queues it for the next daily sync. */
     static boolean vote(String serverId, int vote) {
         if (vote < -1 || vote > 1 || !canVote(serverId)) return false;
         SharedPreferences prefs = AdSkipPrefs.get();
@@ -567,10 +554,7 @@ public final class SharedDb {
         return reply.code == 200;
     }
 
-    /**
-     * The base's totals and what the reader's own cuts saved others. An answer is kept for a day,
-     * so opening the list again costs no request. /v1/me carries the totals too.
-     */
+    /** Returns global and personal shared-base statistics, cached for 24 hours. */
     @Nullable
     static Stats fetchStats() {
         synchronized (STATS_LOCK) {
@@ -673,10 +657,7 @@ public final class SharedDb {
         return connection;
     }
 
-    /**
-     * The moment a delta or snapshot is current as of: a delta names it in {@code X-Db-Time}; for
-     * the snapshot, the hour before its upload is safe, since asking for more changes is harmless.
-     */
+    /** Reads the server epoch from {@code X-Db-Time} (delta) or the hour before {@code Last-Modified} (snapshot). */
     private static long asOf(HttpURLConnection connection) throws IOException {
         String named = connection.getHeaderField("X-Db-Time");
         if (named != null) {

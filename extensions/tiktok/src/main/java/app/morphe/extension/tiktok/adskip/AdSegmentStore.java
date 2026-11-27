@@ -22,12 +22,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * The marked ads, kept on the phone in one small binary file. A 15 second ad is about 2,500
- * hashes, 20 KB, so a few hundred ads stay under a few megabytes and load in milliseconds.
- *
- * <p>Every change writes a new file beside the old one and renames it over, so a crash mid
- * write leaves the previous list rather than half of one. The match index is rebuilt on each
- * change and swapped in whole, so a scan running on another thread always sees one list.
+ * Persistent binary store of marked ad segments ({@code metra_ad_segments.bin}).
+ * Rebuilds the immutable {@link AdMatcher.Index} atomically on each change.
  */
 final class AdSegmentStore {
     private static final int MAGIC = 0x4D414453; // "MADS"
@@ -37,7 +33,6 @@ final class AdSegmentStore {
     private static final Object LOCK = new Object();
     private static List<AdSegment> segments;
     private static volatile AdMatcher.Index index;
-    /** Bumped on every change, so a cached scan result made against an older list is redone. */
     private static volatile int generation;
 
     private AdSegmentStore() {}
@@ -88,10 +83,7 @@ final class AdSegmentStore {
         return generation;
     }
 
-    /**
-     * Adds the ads of a backup the list doesn't have yet: one with the same sound, or the same
-     * shared id, is already here and stays as it is. Returns how many were added.
-     */
+    /** Imports segments not already present by sound fingerprint or shared server ID. */
     static int importAll(List<AdSegment> incoming) {
         synchronized (LOCK) {
             ensureLoaded();
@@ -186,23 +178,14 @@ final class AdSegmentStore {
         }
     }
 
-    /**
-     * Brings the shared base's segments into the list, in one write.
-     *
-     * <p>A segment this phone sent itself comes back with the very same hashes, so it is matched
-     * by its sound, not added twice: the local one keeps its name and only learns its server id,
-     * which is what lets it be voted on. A segment only the base has is named by its number in the
-     * base, ad12, which is the same on every phone. One the votes hid is taken off again.
-     */
+    /** Merges shared database segments into the local store. */
     static int mergeShared(List<Shared> incoming) {
         return mergeShared(incoming, -1);
     }
 
     /**
-     * {@code snapshotAtMs} >= 0: the incoming list is a whole snapshot as of then. A segment only
-     * the base had, that this phone already held then, and that the snapshot lacks was hidden or
-     * removed on the server, and goes here too. One that arrived later, by a newer delta, stays:
-     * the snapshot can be older than it. The reader's own cuts always stay.
+     * Merges shared segments; when {@code snapshotAtMs >= 0}, removes shared-only segments older
+     * than {@code snapshotAtMs} that are absent from the snapshot.
      */
     static int mergeShared(List<Shared> incoming, long snapshotAtMs) {
         synchronized (LOCK) {
@@ -245,8 +228,6 @@ final class AdSegmentStore {
                     continue;
                 }
                 if (known != null && isSharedOnly(known) && known.frames != entry.frames) {
-                    // Earlier versions stored the hash count as the length in frames, which made
-                    // a skip run far past the ad's end.
                     AdSegment fixed = new AdSegment(known.id, known.name, known.createdAt, entry.durationMs, null,
                             entry.hashes, entry.times, entry.frames, known.enabled, known.skips, known.lastSkipAt);
                     fixed.sharedServerId = entry.serverId;
@@ -336,10 +317,7 @@ final class AdSegmentStore {
         return java.util.Arrays.equals(s.hashes, hashes) && java.util.Arrays.equals(s.times, times);
     }
 
-    /**
-     * Earlier versions added a phone's own segment a second time when the base sent it back.
-     * The copy goes, and its server id moves to the original, which keeps its name.
-     */
+    /** Deduplicates shared copies of locally created segments by sound fingerprint. */
     private static boolean dropSharedCopies() {
         boolean dirty = false;
         for (int i = segments.size() - 1; i >= 0; i--) {
@@ -440,12 +418,9 @@ final class AdSegmentStore {
                 //noinspection ResultOfMethodCallIgnored
                 file.renameTo(broken);
                 segments.clear();
-                // What earlier syncs brought is gone with it: fetch the whole base again.
                 SharedDb.forgetSyncProgress();
             }
         } else if (file != null) {
-            // No list yet. A sync cursor without one means the list was lost: start over. The
-            // empty list is written, so from now on a missing file always means a loss.
             SharedDb.forgetSyncProgress();
             save();
         }

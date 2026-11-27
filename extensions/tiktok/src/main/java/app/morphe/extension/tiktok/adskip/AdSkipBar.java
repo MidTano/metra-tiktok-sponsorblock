@@ -27,18 +27,8 @@ import java.util.List;
 import java.util.WeakHashMap;
 
 /**
- * The found ads drawn inside TikTok's own progress line, the way SponsorBlock colours sponsor
- * parts: the stretch of the line where each ad plays turns green.
- *
- * <p>How TikTok draws its line (47.4.3, the seek bar's progress drawable {@code X.06pW}): every
- * frame it works out one rectangle, {@code centerY - height/2 + offset} to {@code centerY +
- * height/2 + offset} across the drawable's width, and draws the track, the buffered part and
- * the played part into that same band. Height and offset change with the bar's style (rest,
- * paused, dragging) and are animated over 100 ms by the seek bar. The drawable keeps the band it
- * last drew in its only {@link RectF} field. The marks read that rectangle on every frame, after
- * TikTok has drawn, so they are always exactly where TikTok's line is, mid-animation included,
- * without measuring or guessing anything. A drawable without that field (another build) falls
- * back to the drawable's bounds.
+ * Draws matched ad segments onto TikTok's video seek bar overlay, tracking the active
+ * {@link RectF} band of the progress drawable ({@code X.06pW}).
  */
 public final class AdSkipBar {
     static final int MARK = 0xFF2BD96B;
@@ -54,21 +44,17 @@ public final class AdSkipBar {
 
     private AdSkipBar() {}
 
-    /** TikTok's bar style method begins. Nothing to remember: the band is read live. */
     public static void beginStyle(@Nullable LinearLayout bar, int style) {
         refresh();
     }
 
-    /** The line height TikTok is handing the seek bar. Read live from the band instead. */
     public static void lineHeight(@Nullable Float height) {
     }
 
-    /** The handle's side on its way to the seek bar. Main thread. */
     public static void handleSide(@Nullable Float side) {
         if (side != null && side > 0) handle = side;
     }
 
-    /** The bar's progress method, on the main thread, with the percent it is about to draw. */
     public static void onBar(@Nullable LinearLayout bar, float percent) {
         if (bar == null) return;
         try {
@@ -174,8 +160,7 @@ public final class AdSkipBar {
             }
             String playing = AdSkip.playingAid();
             long duration = AdSkip.playingDuration();
-            // Two bars can both sit near 0% while the feed pages. Only the bar whose whole height is
-            // on screen belongs to the video playing, so the neighbour never borrows its marks.
+            // Bind only to the seek bar whose full height is visible on screen.
             boolean onScreen = bar != null && bar.getGlobalVisibleRect(visible) && visible.height() >= bar.getHeight();
             if (playing != null && duration > 0 && onScreen) {
                 float expected = AdSkip.playingPosition() * 100f / duration;

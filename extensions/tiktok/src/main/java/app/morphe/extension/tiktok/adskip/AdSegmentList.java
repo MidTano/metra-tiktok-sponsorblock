@@ -169,11 +169,7 @@ final class AdSegmentList {
         }
     }
 
-    /**
-     * What skipping has given back, as SponsorBlock shows it: ads skipped and time saved on this
-     * phone, then, once the shared base answers, what the reader's own cuts saved everyone else
-     * and what the base holds as a whole.
-     */
+    /** Builds the local and shared skip-statistics summary card. */
     private View statistics() {
         Context c = activity;
         LinearLayout box = new LinearLayout(c);
@@ -240,14 +236,12 @@ final class AdSegmentList {
         return box;
     }
 
-    /** A small heading over a group of rows, like the ones in the phone's settings. */
     private View sectionTitle(String text) {
         TextView title = AdSkipUi.text(activity, text, 13, AdSkipUi.TEXT_2, true);
         title.setPadding(dp(6), dp(22), dp(6), dp(8));
         return title;
     }
 
-    /** A rounded group that rows sit in, one under another. */
     private LinearLayout section() {
         LinearLayout box = new LinearLayout(activity);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -256,7 +250,6 @@ final class AdSegmentList {
         return box;
     }
 
-    /** A hairline between two rows of a group, starting where the text starts. */
     private View rule() {
         View line = new View(activity);
         line.setBackgroundColor(0x14FFFFFF);
@@ -266,7 +259,6 @@ final class AdSegmentList {
         return line;
     }
 
-    /** One tappable row: an icon on a tile, a title over a line of detail, and a chevron. */
     private View action(AdIcons.Icon icon, int iconColor, String title, String detail, int titleColor) {
         Context c = activity;
         LinearLayout row = new LinearLayout(c);
@@ -294,11 +286,9 @@ final class AdSegmentList {
         ImageView chevron = new ImageView(c);
         chevron.setImageDrawable(AdIcons.of(c, AdIcons.Icon.CHEVRON_RIGHT, AdSkipUi.TEXT_2, 18));
         row.addView(chevron, new LinearLayout.LayoutParams(dp(18), dp(18)));
-        // TalkBack reads the title and the detail in turn; nothing to join.
         return row;
     }
 
-    /** No ads yet: the waveform sign, what this list is, and how to fill it. */
     private View empty() {
         Context c = activity;
         LinearLayout box = new LinearLayout(c);

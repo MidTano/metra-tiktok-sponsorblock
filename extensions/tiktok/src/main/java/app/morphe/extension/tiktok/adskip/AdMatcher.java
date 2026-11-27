@@ -11,39 +11,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Finds marked ads in a video's landmarks the way Shazam finds a song: every hash the two
- * share votes for the time offset between them, and the ad is there when one offset collects
- * far more votes than chance gives any offset.
- *
- * <p>Chance is small. A one-minute video carries about 10,000 hashes and a 15 second ad about
- * 2,500, out of millions of possible hash values, so a random offset collects well under one
- * vote. A real ad, even under a voice-over or street noise, collects dozens to hundreds.
- */
+/** Matches marked ad segments against video audio landmarks by time-offset voting. */
 final class AdMatcher {
-    /** How sure a match has to be. */
     enum Strictness {
-        /** What Normal asks for, kept from the release before: a lone weak peak needs 1 in 10^12. */
         LOOSE(20, 0.040f, 80, 20, 0.040f, 80, 12),
         NORMAL(28, 0.055f, 110, 30, 0.060f, 120, 18),
         STRICT(40, 0.080f, 160, 44, 0.090f, 180, 25);
 
         final int minVotes;
         final float ratio;
-        /** The cap on the ratio part, so a long ad present only in part can still be found. */
         final int maxVotes;
-        /*
-         * The same for the dense reading of a video (Landmarks.computeQuery), which gives chance
-         * more votes too: the loudest chance peak measured stays under 0.6 of Loose and 0.4 of
-         * Normal there.
-         */
         final int denseMinVotes;
         final float denseRatio;
         final int denseMaxVotes;
-        /**
-         * How improbable a peak must be by chance alone (minus log10 of the odds, counting every
-         * offset and every ad tried) for it to count even when it is under the vote threshold.
-         */
+        /** Minimum -log10(p) score required for sub-threshold matches. */
         final int chanceScore;
 
         Strictness(int minVotes, float ratio, int maxVotes, int denseMinVotes, float denseRatio, int denseMaxVotes,
@@ -60,21 +41,14 @@ final class AdMatcher {
         static Strictness of(String value) {
             if ("strict".equals(value)) return NORMAL;
             if ("verystrict".equals(value)) return STRICT;
-            // Anything else, a value saved before the levels moved included, is Normal.
             return LOOSE;
         }
     }
 
-    /** One second of frames: the slack around the coverage edges. */
     private static final int SECOND = Landmarks.FRAMES_PER_SECOND;
-    /**
-     * A hash that appears more often than this in one ad is a drone or a steady tone, which
-     * matches any sound that holds it, so it is left out of the index.
-     */
+    /** Max occurrences of a single hash per segment before it is excluded as a steady tone. */
     private static final int MAX_REPEATS = 8;
-    /** Fewest votes a peak needs to be judged by chance alone. */
     private static final int MIN_CHANCE_VOTES = 7;
-    /** A peak with this many votes is taken without asking for a lone peak. */
     private static final int SURE_VOTES = 20;
 
     static final class Match {
@@ -98,10 +72,10 @@ final class AdMatcher {
         }
     }
 
-    /** Every enabled segment's hashes, leaving out the ones the reader voted down, sorted, for a binary search per query hash. */
+    /** Sorted hash index of all enabled, non-downvoted segments. */
     static final class Index {
         final AdSegment[] segments;
-        /** hash << 32 | segment << 16 | frame. */
+        /** Packed as: hash << 32 | segmentIndex << 16 | frame. */
         final long[] entries;
 
         private Index(AdSegment[] segments, long[] entries) {
@@ -124,7 +98,10 @@ final class AdMatcher {
             for (int s = 0; s < used.size(); s++) {
                 AdSegment segment = used.get(s);
                 Map<Integer, Integer> repeats = new HashMap<>();
-                for (int hash : segment.hashes) repeats.merge(hash, 1, Integer::sum);
+                for (int hash : segment.hashes) {
+                    Integer prev = repeats.get(hash);
+                    repeats.put(hash, prev == null ? 1 : prev + 1);
+                }
                 for (int i = 0; i < segment.hashes.length; i++) {
                     int hash = segment.hashes[i];
                     if (repeats.get(hash) > MAX_REPEATS) continue;
@@ -155,11 +132,7 @@ final class AdMatcher {
 
     private AdMatcher() {}
 
-    /**
-     * The ads in this sound, from both readings: the sparse one hears an ad that plays clearly,
-     * the dense one still finds an ad under the creator's music, and hears more of its start and
-     * end when music covers them. Where both found the same ad, the match spans both.
-     */
+    /** Matches both sparse and dense landmark prints and merges overlapping spans. */
     static List<Match> find(Index index, short[] pcm, int length, Strictness strictness) {
         Landmarks.Print[] prints = Landmarks.computeBoth(pcm, length);
         List<Match> all = new ArrayList<>(match(index, prints[0], strictness, false));
@@ -199,10 +172,7 @@ final class AdMatcher {
                     : Math.max(strictness.minVotes, Math.min(strictness.maxVotes, Math.round(strictness.ratio * length)));
         }
 
-        // First pass: how many hashes each ad shares with the video at all. An ad below its
-        // threshold in total can't reach it at any one offset, so it gets no histogram: with a
-        // large shared base most ads share a few chance hashes with any video, and a histogram
-        // the length of the video for each of them used to cost tens of megabytes per scan.
+        // Pre-count shared hashes per segment so histograms are allocated only for viable candidates.
         int[] firsts = new int[video.count];
         int[] totals = new int[segmentCount];
         for (int q = 0; q < video.count; q++) {
@@ -247,8 +217,6 @@ final class AdMatcher {
             for (int i = 0; i < n; i++) {
                 smooth[i] = histogram[i] + (i > 0 ? histogram[i - 1] : 0) + (i + 1 < n ? histogram[i + 1] : 0);
             }
-            // The same ad can play twice in one video; each copy is a separate peak at least
-            // half the ad's length from the others.
             int suppress = Math.max(SECOND, segment.frames / 2);
             for (int occurrence = 0; occurrence < 4; occurrence++) {
                 int best = -1, bestVotes = 0;
@@ -265,7 +233,7 @@ final class AdMatcher {
                     if ((i < from || i > to) && smooth[i] > second) second = smooth[i];
                 }
                 if (!accepts(bestVotes, second, required[s], totals[s], n, segmentCount, strictness.chanceScore)) break;
-                Match match = describe(segment, s, index, video, best - base[s], bestVotes);
+                Match match = describe(segment, s, index, video, firsts, best - base[s], bestVotes);
                 if (match != null) found.add(match);
                 for (int i = from; i <= to; i++) smooth[i] = 0;
             }
@@ -274,14 +242,7 @@ final class AdMatcher {
         return merge(found);
     }
 
-    /**
-     * Whether a peak is an ad. A weak peak must stand alone: rhythmic music piles votes on many
-     * offsets one beat apart, so a second peak close to the first says the match is the beat, not
-     * the ad. Past the vote threshold the peak counts; under it the peak still counts when chance
-     * could hardly have made it, judged against how many hashes the ad shares with this video at
-     * all. That is what finds a real ad under a voice-over, one vote short of a fixed threshold,
-     * without letting an ad that merely shares many hashes with a song through.
-     */
+    /** Validates an offset peak against the vote threshold, secondary-peak ratio, and Poisson chance score. */
     static boolean accepts(int votes, int second, int required, int shared, int offsets, int ads, int chanceScore) {
         if (votes < SURE_VOTES && second * 5 > votes * 3) return false;
         if (votes >= required) return true;
@@ -289,11 +250,7 @@ final class AdMatcher {
         return chanceScore(votes, shared, offsets, ads) >= chanceScore;
     }
 
-    /**
-     * Minus log10 of the odds that some offset of some ad collects this many votes by chance.
-     * Votes at an offset are Poisson with the ad's shared hashes spread over all offsets; the
-     * smoothed peak sums three neighbours.
-     */
+    /** Returns -log10 of the Poisson probability of reaching {@code votes} by chance across all offsets and ads. */
     static double chanceScore(int votes, int shared, int offsets, int ads) {
         double lambda = Math.max(1e-6, 3.0 * shared / Math.max(1, offsets));
         double logFactorial = 0;
@@ -308,20 +265,16 @@ final class AdMatcher {
         return -(logHead + Math.log(tail)) / Math.log(10) - Math.log10(Math.max(1, offsets)) - Math.log10(Math.max(1, ads));
     }
 
-    /**
-     * Where in the video the ad sits at this offset. The hashes that voted for it say which part
-     * of the ad is really there: a video that keeps only the ad's first half is skipped to the
-     * end of that half, not on into whatever follows it.
-     */
+    /** Computes the matched time span in the video from the voting hashes around {@code offset}. */
     private static Match describe(AdSegment segment, int s, Index index, Landmarks.Print video,
-            int offset, int votes) {
+            int[] firsts, int offset, int votes) {
         int coverStart = Integer.MAX_VALUE, coverEnd = Integer.MIN_VALUE, count = 0;
         long weighted = 0;
         long[] entries = index.entries;
         for (int q = 0; q < video.count; q++) {
-            int hash = video.hashes[q];
-            int at = index.first(hash);
+            int at = firsts[q];
             if (at < 0) continue;
+            int hash = video.hashes[q];
             int tq = video.times[q];
             for (int e = at; e < entries.length && (int) (entries[e] >>> 32) == hash; e++) {
                 if ((int) ((entries[e] >>> 16) & 0xFFFF) != s) continue;
@@ -348,12 +301,8 @@ final class AdMatcher {
                 Landmarks.frameToMs(Math.round(endFrame)), votes, partialStart || partialEnd);
     }
 
-    /**
-     * Overlapping matches, from two marked copies of one ad, become one span covering both, so a
-     * longer cut of the ad always wins its extra seconds. The span is named after the copy that
-     * covers the most of it.
-     */
-    private static List<Match> merge(List<Match> sorted) {
+    /** Merges overlapping or adjacent (< 300 ms) matches into a single span. */
+    static List<Match> merge(List<Match> sorted) {
         if (sorted.size() < 2) return sorted;
         List<Match> merged = new ArrayList<>();
         Match current = sorted.get(0);

@@ -24,21 +24,8 @@ import android.view.animation.DecelerateInterpolator;
 import java.util.Locale;
 
 /**
- * The editor's timeline: a strip of frames over the sound's waveform, the chosen part lit and
- * the rest dimmed, a handle at each end and the play head.
- *
- * <ul>
- *   <li>Drag a handle to move that end, the frames inside to move the whole part, anywhere else
- *       to move the play head. Nothing plays by itself: the picture follows the finger in
- *       silence, and the reader listens with Play ad or the edge buttons when they want to.</li>
- *   <li>Hold a handle still for a moment and the strip zooms in around it, twice if held longer,
- *       so the last few hundredths of a second are as wide as a finger. A bubble above the handle
- *       shows the time to the hundredth, and a tick is felt every tenth of a second. Letting go
- *       zooms back out.</li>
- *   <li>Pinch the strip to zoom in or out at the fingers.</li>
- *   <li>Zoomed in, a handle or the part held near either edge scrolls the view on, the way
- *       TikTok's trimmer does.</li>
- * </ul>
+ * Interactive timeline view with frame thumbnails, audio waveform, draggable start/end handles,
+ * hold-to-fine-zoom, pinch-to-zoom, and edge auto-panning.
  */
 @SuppressLint("ViewConstructor")
 final class SegmentRangeView extends View {
@@ -88,17 +75,10 @@ final class SegmentRangeView extends View {
     private long downMs, downStart, downEnd;
     private boolean moved;
     private boolean panning;
-    /** How fast the view scrolls with a finger held at the edge: this share of the view per frame. */
     private static final float PAN_PER_FRAME = 0.025f;
-    /** The part can't be dragged shorter or longer than the shared base takes. */
     static final long MIN_LENGTH_MS = 1000;
     static final long MAX_LENGTH_MS = 30_000;
 
-    /*
-     * Fine zoom. The finger counts as held when it stays within HOLD_SLOP for HOLD_MS; each hold
-     * zooms in one level more, up to FINE_LEVELS, and never closer than FINE_SPAN_MS across the
-     * whole strip, about five milliseconds a pixel on a phone.
-     */
     private static final long HOLD_MS = 350;
     private static final long NEXT_HOLD_MS = 650;
     private static final float HOLD_SLOP_DP = 5;
@@ -106,7 +86,6 @@ final class SegmentRangeView extends View {
     static final long FINE_SPAN_MS = 1500;
     private float holdX;
     private int fineLevel;
-    /** The view before fine zoom began, restored when the finger lets go. */
     private long restoreStart = -1, restoreEnd = -1;
     private long lastTickTenth = Long.MIN_VALUE;
 
@@ -385,9 +364,7 @@ final class SegmentRangeView extends View {
         canvas.drawRect(left, thumbTop, Math.max(left, xs), waveBottom, shade);
         canvas.drawRect(Math.min(right, xe), thumbTop, right, waveBottom, shade);
 
-        // Frame and handles, kept to the strip and its handle margin when an edge is out of view.
-        // An edge out of view draws no side: the frame runs on past the strip instead, so it
-        // never looks as if the part ended at the strip's edge.
+        // Selection frame and handles.
         canvas.save();
         canvas.clipRect(left, 0, right, h);
         float outside = 24 * density;
@@ -653,11 +630,7 @@ final class SegmentRangeView extends View {
         animator.start();
     }
 
-    /**
-     * -1..1: how hard the view should scroll left or right, 0 for not at all. A handle or the play
-     * head scrolls it when the finger is in the zone at either edge; the whole part scrolls it when
-     * its leading edge reaches that zone, so it never slides out of sight.
-     */
+    /** Returns edge auto-pan velocity in [-1, 1], or 0 when outside the edge zone. */
     private float edgeDepth(float x) {
         if (!zoomed() || dragging == NONE) return 0;
         float zone = 36 * density, left = pad(), right = getWidth() - pad();
@@ -672,11 +645,7 @@ final class SegmentRangeView extends View {
         return 0;
     }
 
-    /**
-     * After a drag: a view zoomed in by holding goes back to how it was, and a part left partly
-     * out of sight is brought back to the middle, zooming out just enough when it is wider than
-     * the view, the way TikTok's trimmer settles.
-     */
+    /** Restores the pre-hold zoom window after dragging and keeps the selection visible. */
     private void settle() {
         long fromStart = restoreStart >= 0 ? restoreStart : viewStart;
         long fromEnd = restoreStart >= 0 ? restoreEnd : viewEnd;

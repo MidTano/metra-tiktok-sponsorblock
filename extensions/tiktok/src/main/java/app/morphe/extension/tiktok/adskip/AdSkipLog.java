@@ -13,7 +13,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
-/** The last few scans and skips, shown under the ad list so a miss can be seen on the phone. */
+/** Ring buffer of recent scan and skip events shown in the diagnostics section. */
 final class AdSkipLog {
     private static final int MAX = 40;
     private static final LinkedList<String> LINES = new LinkedList<>();

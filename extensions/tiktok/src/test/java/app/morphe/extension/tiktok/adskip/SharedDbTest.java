@@ -448,4 +448,38 @@ public class SharedDbTest {
         assertTrue(SettingsStatus.adSkipEnabled);
         assertEquals(0, requests);
     }
+
+    @Test public void recordMarkedImmediatelyPublishesMatchForCurrentVideo() {
+        AdSegment seg = new AdSegment(1, "jingle", 0, 5_000, "7700001112223334445",
+                new int[]{Landmarks.hash(10, 20, 5)}, new int[]{0}, 155, true, 0, 0);
+        String aid = "7700001112223334445";
+        AdScanner.forget(aid);
+        AdScanner.recordMarked(aid, seg, 4_200, 9_200, 250, 30_000);
+        AdScanner.Result result = AdScanner.result(aid);
+        assertTrue("result must be DONE immediately", result != null && result.state == AdScanner.State.DONE);
+        assertEquals(1, result.matches.size());
+        assertEquals(4_200, result.matches.get(0).startMs);
+        assertEquals(9_200, result.matches.get(0).endMs);
+        assertEquals(seg, result.matches.get(0).segment);
+        AdScanner.forget(aid);
+    }
+
+    @Test public void allFourteenKawaiiLottieAnimationsDecompressAndParseCleanly() throws Exception {
+        assertEquals(14, KawaiiLottieData.COUNT);
+        assertArrayEquals(new int[]{9, 14, 15, 18, 19, 26, 29, 32, 34, 36, 47, 50, 52, 54}, KawaiiLottieData.IDS);
+        for (int i = 0; i < KawaiiLottieData.COUNT; i++) {
+            byte[] jsonBytes = KawaiiLottie.decompressJson(i);
+            assertTrue("emoji index " + i + " is empty", jsonBytes.length > 5_000);
+            org.json.JSONObject root = new org.json.JSONObject(new String(jsonBytes, StandardCharsets.UTF_8));
+            assertEquals(512, root.getInt("w"));
+            assertEquals(512, root.getInt("h"));
+            assertEquals(60, root.getInt("fr"));
+            assertTrue(root.getJSONArray("layers").length() >= 4);
+            long visibleMs = KawaiiLottie.visibleDurationMs(i);
+            assertEquals(5000L, visibleMs);
+        }
+        int first = KawaiiLottie.nextIndex();
+        int second = KawaiiLottie.nextIndex();
+        assertNotEquals("consecutive picks must not repeat the same emoji", first, second);
+    }
 }
