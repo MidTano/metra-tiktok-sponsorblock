@@ -146,11 +146,40 @@ final class Landmarks {
                 QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT);
     }
 
+    /**
+     * A video read both ways at once: the sparse print and the dense one share one spectrogram,
+     * which is most of the work, so this costs little more than either alone.
+     */
+    static Print[] computeBoth(short[] pcm, int length) {
+        Spectrogram spectrogram = spectrogram(pcm, length);
+        return new Print[]{
+                pick(spectrogram, TIME_RADIUS, FREQ_RADIUS, ABOVE_MEAN_DB, MAX_PEAKS_PER_SECOND, 1, FAN_OUT),
+                pick(spectrogram, QUERY_TIME_RADIUS, QUERY_FREQ_RADIUS, QUERY_ABOVE_MEAN_DB,
+                        QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT)};
+    }
+
     private static Print compute(short[] pcm, int length, int timeRadius, int freqRadius, float aboveMean,
             int peaksPerSecond, int bands, int fanOut) {
-        int frames = length < WINDOW ? 0 : (length - WINDOW) / HOP + 1;
-        if (frames <= 0) return new Print(new int[0], new int[0], 0, 0, 0);
+        return pick(spectrogram(pcm, length), timeRadius, freqRadius, aboveMean, peaksPerSecond, bands, fanOut);
+    }
 
+    /** The loudness in dB of every bin of every frame, and each frame's mean. */
+    private static final class Spectrogram {
+        final int frames;
+        final float[] db;
+        final float[] mean;
+
+        Spectrogram(int frames) {
+            this.frames = frames;
+            this.db = new float[frames * BINS];
+            this.mean = new float[frames];
+        }
+    }
+
+    private static Spectrogram spectrogram(short[] pcm, int length) {
+        int frames = length < WINDOW ? 0 : (length - WINDOW) / HOP + 1;
+        Spectrogram result = new Spectrogram(Math.max(0, frames));
+        if (frames <= 0) return result;
         float[] hann = new float[WINDOW];
         for (int i = 0; i < WINDOW; i++) {
             hann[i] = (float) (0.5 - 0.5 * Math.cos(2 * Math.PI * i / (WINDOW - 1)));
@@ -158,6 +187,31 @@ final class Landmarks {
         Fft fft = new Fft(WINDOW);
         float[] re = new float[WINDOW];
         float[] im = new float[WINDOW];
+        for (int fi = 0; fi < frames; fi++) {
+            int start = fi * HOP;
+            for (int i = 0; i < WINDOW; i++) {
+                re[i] = pcm[start + i] / 32768f * hann[i];
+                im[i] = 0f;
+            }
+            fft.transform(re, im);
+            double sum = 0;
+            int base = fi * BINS;
+            for (int b = 0; b < BINS; b++) {
+                int k = b + LOW_BIN;
+                float power = re[k] * re[k] + im[k] * im[k];
+                float db = (float) (10.0 * Math.log10(power + 1e-12));
+                result.db[base + b] = db;
+                sum += db;
+            }
+            result.mean[fi] = (float) (sum / BINS);
+        }
+        return result;
+    }
+
+    private static Print pick(Spectrogram source, int timeRadius, int freqRadius, float aboveMean,
+            int peaksPerSecond, int bands, int fanOut) {
+        int frames = source.frames;
+        if (frames <= 0) return new Print(new int[0], new int[0], 0, 0, 0);
 
         int ring = 2 * timeRadius + 1;
         float[][] spec = new float[ring][BINS];
@@ -173,21 +227,8 @@ final class Landmarks {
             int slot = fi % ring;
             float[] row = spec[slot];
             if (fi < frames) {
-                int start = fi * HOP;
-                for (int i = 0; i < WINDOW; i++) {
-                    re[i] = pcm[start + i] / 32768f * hann[i];
-                    im[i] = 0f;
-                }
-                fft.transform(re, im);
-                double sum = 0;
-                for (int b = 0; b < BINS; b++) {
-                    int k = b + LOW_BIN;
-                    float power = re[k] * re[k] + im[k] * im[k];
-                    float db = (float) (10.0 * Math.log10(power + 1e-12));
-                    row[b] = db;
-                    sum += db;
-                }
-                mean[slot] = (float) (sum / BINS);
+                System.arraycopy(source.db, fi * BINS, row, 0, BINS);
+                mean[slot] = source.mean[fi];
             } else {
                 java.util.Arrays.fill(row, Float.NEGATIVE_INFINITY);
                 mean[slot] = Float.POSITIVE_INFINITY;

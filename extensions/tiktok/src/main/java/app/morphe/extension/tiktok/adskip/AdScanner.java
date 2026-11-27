@@ -319,12 +319,13 @@ final class AdScanner {
             if (context == null) throw new IllegalStateException("No context");
             AdAudioSource.Pcm pcm = AdAudioSource.load(context, aweme, Landmarks.SAMPLE_RATE, MAX_SCAN_MS, job.cancel);
             long loaded = System.currentTimeMillis() - started;
-            List<AdMatcher.Match> matches = scan(pcm.samples, pcm.length, job.cancel);
+            List<AdMatcher.Match> matches = plainScan(pcm.samples, pcm.length);
             long took = System.currentTimeMillis() - started;
             Result result = new Result(State.DONE, generation, matches, pcm.durationMs(), took, null);
             if (job.cancel.get() && !current(job)) return;
+            // The answer of the plain reading is out at once. The retimed copies below only add to
+            // it, so a video with no ad no longer waits for four more readings before it is known.
             store(job.aid, result);
-            persist();
             AdSkipLog.add(job.aid, (matches.isEmpty()
                     ? "no ad in " + pcm.durationMs() / 1000 + "s"
                     : "found " + matches) + ", " + pcm.downloadedBytes / 1024 + " KB " + (AdAudioSource.separateSound(aweme) ? "dash" : "muxed")
@@ -332,6 +333,19 @@ final class AdScanner {
             Listener l = listener;
             if (l != null) l.scanned(job.aid, result);
             if (!matches.isEmpty()) Utils.runOnMainThread(AdSkipBar::refresh);
+            if (matches.isEmpty() && Settings.AD_SKIP_RETIMED.get()) {
+                long retimedAt = System.currentTimeMillis();
+                List<AdMatcher.Match> retimed = retimedScan(pcm.samples, pcm.length, job.cancel);
+                if (!retimed.isEmpty() && !(job.cancel.get() && !current(job))) {
+                    Result better = new Result(State.DONE, generation, retimed, pcm.durationMs(),
+                            System.currentTimeMillis() - started, null);
+                    store(job.aid, better);
+                    AdSkipLog.add(job.aid, "found " + retimed + " in a retimed copy, " + (System.currentTimeMillis() - retimedAt) + "ms");
+                    if (l != null) l.scanned(job.aid, better);
+                    Utils.runOnMainThread(AdSkipBar::refresh);
+                }
+            }
+            persist();
         } catch (Throwable failure) {
             if (job.cancel.get()) {
                 // Left behind, not broken: asked again, it is scanned again.
@@ -353,10 +367,21 @@ final class AdScanner {
     }
 
     static List<AdMatcher.Match> scan(short[] pcm, int length, AtomicBoolean cancel) throws IOException {
+        List<AdMatcher.Match> found = plainScan(pcm, length);
+        if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
+        return retimedScan(pcm, length, cancel);
+    }
+
+    /** The video as it is, read the sparse and the dense way. */
+    private static List<AdMatcher.Match> plainScan(short[] pcm, int length) {
+        return AdMatcher.find(AdSegmentStore.index(), pcm, length,
+                AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get()));
+    }
+
+    /** The video sped up and slowed down a little, which undoes a retimed copy of an ad. */
+    private static List<AdMatcher.Match> retimedScan(short[] pcm, int length, AtomicBoolean cancel) throws IOException {
         AdMatcher.Index index = AdSegmentStore.index();
         AdMatcher.Strictness strictness = AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get());
-        List<AdMatcher.Match> found = AdMatcher.find(index, pcm, length, strictness);
-        if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
         for (float rate : RATES) {
             if (cancel != null && cancel.get()) throw new IOException("Cancelled");
             short[] stretched = stretch(pcm, length, rate);
@@ -369,7 +394,7 @@ final class AdScanner {
             }
             return mapped;
         }
-        return found;
+        return Collections.emptyList();
     }
 
     /**

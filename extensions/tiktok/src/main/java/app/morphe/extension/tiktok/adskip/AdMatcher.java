@@ -159,8 +159,9 @@ final class AdMatcher {
      * end when music covers them. Where both found the same ad, the match spans both.
      */
     static List<Match> find(Index index, short[] pcm, int length, Strictness strictness) {
-        List<Match> all = new ArrayList<>(match(index, Landmarks.compute(pcm, length), strictness, false));
-        for (Match d : match(index, Landmarks.computeQuery(pcm, length), strictness, true)) {
+        Landmarks.Print[] prints = Landmarks.computeBoth(pcm, length);
+        List<Match> all = new ArrayList<>(match(index, prints[0], strictness, false));
+        for (Match d : match(index, prints[1], strictness, true)) {
             boolean known = false;
             for (int i = 0; i < all.size(); i++) {
                 Match m = all.get(i);
