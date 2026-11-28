@@ -1,3 +1,16 @@
+## [0.18.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.18.0...v0.18.1) (2026-11-28)
+
+
+### Bug Fixes
+
+* **adskip:** show manual marks immediately and discard stale scans ([e3f2dc0](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/e3f2dc04e980858da8731fe860f380e35209a8d7))
+
+
+
+
+
+## 0.18.1
+
 # [0.18.0](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.17.0...v0.18.0) (2026-11-27)
 
 
