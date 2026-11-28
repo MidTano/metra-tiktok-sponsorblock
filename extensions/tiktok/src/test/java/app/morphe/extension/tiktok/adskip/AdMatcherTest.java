@@ -88,6 +88,36 @@ public class AdMatcherTest {
         return AdMatcher.find(index, video, video.length, AdMatcher.Strictness.NORMAL);
     }
 
+    @Test(expected = java.util.concurrent.CancellationException.class)
+    public void cancelledMatchStopsBeforeFingerprinting() {
+        short[] ad = melody(8, 5, 1.0);
+        AdMatcher.Index index = AdMatcher.Index.build(Collections.singletonList(segment(ad)));
+        AdMatcher.find(index, ad, ad.length, AdMatcher.Strictness.NORMAL,
+                new java.util.concurrent.atomic.AtomicBoolean(true));
+    }
+
+    @Test
+    public void candidateAfterAnotherSegmentWithTheSameHashesKeepsItsExactMatch() {
+        short[] ad = melody(7, 12, 1.0);
+        AdSegment target = segment(ad);
+        // Shares the entire hash set but has no coherent timing offset.
+        int[] scrambled = target.times.clone();
+        for (int i = 0; i < scrambled.length; i++) scrambled[i] = (i * 163) % target.frames;
+        AdSegment distractor = new AdSegment(2, "distractor", 0, target.durationMs, null,
+                target.hashes, scrambled, target.frames, true, 0, 0);
+        short[] video = place(melody(23, 24, 1.0), ad, 5 * SR);
+        List<AdMatcher.Match> alone = find(target, video);
+        List<AdMatcher.Match> shared = AdMatcher.find(AdMatcher.Index.build(java.util.Arrays.asList(distractor, target)),
+                video, video.length, AdMatcher.Strictness.NORMAL);
+        assertEquals(1, alone.size());
+        assertEquals(1, shared.size());
+        assertEquals(target, shared.get(0).segment);
+        assertEquals(alone.get(0).startMs, shared.get(0).startMs);
+        assertEquals(alone.get(0).endMs, shared.get(0).endMs);
+        assertEquals(alone.get(0).votes, shared.get(0).votes);
+        assertEquals(alone.get(0).partial, shared.get(0).partial);
+    }
+
     @Test
     public void findsItUnderLouderMusic() {
         short[] ad = melody(7, 12, 1.0);

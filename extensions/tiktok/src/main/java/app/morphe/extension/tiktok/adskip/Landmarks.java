@@ -4,11 +4,18 @@
  */
 package app.morphe.extension.tiktok.adskip;
 
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Shazam-style audio landmark fingerprinting (Wang, 2003) on mono 16-bit PCM at {@link #SAMPLE_RATE} Hz
  * with a {@link #HOP}-sample (32 ms) hop. Packs peak pairs as {@code (f1 << 15) | (f2 << 6) | dt}.
  */
 final class Landmarks {
+    static void checkCancelled(AtomicBoolean cancel) {
+        if (cancel != null && cancel.get()) throw new CancellationException();
+    }
+
     static final int SAMPLE_RATE = 8000;
     static final int WINDOW = 1024;
     static final int HOP = 256;
@@ -108,27 +115,35 @@ final class Landmarks {
 
     /** A marked ad's landmarks: sparse, the format stored and shared. */
     static Print compute(short[] pcm, int length) {
-        return compute(pcm, length, TIME_RADIUS, FREQ_RADIUS, ABOVE_MEAN_DB, MAX_PEAKS_PER_SECOND, 1, FAN_OUT);
+        return compute(pcm, length, TIME_RADIUS, FREQ_RADIUS, ABOVE_MEAN_DB, MAX_PEAKS_PER_SECOND, 1, FAN_OUT, null);
     }
 
     /** A video's landmarks, to look for ads in: dense, so an ad under music is still found. */
     static Print computeQuery(short[] pcm, int length) {
+        return computeQuery(pcm, length, null);
+    }
+
+    static Print computeQuery(short[] pcm, int length, AtomicBoolean cancel) {
         return compute(pcm, length, QUERY_TIME_RADIUS, QUERY_FREQ_RADIUS, QUERY_ABOVE_MEAN_DB,
-                QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT);
+                QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT, cancel);
     }
 
     /** Computes both sparse and dense landmark prints from a single shared spectrogram. */
     static Print[] computeBoth(short[] pcm, int length) {
-        Spectrogram spectrogram = spectrogram(pcm, length);
+        return computeBoth(pcm, length, null);
+    }
+
+    static Print[] computeBoth(short[] pcm, int length, AtomicBoolean cancel) {
+        Spectrogram spectrogram = spectrogram(pcm, length, cancel);
         return new Print[]{
-                pick(spectrogram, TIME_RADIUS, FREQ_RADIUS, ABOVE_MEAN_DB, MAX_PEAKS_PER_SECOND, 1, FAN_OUT),
+                pick(spectrogram, TIME_RADIUS, FREQ_RADIUS, ABOVE_MEAN_DB, MAX_PEAKS_PER_SECOND, 1, FAN_OUT, cancel),
                 pick(spectrogram, QUERY_TIME_RADIUS, QUERY_FREQ_RADIUS, QUERY_ABOVE_MEAN_DB,
-                        QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT)};
+                        QUERY_PEAKS_PER_SECOND, QUERY_BANDS, QUERY_FAN_OUT, cancel)};
     }
 
     private static Print compute(short[] pcm, int length, int timeRadius, int freqRadius, float aboveMean,
-            int peaksPerSecond, int bands, int fanOut) {
-        return pick(spectrogram(pcm, length), timeRadius, freqRadius, aboveMean, peaksPerSecond, bands, fanOut);
+            int peaksPerSecond, int bands, int fanOut, AtomicBoolean cancel) {
+        return pick(spectrogram(pcm, length, cancel), timeRadius, freqRadius, aboveMean, peaksPerSecond, bands, fanOut, cancel);
     }
 
     /** The loudness in dB of every bin of every frame, and each frame's mean. */
@@ -153,7 +168,8 @@ final class Landmarks {
         }
     }
 
-    private static Spectrogram spectrogram(short[] pcm, int length) {
+    private static Spectrogram spectrogram(short[] pcm, int length, AtomicBoolean cancel) {
+        checkCancelled(cancel);
         int frames = length < WINDOW ? 0 : (length - WINDOW) / HOP + 1;
         Spectrogram result = new Spectrogram(Math.max(0, frames));
         if (frames <= 0) return result;
@@ -164,6 +180,7 @@ final class Landmarks {
         final float invBins = 1.0f / BINS;
         int fi = 0;
         for (; fi + 1 < frames; fi += 2) {
+            if ((fi & 31) == 0) checkCancelled(cancel);
             int start0 = fi * HOP;
             int start1 = start0 + HOP;
             for (int i = 0; i < WINDOW; i++) {
@@ -218,7 +235,7 @@ final class Landmarks {
     }
 
     private static Print pick(Spectrogram source, int timeRadius, int freqRadius, float aboveMean,
-            int peaksPerSecond, int bands, int fanOut) {
+            int peaksPerSecond, int bands, int fanOut, AtomicBoolean cancel) {
         int frames = source.frames;
         if (frames <= 0) return new Print(new int[0], new int[0], 0, 0, 0);
 
@@ -233,6 +250,7 @@ final class Landmarks {
         FloatList candV = new FloatList(frames * 4);
 
         for (int fi = 0; fi < frames + timeRadius; fi++) {
+            if ((fi & 31) == 0) checkCancelled(cancel);
             int slot = fi % ring;
             float[] row = spec[slot];
             if (fi < frames) {
@@ -278,6 +296,7 @@ final class Landmarks {
         boolean[] keep = new boolean[n];
         int blockStart = 0;
         while (blockStart < n) {
+            checkCancelled(cancel);
             int block = candT.data[blockStart] / FRAMES_PER_SECOND;
             int blockEnd = blockStart;
             while (blockEnd < n && candT.data[blockEnd] / FRAMES_PER_SECOND == block) blockEnd++;
@@ -302,6 +321,7 @@ final class Landmarks {
         IntList hashes = new IntList(peaks * fanOut);
         IntList times = new IntList(peaks * fanOut);
         for (int i = 0; i < peaks; i++) {
+            if ((i & 255) == 0) checkCancelled(cancel);
             int paired = 0;
             for (int j = i + 1; j < peaks && paired < fanOut; j++) {
                 int dt = pt[j] - pt[i];
