@@ -1060,27 +1060,23 @@ final class AdSegmentEditor {
             android.content.Context ctx = activity.getApplicationContext();
             app.morphe.extension.tiktok.adskip.SharedDb.submit(ctx, segment);
         }
-        // The cut must be found again in its own video, at its own place.
-        List<AdMatcher.Match> check = AdMatcher.match(AdMatcher.Index.build(java.util.Collections.singletonList(segment)),
-                print, AdMatcher.Strictness.NORMAL);
-        boolean found = false;
-        for (AdMatcher.Match m : check) if (Math.abs(m.startMs - s) < 1500) found = true;
-        AdSkipLog.add(aid, "saved \"" + name + "\" " + cut.count + " hashes, self-check " + (found ? "ok" : "weak"));
-        List<AdMatcher.Match> fullMatches = AdMatcher.match(AdSegmentStore.index(), print,
-                AdMatcher.Strictness.of(app.morphe.extension.tiktok.settings.Settings.AD_SKIP_STRICTNESS.get()));
-        AdScanner.recordMarked(aid, segment, s, e, cut.count, durationMs);
-        if (!fullMatches.isEmpty()) {
-            for (AdMatcher.Match m : fullMatches) {
-                if (m.segment != segment) {
-                    AdScanner.recordMarked(aid, m.segment, m.startMs, m.endMs, m.votes, durationMs);
-                }
-            }
-        }
+        AdScanner.recordMarked(aid, segment, s, e, cut.count, durationMs, AdScanner.stamp());
+        Landmarks.Print source = print;
+        String savedName = name;
         hideKeyboard();
         dialog.dismiss();
-        Utils.showToastLong(found
-                ? L10n.f("Saved \"%1$s\". This ad will be skipped in other videos.", name)
-                : L10n.f("Saved \"%1$s\", but its sound is weak. A longer or louder cut is found more reliably.", name));
+        // This diagnostic only warns about weak cuts; it does not decide whether to save.
+        Utils.runOnBackgroundThread(() -> {
+            List<AdMatcher.Match> check = AdMatcher.match(AdMatcher.Index.build(java.util.Collections.singletonList(segment)),
+                    source, AdMatcher.Strictness.NORMAL);
+            boolean found = false;
+            for (AdMatcher.Match m : check) if (Math.abs(m.startMs - s) < 1500) found = true;
+            AdSkipLog.add(aid, "saved \"" + savedName + "\" " + cut.count + " hashes, self-check " + (found ? "ok" : "weak"));
+            String notice = found
+                    ? L10n.f("Saved \"%1$s\". This ad will be skipped in other videos.", savedName)
+                    : L10n.f("Saved \"%1$s\", but its sound is weak. A longer or louder cut is found more reliably.", savedName);
+            Utils.runOnMainThread(() -> Utils.showToastLong(notice));
+        });
     }
 
     private void hideKeyboard() {

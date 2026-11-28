@@ -213,9 +213,13 @@ final class AdMatcher {
             if (histogram == null) continue;
             AdSegment segment = index.segments[s];
             int n = histogram.length;
-            int[] smooth = new int[n];
+            // Smooth in place, retaining the original left neighbour. Same scores and ties.
+            int[] smooth = histogram;
+            int previous = 0;
             for (int i = 0; i < n; i++) {
-                smooth[i] = histogram[i] + (i > 0 ? histogram[i - 1] : 0) + (i + 1 < n ? histogram[i + 1] : 0);
+                int current = smooth[i];
+                smooth[i] = previous + current + (i + 1 < n ? smooth[i + 1] : 0);
+                previous = current;
             }
             int suppress = Math.max(SECOND, segment.frames / 2);
             for (int occurrence = 0; occurrence < 4; occurrence++) {
@@ -229,8 +233,10 @@ final class AdMatcher {
                 if (best < 0 || bestVotes < MIN_CHANCE_VOTES) break;
                 int from = Math.max(0, best - suppress), to = Math.min(n - 1, best + suppress);
                 int second = 0;
-                for (int i = 0; i < n; i++) {
-                    if ((i < from || i > to) && smooth[i] > second) second = smooth[i];
+                // Strong peaks do not consult the runner-up (see accepts).
+                if (bestVotes < SURE_VOTES) {
+                    for (int i = 0; i < from; i++) second = Math.max(second, smooth[i]);
+                    for (int i = to + 1; i < n; i++) second = Math.max(second, smooth[i]);
                 }
                 if (!accepts(bestVotes, second, required[s], totals[s], n, segmentCount, strictness.chanceScore)) break;
                 Match match = describe(segment, s, index, video, firsts, best - base[s], bestVotes);
