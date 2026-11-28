@@ -450,18 +450,23 @@ public class SharedDbTest {
     }
 
     @Test public void recordMarkedImmediatelyPublishesMatchForCurrentVideo() {
-        AdSegment seg = new AdSegment(1, "jingle", 0, 5_000, "7700001112223334445",
-                new int[]{Landmarks.hash(10, 20, 5)}, new int[]{0}, 155, true, 0, 0);
         String aid = "7700001112223334445";
-        AdScanner.forget(aid);
-        AdScanner.recordMarked(aid, seg, 4_200, 9_200, 250, 30_000);
-        AdScanner.Result result = AdScanner.result(aid);
-        assertTrue("result must be DONE immediately", result != null && result.state == AdScanner.State.DONE);
-        assertEquals(1, result.matches.size());
-        assertEquals(4_200, result.matches.get(0).startMs);
-        assertEquals(9_200, result.matches.get(0).endMs);
-        assertEquals(seg, result.matches.get(0).segment);
-        AdScanner.forget(aid);
+        Landmarks.Print print = new Landmarks.Print(new int[]{Landmarks.hash(10, 20, 5)},
+                new int[]{0}, 1, 155, 0);
+        AdScanner.clearAll();
+        AdSegment seg = AdSegmentStore.add("jingle", 5_000, aid, print);
+        try {
+            AdScanner.recordMarked(aid, seg, 4_200, 9_200, 250, 30_000, AdScanner.stamp());
+            AdScanner.Result result = AdScanner.result(aid);
+            assertNotNull("manual mark must be visible without a completed scan", result);
+            assertEquals(AdScanner.State.PARTIAL, result.state);
+            assertEquals(1, result.matches.size());
+            assertEquals(4_200, result.matches.get(0).startMs);
+            assertEquals(9_200, result.matches.get(0).endMs);
+            assertSame(seg, result.matches.get(0).segment);
+        } finally {
+            AdScanner.clearAll();
+        }
     }
 
     @Test public void allFourteenKawaiiLottieAnimationsDecompressAndParseCleanly() throws Exception {
