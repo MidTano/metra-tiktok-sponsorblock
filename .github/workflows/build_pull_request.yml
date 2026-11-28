@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - dev
+      - main
 
 jobs:
   release:
@@ -28,7 +29,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :patches:buildAndroid --no-daemon
 
-      - name: Verify settings translations
+      - name: Verify settings translations and AdSkip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./gradlew :extensions:tiktok:testDebugUnitTest --tests app.morphe.extension.tiktok.settings.SettingsL10nTest --no-daemon
+        run: ./gradlew :extensions:tiktok:testDebugUnitTest --tests app.morphe.extension.tiktok.settings.SettingsL10nTest --tests "app.morphe.extension.tiktok.adskip.*" --no-daemon

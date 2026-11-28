@@ -32,6 +32,7 @@ public final class AdSkip {
     private static volatile WeakReference<Object> controller = new WeakReference<>(null);
     private static volatile WeakReference<Object> playingAweme = new WeakReference<>(null);
     private static volatile String playingAid;
+    private static volatile String startedAid;
     private static volatile long positionMs;
     private static volatile long durationMs;
 
@@ -48,7 +49,8 @@ public final class AdSkip {
     private static volatile boolean seekInFlight;
 
     private static volatile boolean paused;
-    private static boolean askedThisPlay;
+    private static Integer requestedGeneration;
+    private static volatile Object playback = new Object();
 
     private static final long LOOP_END_MS = 3000, LOOP_START_MS = 1500;
     private static final long END_GUARD_MS = 600;
@@ -65,6 +67,7 @@ public final class AdSkip {
 
     /** The editor plays the video itself; nothing is skipped behind it. */
     static void setPaused(boolean value) {
+        if (paused != value) playback = new Object();
         paused = value;
     }
 
@@ -80,6 +83,8 @@ public final class AdSkip {
             if (aweme == null) return;
             String aid = Reflect.string(aweme, "getAid", "aid");
             if (aid == null) return;
+            startedAid = aid;
+            playback = new Object();
             playingAweme = new WeakReference<>(aweme);
             if (!active()) return;
             if (playerController != null) controller = new WeakReference<>(playerController);
@@ -124,7 +129,7 @@ public final class AdSkip {
     // endregion
 
     private static boolean shouldScan() {
-        return !AdSegmentStore.index().isEmpty() && mayDownload();
+        return mayDownload();
     }
 
     /** Whether the network in use allows a scan's download now; asked again when a queued scan starts. */
@@ -145,10 +150,12 @@ public final class AdSkip {
             seekAt = 0;
             lastTick = -1;
             advancedAway = false;
-            askedThisPlay = false;
+            requestedGeneration = null;
+            playback = new Object();
         }
-        if (!askedThisPlay && position >= (Settings.AD_SKIP_SAVE_TRAFFIC.get() ? ON_SCREEN_MS : 0)) {
-            askedThisPlay = true;
+        int generation = AdScanner.stamp();
+        if ((requestedGeneration == null || requestedGeneration != generation) && position >= (Settings.AD_SKIP_SAVE_TRAFFIC.get() ? ON_SCREEN_MS : 0)) {
+            requestedGeneration = generation;
             Object aweme = playingAweme.get();
             if (aweme != null && aid.equals(Reflect.string(aweme, "getAid", "aid")) && shouldScan()) {
                 AdScanner.request(aweme, true);
@@ -175,7 +182,7 @@ public final class AdSkip {
         if (seeksThisPlay >= MAX_SEEKS_PER_PLAY) return;
 
         AdScanner.Result result = AdScanner.result(aid);
-        if (result == null || result.state != AdScanner.State.DONE || result.matches.isEmpty()) return;
+        if (result == null || result.matches.isEmpty()) return;
         List<AdMatcher.Match> matches = result.matches;
         for (AdMatcher.Match match : matches) {
             long key = match.startMs;
@@ -183,18 +190,20 @@ public final class AdSkip {
             long end = Math.min(match.endMs, duration);
             if (position < match.startMs - LEAD_MS || position >= end - TAIL_MS) continue;
             skipped.add(key);
-            // The whole video, or an ad that runs into its last second: there is nothing after it
-            // to seek to, so the feed moves on instead.
-            boolean whole = (end - Math.max(0, match.startMs)) >= duration * WHOLE_VIDEO
-                    || end >= duration - END_GUARD_MS - 400;
+            // A trailing ad is not a whole ad: don't dismiss the rest of the video.
+            boolean whole = result.state == AdScanner.State.COMPLETE
+                    && result.scannedMs >= duration - END_GUARD_MS
+                    && (end - Math.max(0, match.startMs)) >= duration * WHOLE_VIDEO;
             if (whole) {
                 if (!Settings.AD_SKIP_WHOLE_VIDEO.get() || advancedAway) return;
                 advancedAway = true;
                 seeksThisPlay = MAX_SEEKS_PER_PLAY;
                 // A moment later, outside TikTok's progress callback, as a swipe would be.
+                Object session = playback;
                 Utils.runOnMainThreadDelayed(() -> {
                     try {
-                        if (!aid.equals(playingAid)) return;
+                        if (!canApply(session, aid, result.generation, match)
+                                || !Settings.AD_SKIP_WHOLE_VIDEO.get()) return;
                         if (advance()) {
                             AdSegmentStore.recordSkip(match.segment, Math.max(0, duration - positionMs));
                             AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
@@ -208,12 +217,12 @@ public final class AdSkip {
                 }, 350);
                 return;
             }
-            seekPast(aid, match, end, duration);
+            seekPast(aid, match, end, duration, result.generation);
             return;
         }
     }
 
-    private static void seekPast(String aid, AdMatcher.Match match, long target, long duration) {
+    private static void seekPast(String aid, AdMatcher.Match match, long target, long duration, int generation) {
         // Keep END_GUARD_MS before the end of the track to avoid overlapping player completion.
         long landing = Math.min(target, duration - END_GUARD_MS);
         if (landing <= positionMs + 500) {
@@ -226,9 +235,10 @@ public final class AdSkip {
         seekTarget = landing;
         seekAt = android.os.SystemClock.uptimeMillis();
         long from = Math.max(positionMs, match.startMs);
+        Object session = playback;
         Utils.runOnMainThread(() -> {
             try {
-                if (!aid.equals(playingAid)) return;
+                if (!canApply(session, aid, generation, match) || positionMs >= landing) return;
                 if (!seekTo(landing, duration)) {
                     AdSkipLog.add(aid, "could not seek");
                     return;
@@ -238,6 +248,14 @@ public final class AdSkip {
                 seekInFlight = false;
             }
         });
+    }
+
+    private static boolean canApply(Object session, String aid, int generation, AdMatcher.Match match) {
+        long position = positionMs;
+        return session == playback && active() && aid.equals(playingAid)
+                && (startedAid == null || aid.equals(startedAid))
+                && generation == AdScanner.stamp()
+                && position >= match.startMs - LEAD_MS && position < match.endMs;
     }
 
     private static void skippedOnce(String aid, AdMatcher.Match match, long savedMs, long duration) {

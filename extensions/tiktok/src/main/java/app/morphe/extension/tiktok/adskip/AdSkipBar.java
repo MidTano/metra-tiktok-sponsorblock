@@ -179,7 +179,7 @@ public final class AdSkipBar {
             ProgressBar bar = seekBar.get();
             if (shown == null || bar == null || !bar.isShown()) return;
             AdScanner.Result result = AdScanner.result(shown);
-            if (result == null || result.state != AdScanner.State.DONE || result.matches.isEmpty()) return;
+            if (result == null || result.matches.isEmpty()) return;
             long duration = shown.equals(AdSkip.playingAid()) ? AdSkip.playingDuration() : 0;
             if (duration <= 0) duration = result.scannedMs;
             if (duration <= 0) return;

@@ -5,6 +5,7 @@
 package app.morphe.extension.tiktok.adskip;
 
 import android.content.Context;
+import android.util.AtomicFile;
 
 import app.morphe.extension.shared.Logger;
 import app.morphe.extension.shared.Utils;
@@ -14,7 +15,6 @@ import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -76,6 +76,13 @@ final class AdSegmentStore {
         synchronized (LOCK) {
             ensureLoaded();
             return index;
+        }
+    }
+
+    static AdMatcher.Index indexAt(int expectedGeneration) {
+        synchronized (LOCK) {
+            ensureLoaded();
+            return generation == expectedGeneration ? index : null;
         }
     }
 
@@ -382,8 +389,8 @@ final class AdSegmentStore {
         if (segments != null) return;
         segments = new ArrayList<>();
         File file = file();
-        if (file != null && file.isFile()) {
-            try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(file)))) {
+        if (file != null) {
+            try (DataInputStream in = new DataInputStream(new BufferedInputStream(new AtomicFile(file).openRead()))) {
                 if (in.readInt() != MAGIC) throw new IOException("Not an ad list");
                 int version = in.readInt();
                 if (version != VERSION) throw new IOException("Ad list version " + version);
@@ -412,6 +419,9 @@ final class AdSegmentStore {
                     }
                     segments.add(seg);
                 }
+            } catch (java.io.FileNotFoundException missing) {
+                if (!file.exists()) SharedDb.forgetSyncProgress();
+                else Logger.printException(() -> "Ad skip: could not open the ad list", missing);
             } catch (Exception failure) {
                 Logger.printException(() -> "Ad skip: could not read the ad list", failure);
                 File broken = new File(file.getParentFile(), FILE + ".broken");
@@ -420,9 +430,6 @@ final class AdSegmentStore {
                 segments.clear();
                 SharedDb.forgetSyncProgress();
             }
-        } else if (file != null) {
-            SharedDb.forgetSyncProgress();
-            save();
         }
         if (dropSharedCopies()) save();
         index = AdMatcher.Index.build(segments);
@@ -446,8 +453,11 @@ final class AdSegmentStore {
         File file = file();
         if (file == null) return;
         saveFailed = true;
-        File temp = new File(file.getParentFile(), FILE + ".tmp");
-        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(temp)))) {
+        AtomicFile atomic = new AtomicFile(file);
+        FileOutputStream raw = null;
+        try {
+            raw = atomic.startWrite();
+            DataOutputStream out = new DataOutputStream(new BufferedOutputStream(raw));
             out.writeInt(MAGIC);
             out.writeInt(VERSION);
             out.writeInt(segments.size());
@@ -466,19 +476,12 @@ final class AdSegmentStore {
                 for (int t : s.times) out.writeInt(t);
                 out.writeUTF(s.sharedServerId == null ? "" : s.sharedServerId);
             }
+            out.flush();
+            atomic.finishWrite(raw);
         } catch (IOException failure) {
+            if (raw != null) atomic.failWrite(raw);
             Logger.printException(() -> "Ad skip: could not save the ad list", failure);
-            //noinspection ResultOfMethodCallIgnored
-            temp.delete();
             return;
-        }
-        if (!temp.renameTo(file)) {
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
-            if (!temp.renameTo(file)) {
-                Logger.printDebug(() -> "Ad skip: could not replace the ad list");
-                return;
-            }
         }
         saveFailed = false;
     }

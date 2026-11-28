@@ -207,8 +207,13 @@ public class SettingsL10nTest {
     }
 
     private static java.io.File tableFile(String language, String extension) {
-        java.io.File file = new java.io.File(l10nDirectory(), language + extension);
-        return file.isFile() ? file : null;
+        // Language tags are normalized for generated lookups, but Git preserves filename case.
+        String name = language + extension;
+        java.io.File[] matches = l10nDirectory().listFiles(
+                file -> file.isFile() && file.getName().equalsIgnoreCase(name));
+        if (matches == null || matches.length == 0) return null;
+        assertEquals("ambiguous translation table for " + name, 1, matches.length);
+        return matches[0];
     }
 
     /** The keys are English text, so the base is a list of source strings, not a translation. */
