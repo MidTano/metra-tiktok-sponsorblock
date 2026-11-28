@@ -148,8 +148,14 @@ final class AdSegmentStore {
     static void setEnabled(long id, boolean enabled) {
         synchronized (LOCK) {
             ensureLoaded();
-            for (AdSegment s : segments) if (s.id == id) s.enabled = enabled;
-            changed();
+            for (AdSegment s : segments) {
+                if (s.id != id) continue;
+                if (s.enabled != enabled) {
+                    s.enabled = enabled;
+                    changed();
+                }
+                return;
+            }
         }
     }
 

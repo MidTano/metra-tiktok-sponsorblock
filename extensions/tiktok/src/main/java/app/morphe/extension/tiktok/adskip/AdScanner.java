@@ -51,6 +51,9 @@ final class AdScanner {
         final long scannedMs;
         final long tookMs;
         final String error;
+        // Accessed only under LOCK. Identity of the manual result is the merge version.
+        private Result mergedFrom;
+        private Result merged;
 
         Result(State state, int generation, List<AdMatcher.Match> matches, long scannedMs, long tookMs, String error) {
             this.state = state;
@@ -85,11 +88,13 @@ final class AdScanner {
     private static final int WANTED_SIZE = 4;
     private static final Map<String, Job> JOBS = new java.util.HashMap<>();
     private static int workers;
+    private static final int MAX_BACKGROUND_RUNNING = 2;
     private static final int MAX_WORKERS = 2;
     private static final int ALGORITHM = 5;
     private static final int MAX_WORKERS_URGENT = 3;
     private static final String CACHE_FILE = "metra-adskip-scans.json";
     private static boolean restored;
+    private static boolean restoreScheduled;
     private static int cacheEpoch;
     private static volatile Listener listener;
 
@@ -101,6 +106,7 @@ final class AdScanner {
         final long queuedAt = System.nanoTime();
         volatile boolean urgent;
         volatile int tid;
+        boolean deferredByNetwork;
 
         Job(String aid, Object aweme, int generation) {
             this.aid = aid;
@@ -125,6 +131,7 @@ final class AdScanner {
             Result marked = MARKED.get(aid);
             if (marked == null || marked.generation != generation) return r;
             if (r == null || r.matches.isEmpty()) return marked;
+            if (r.mergedFrom == marked) return r.merged;
             List<AdMatcher.Match> combined = new ArrayList<>(marked.matches);
             for (AdMatcher.Match m : r.matches) {
                 boolean overlaps = false;
@@ -137,7 +144,10 @@ final class AdScanner {
                 if (!overlaps) combined.add(m);
             }
             combined.sort((x, y) -> Long.compare(x.startMs, y.startMs));
-            return new Result(r.state, generation, combined, Math.max(marked.scannedMs, r.scannedMs), r.tookMs, null);
+            r.merged = new Result(r.state, generation, Collections.unmodifiableList(combined),
+                    Math.max(marked.scannedMs, r.scannedMs), r.tookMs, null);
+            r.mergedFrom = marked;
+            return r.merged;
         }
     }
 
@@ -263,6 +273,14 @@ final class AdScanner {
         while (true) {
             Job job;
             synchronized (LOCK) {
+                // The extra urgent worker must not become a third background download.
+                Job next = QUEUE.peekFirst();
+                int background = 0;
+                for (Job running : RUNNING) if (!running.urgent) background++;
+                if (next != null && !next.urgent && background >= MAX_BACKGROUND_RUNNING) {
+                    workers--;
+                    return;
+                }
                 job = QUEUE.pollFirst();
                 if (job == null) {
                     workers--;
@@ -281,6 +299,9 @@ final class AdScanner {
                 synchronized (LOCK) {
                     RUNNING.remove(job);
                     discard(job);
+                }
+                if (job.deferredByNetwork) {
+                    AdSkip.scanDeferredByNetwork(job.aid, job.generation);
                 }
             }
         }
@@ -308,12 +329,15 @@ final class AdScanner {
                     return;
                 }
             }
-            if (!AdSkip.mayDownload()) return;
+            if (!AdSkip.mayDownload()) {
+                job.deferredByNetwork = true;
+                return;
+            }
             // Decode once and match the whole scan window: a prefix can hide a competing peak.
             AdAudioSource.Pcm pcm = AdAudioSource.load(context, aweme, Landmarks.SAMPLE_RATE, MAX_SCAN_MS, job.cancel);
             long loaded = (System.nanoTime() - started) / 1_000_000L;
             if (job.cancel.get()) return;
-            List<AdMatcher.Match> matches = AdMatcher.find(index, pcm.samples, pcm.length, strictness);
+            List<AdMatcher.Match> matches = AdMatcher.find(index, pcm.samples, pcm.length, strictness, job.cancel);
             if (matches.isEmpty() && retimed) {
                 matches = retimedScan(pcm.samples, pcm.length, job.cancel, index, strictness);
             }
@@ -348,25 +372,28 @@ final class AdScanner {
     }
 
     static List<AdMatcher.Match> scan(short[] pcm, int length, AtomicBoolean cancel) throws IOException {
-        List<AdMatcher.Match> found = plainScan(pcm, length);
-        if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
-        return retimedScan(pcm, length, cancel, AdSegmentStore.index(),
-                AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get()));
-    }
-
-    /** The video as it is, read the sparse and the dense way. */
-    private static List<AdMatcher.Match> plainScan(short[] pcm, int length) {
-        return AdMatcher.find(AdSegmentStore.index(), pcm, length,
-                AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get()));
+        AdMatcher.Index index = AdSegmentStore.index();
+        AdMatcher.Strictness strictness = AdMatcher.Strictness.of(Settings.AD_SKIP_STRICTNESS.get());
+        try {
+            List<AdMatcher.Match> found = AdMatcher.find(index, pcm, length, strictness, cancel);
+            if (!found.isEmpty() || !Settings.AD_SKIP_RETIMED.get()) return found;
+            return retimedScan(pcm, length, cancel, index, strictness);
+        } catch (java.util.concurrent.CancellationException stopped) {
+            throw new IOException("Cancelled", stopped);
+        }
     }
 
     /** The video sped up and slowed down a little, which undoes a retimed copy of an ad. */
     private static List<AdMatcher.Match> retimedScan(short[] pcm, int length, AtomicBoolean cancel,
             AdMatcher.Index index, AdMatcher.Strictness strictness) throws IOException {
+        Landmarks.checkCancelled(cancel);
+        short[] stretched = new short[Math.max(0, (int) (length * (double) RATES[2]))];
         for (float rate : RATES) {
             if (cancel != null && cancel.get()) throw new IOException("Cancelled");
-            short[] stretched = stretch(pcm, length, rate);
-            List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.computeQuery(stretched, stretched.length), strictness, true);
+            int samples = Math.max(0, (int) (length * (double) rate));
+            stretchInto(pcm, length, rate, stretched, samples, cancel);
+            List<AdMatcher.Match> retimed = AdMatcher.match(index, Landmarks.computeQuery(stretched, samples, cancel),
+                    strictness, true, cancel);
             if (retimed.isEmpty()) continue;
             List<AdMatcher.Match> mapped = new ArrayList<>();
             for (AdMatcher.Match m : retimed) {
@@ -383,10 +410,16 @@ final class AdScanner {
         if (length <= 0 || rate <= 0f) return new short[0];
         int outLength = (int) (length * (double) rate);
         short[] out = new short[Math.max(0, outLength)];
+        stretchInto(pcm, length, rate, out, out.length, null);
+        return out;
+    }
+
+    private static void stretchInto(short[] pcm, int length, float rate, short[] out, int count, AtomicBoolean cancel) {
         long step = Math.round((1L << 20) / (double) rate);
         long pos = 0;
         int limit = length - 1;
-        for (int i = 0; i < out.length; i++, pos += step) {
+        for (int i = 0; i < count; i++, pos += step) {
+            if ((i & 4095) == 0) Landmarks.checkCancelled(cancel);
             int a = (int) (pos >>> 20);
             if (a >= limit) {
                 out[i] = pcm[Math.max(0, limit)];
@@ -397,7 +430,27 @@ final class AdScanner {
             int s1 = pcm[a + 1];
             out[i] = (short) (s0 + (((s1 - s0) * (long) frac + 0x80000L) >> 20));
         }
-        return out;
+    }
+
+    static void restoreInBackground() {
+        synchronized (LOCK) {
+            if (restored || restoreScheduled) return;
+            restoreScheduled = true;
+        }
+        boolean accepted = Utils.runOnBackgroundThread(() -> {
+            try {
+                restoreOnce();
+            } finally {
+                synchronized (LOCK) {
+                    restoreScheduled = false;
+                }
+            }
+        });
+        if (!accepted) {
+            synchronized (LOCK) {
+                restoreScheduled = false;
+            }
+        }
     }
 
     /** Loads persisted scan results matching the current segment-list fingerprint. */
@@ -507,12 +560,22 @@ final class AdScanner {
     }
 
     private static String fingerprint(AdMatcher.Index index, int generation) {
+        int config = generation % 16;
+        synchronized (index) {
+            if (index.cacheFingerprints[config] == null) {
+                index.cacheFingerprints[config] = computeFingerprint(index, config);
+            }
+            return index.cacheFingerprints[config];
+        }
+    }
+
+    private static String computeFingerprint(AdMatcher.Index index, int config) {
         // Hash the actual indexed fingerprints, not just their IDs and lengths.
         try {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
             java.nio.ByteBuffer word = java.nio.ByteBuffer.allocate(Long.BYTES);
             update(digest, word, ALGORITHM);
-            update(digest, word, generation % 16);
+            update(digest, word, config);
             update(digest, word, index.segments.length);
             for (AdSegment segment : index.segments) {
                 update(digest, word, segment.id);

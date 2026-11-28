@@ -50,6 +50,7 @@ public final class AdSkip {
 
     private static volatile boolean paused;
     private static Integer requestedGeneration;
+    private static long nextScanRequestAt;
     private static volatile Object playback = new Object();
 
     private static final long LOOP_END_MS = 3000, LOOP_START_MS = 1500;
@@ -88,7 +89,10 @@ public final class AdSkip {
             playingAweme = new WeakReference<>(aweme);
             if (!active()) return;
             if (playerController != null) controller = new WeakReference<>(playerController);
-            if (Settings.AD_SKIP_SAVE_TRAFFIC.get() || !shouldScan()) return;
+            if (Settings.AD_SKIP_SAVE_TRAFFIC.get() || !mayDownload()) {
+                AdScanner.restoreInBackground();
+                return;
+            }
             AdScanner.request(aweme, true);
         } catch (Throwable failure) {
             Logger.printException(() -> "Ad skip: play hook failed", failure);
@@ -98,7 +102,7 @@ public final class AdSkip {
     /** {@code VideoAuthorInfoVM.paramSync2StateAccept(VideoItemParams)}: the feed bound a post. */
     public static void onBind(Object videoItemParams) {
         try {
-            if (!active() || !Settings.AD_SKIP_PRESCAN.get() || !shouldScan()) return;
+            if (!active() || !Settings.AD_SKIP_PRESCAN.get() || !mayDownload()) return;
             if (Settings.AD_SKIP_SAVE_TRAFFIC.get() && Utils.getNetworkType() != Utils.NetworkType.OTHER) return;
             Object aweme = Reflect.property(videoItemParams, "getAweme", "aweme");
             if (aweme != null) AdScanner.request(aweme, false);
@@ -128,8 +132,10 @@ public final class AdSkip {
 
     // endregion
 
-    private static boolean shouldScan() {
-        return mayDownload();
+    static synchronized void scanDeferredByNetwork(String aid, int generation) {
+        if (aid.equals(sessionAid) && requestedGeneration != null && requestedGeneration == generation) {
+            requestedGeneration = null;
+        }
     }
 
     /** Whether the network in use allows a scan's download now; asked again when a queued scan starts. */
@@ -151,14 +157,19 @@ public final class AdSkip {
             lastTick = -1;
             advancedAway = false;
             requestedGeneration = null;
+            nextScanRequestAt = 0;
             playback = new Object();
         }
         int generation = AdScanner.stamp();
-        if ((requestedGeneration == null || requestedGeneration != generation) && position >= (Settings.AD_SKIP_SAVE_TRAFFIC.get() ? ON_SCREEN_MS : 0)) {
-            requestedGeneration = generation;
+        if ((requestedGeneration == null || requestedGeneration != generation) && now >= nextScanRequestAt
+                && position >= (Settings.AD_SKIP_SAVE_TRAFFIC.get() ? ON_SCREEN_MS : 0)) {
+            nextScanRequestAt = now + 500;
             Object aweme = playingAweme.get();
-            if (aweme != null && aid.equals(Reflect.string(aweme, "getAid", "aid")) && shouldScan()) {
+            if (aweme != null && aid.equals(Reflect.string(aweme, "getAid", "aid")) && mayDownload()) {
+                requestedGeneration = generation;
                 AdScanner.request(aweme, true);
+            } else {
+                AdScanner.restoreInBackground();
             }
         }
         // Ignore stale progress ticks while a programmatic seek is settling.

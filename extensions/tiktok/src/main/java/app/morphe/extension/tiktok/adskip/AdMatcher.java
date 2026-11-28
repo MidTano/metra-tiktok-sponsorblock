@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Matches marked ad segments against video audio landmarks by time-offset voting. */
 final class AdMatcher {
@@ -77,6 +78,7 @@ final class AdMatcher {
         final AdSegment[] segments;
         /** Packed as: hash << 32 | segmentIndex << 16 | frame. */
         final long[] entries;
+        final String[] cacheFingerprints = new String[16];
 
         private Index(AdSegment[] segments, long[] entries) {
             this.segments = segments;
@@ -134,9 +136,16 @@ final class AdMatcher {
 
     /** Matches both sparse and dense landmark prints and merges overlapping spans. */
     static List<Match> find(Index index, short[] pcm, int length, Strictness strictness) {
-        Landmarks.Print[] prints = Landmarks.computeBoth(pcm, length);
-        List<Match> all = new ArrayList<>(match(index, prints[0], strictness, false));
-        for (Match d : match(index, prints[1], strictness, true)) {
+        return find(index, pcm, length, strictness, null);
+    }
+
+    static List<Match> find(Index index, short[] pcm, int length, Strictness strictness,
+            AtomicBoolean cancel) {
+        Landmarks.checkCancelled(cancel);
+        if (index == null || index.isEmpty()) return Collections.emptyList();
+        Landmarks.Print[] prints = Landmarks.computeBoth(pcm, length, cancel);
+        List<Match> all = new ArrayList<>(match(index, prints[0], strictness, false, cancel));
+        for (Match d : match(index, prints[1], strictness, true, cancel)) {
             boolean known = false;
             for (int i = 0; i < all.size(); i++) {
                 Match m = all.get(i);
@@ -157,6 +166,12 @@ final class AdMatcher {
     }
 
     static List<Match> match(Index index, Landmarks.Print video, Strictness strictness, boolean dense) {
+        return match(index, video, strictness, dense, null);
+    }
+
+    static List<Match> match(Index index, Landmarks.Print video, Strictness strictness, boolean dense,
+            AtomicBoolean cancel) {
+        Landmarks.checkCancelled(cancel);
         if (index == null || index.isEmpty() || video == null || video.count == 0) return Collections.emptyList();
         int segmentCount = index.segments.length;
         int[][] votes = new int[segmentCount][];
@@ -176,6 +191,7 @@ final class AdMatcher {
         int[] firsts = new int[video.count];
         int[] totals = new int[segmentCount];
         for (int q = 0; q < video.count; q++) {
+            if ((q & 255) == 0) Landmarks.checkCancelled(cancel);
             int hash = video.hashes[q];
             int at = firsts[q] = index.first(hash);
             if (at < 0) continue;
@@ -193,6 +209,7 @@ final class AdMatcher {
         if (!any) return Collections.emptyList();
 
         for (int q = 0; q < video.count; q++) {
+            if ((q & 255) == 0) Landmarks.checkCancelled(cancel);
             int at = firsts[q];
             if (at < 0) continue;
             int hash = video.hashes[q];
@@ -209,6 +226,7 @@ final class AdMatcher {
 
         List<Match> found = new ArrayList<>();
         for (int s = 0; s < segmentCount; s++) {
+            Landmarks.checkCancelled(cancel);
             int[] histogram = votes[s];
             if (histogram == null) continue;
             AdSegment segment = index.segments[s];
@@ -239,7 +257,7 @@ final class AdMatcher {
                     for (int i = to + 1; i < n; i++) second = Math.max(second, smooth[i]);
                 }
                 if (!accepts(bestVotes, second, required[s], totals[s], n, segmentCount, strictness.chanceScore)) break;
-                Match match = describe(segment, s, index, video, firsts, best - base[s], bestVotes);
+                Match match = describe(segment, s, index, video, firsts, best - base[s], bestVotes, cancel);
                 if (match != null) found.add(match);
                 for (int i = from; i <= to; i++) smooth[i] = 0;
             }
@@ -273,17 +291,30 @@ final class AdMatcher {
 
     /** Computes the matched time span in the video from the voting hashes around {@code offset}. */
     private static Match describe(AdSegment segment, int s, Index index, Landmarks.Print video,
-            int[] firsts, int offset, int votes) {
+            int[] firsts, int offset, int votes, AtomicBoolean cancel) {
         int coverStart = Integer.MAX_VALUE, coverEnd = Integer.MIN_VALUE, count = 0;
         long weighted = 0;
         long[] entries = index.entries;
         for (int q = 0; q < video.count; q++) {
+            if ((q & 255) == 0) Landmarks.checkCancelled(cancel);
             int at = firsts[q];
             if (at < 0) continue;
             int hash = video.hashes[q];
             int tq = video.times[q];
-            for (int e = at; e < entries.length && (int) (entries[e] >>> 32) == hash; e++) {
-                if ((int) ((entries[e] >>> 16) & 0xFFFF) != s) continue;
+            // Entries within this hash are ordered by segment, then time. Jump past
+            // other segments when the bucket starts before the candidate.
+            if ((entries[at] >>> 16 & 0xFFFF) < s) {
+                long key = ((long) hash << 32) | ((long) s << 16);
+                int lo = at + 1, hi = entries.length;
+                while (lo < hi) {
+                    int mid = (lo + hi) >>> 1;
+                    if (entries[mid] < key) lo = mid + 1;
+                    else hi = mid;
+                }
+                at = lo;
+            }
+            long prefix = ((long) hash << 16) | s;
+            for (int e = at; e < entries.length && (entries[e] >> 16) == prefix; e++) {
                 int ts = (int) (entries[e] & 0xFFFF);
                 int delta = tq - ts - offset;
                 if (delta < -1 || delta > 1) continue;
