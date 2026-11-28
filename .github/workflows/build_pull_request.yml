@@ -33,3 +33,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew :extensions:tiktok:testDebugUnitTest --tests app.morphe.extension.tiktok.settings.SettingsL10nTest --tests "app.morphe.extension.tiktok.adskip.*" --no-daemon
+
+      - name: Upload patch for device testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-patches
+          path: patches/build/libs/patches-*.mpp
+          if-no-files-found: error
+          retention-days: 7

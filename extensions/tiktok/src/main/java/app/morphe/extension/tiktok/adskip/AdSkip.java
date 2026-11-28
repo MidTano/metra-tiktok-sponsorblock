@@ -18,6 +18,7 @@ import app.morphe.extension.tiktok.settings.SettingsStatus;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -25,8 +26,6 @@ import java.util.Set;
 /** Player and feed hooks that trigger background audio scanning and automatic ad seeking. */
 public final class AdSkip {
     private static final String PAGER = "com.ss.android.ugc.aweme.common.widget.VerticalViewPager";
-    private static final long LEAD_MS = 150;
-    private static final long TAIL_MS = 400;
     private static final float WHOLE_VIDEO = 0.85f;
 
     private static volatile WeakReference<Object> controller = new WeakReference<>(null);
@@ -38,22 +37,30 @@ public final class AdSkip {
 
     private static String sessionAid;
     private static final Set<Long> skipped = new HashSet<>();
-    private static final Set<Long> allowed = new HashSet<>();
-    private static long lastTick = -1;
-    private static boolean advancedAway;
-    private static long seekTarget = -1;
-    private static long seekAt;
-    private static int seeksThisPlay;
-    private static final long SEEK_SETTLE_MS = 2500;
-    private static final int MAX_SEEKS_PER_PLAY = 6;
-    private static volatile boolean seekInFlight;
+    private static final List<AdMatcher.Match> allowed = new ArrayList<>();
+    private static Object videoSession;
+    private static PendingSkip pending;
+
+    private static final class PendingSkip {
+        final Object playback;
+        final AdMatcher.Match match;
+        final int generation;
+        long target, from, duration;
+        long issuedAt = -1;
+        boolean seekAccepted, advanced;
+
+        PendingSkip(Object playback, AdMatcher.Match match, int generation) {
+            this.playback = playback;
+            this.match = match;
+            this.generation = generation;
+        }
+    }
 
     private static volatile boolean paused;
     private static Integer requestedGeneration;
     private static long nextScanRequestAt;
     private static volatile Object playback = new Object();
 
-    private static final long LOOP_END_MS = 3000, LOOP_START_MS = 1500;
     private static final long END_GUARD_MS = 600;
     private static final long ON_SCREEN_MS = 1500;
 
@@ -112,8 +119,9 @@ public final class AdSkip {
     }
 
     /** {@code PlayerController.onPlayProgressChange(sourceId, position, duration)}. */
-    public static void onProgress(Object playerController, String aid, long position, long duration) {
+    public static synchronized void onProgress(Object playerController, String aid, long position, long duration) {
         if (playerController == null || aid == null || duration <= 0) return;
+        if (startedAid != null && !startedAid.equals(aid)) return;
         controller = new WeakReference<>(playerController);
         playingAid = aid;
         positionMs = position;
@@ -151,11 +159,8 @@ public final class AdSkip {
             sessionAid = aid;
             skipped.clear();
             allowed.clear();
-            seeksThisPlay = 0;
-            seekTarget = -1;
-            seekAt = 0;
-            lastTick = -1;
-            advancedAway = false;
+            pending = null;
+            videoSession = new Object();
             requestedGeneration = null;
             nextScanRequestAt = 0;
             playback = new Object();
@@ -172,116 +177,96 @@ public final class AdSkip {
                 AdScanner.restoreInBackground();
             }
         }
-        // Ignore stale progress ticks while a programmatic seek is settling.
-        if (seekTarget >= 0) {
-            boolean landed = Math.abs(position - seekTarget) < 1500;
-            if (!landed && now - seekAt < SEEK_SETTLE_MS) return;
-            seekTarget = -1;
-            lastTick = position;
-            return;
-        }
-        // Reset skipped segments on user rewind or video loop.
-        if (lastTick >= 0 && position + 3000 < lastTick && now - seekAt > SEEK_SETTLE_MS) {
-            for (java.util.Iterator<Long> it = skipped.iterator(); it.hasNext(); ) {
-                if (position < it.next() + 500) it.remove();
+        if (pending != null) {
+            PendingSkip attempt = pending;
+            if (attempt.playback != playback || attempt.generation != generation || !eligible(attempt.match)) {
+                pending = null;
+            } else if (attempt.issuedAt < 0) {
+                return;
+            } else if (!attempt.advanced && position >= attempt.target) {
+                pending = null;
+                Object session = videoSession;
+                if (attempt.seekAccepted) Utils.runOnMainThread(() -> skippedOnce(session, aid, attempt));
+            } else if (AdSkipPlayback.waitingForSeek(now, attempt.issuedAt, position,
+                    attempt.match.startMs, attempt.advanced)) {
+                return;
+            } else {
+                pending = null; // Unconfirmed seek or re-entry: the marker stays eligible.
             }
-            if (position < LOOP_START_MS && lastTick > duration - LOOP_END_MS) {
-                seeksThisPlay = 0;
-            }
         }
-        lastTick = position;
-        if (seeksThisPlay >= MAX_SEEKS_PER_PLAY) return;
 
         AdScanner.Result result = AdScanner.result(aid);
-        if (result == null || result.matches.isEmpty()) return;
-        List<AdMatcher.Match> matches = result.matches;
-        for (AdMatcher.Match match : matches) {
-            long key = match.startMs;
-            if (skipped.contains(key) || allowed.contains(key)) continue;
+        if (result == null) return;
+        for (AdMatcher.Match match : result.matches) {
+            if (AdSkipPlayback.target(position, duration, match.startMs, match.endMs) < 0 || !eligible(match)) continue;
             long end = Math.min(match.endMs, duration);
-            if (position < match.startMs - LEAD_MS || position >= end - TAIL_MS) continue;
-            skipped.add(key);
-            // A trailing ad is not a whole ad: don't dismiss the rest of the video.
+            // Only a complete scan may classify the entire video as an ad. A tail ad just seeks.
             boolean whole = result.state == AdScanner.State.COMPLETE
                     && result.scannedMs >= duration - END_GUARD_MS
+                    && match.startMs <= END_GUARD_MS && end >= duration - END_GUARD_MS
                     && (end - Math.max(0, match.startMs)) >= duration * WHOLE_VIDEO;
-            if (whole) {
-                if (!Settings.AD_SKIP_WHOLE_VIDEO.get() || advancedAway) return;
-                advancedAway = true;
-                seeksThisPlay = MAX_SEEKS_PER_PLAY;
-                // A moment later, outside TikTok's progress callback, as a swipe would be.
-                Object session = playback;
-                Utils.runOnMainThreadDelayed(() -> {
-                    try {
-                        if (!canApply(session, aid, result.generation, match)
-                                || !Settings.AD_SKIP_WHOLE_VIDEO.get()) return;
-                        if (advance()) {
-                            AdSegmentStore.recordSkip(match.segment, Math.max(0, duration - positionMs));
-                            AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
-                            notice(match.segment.name, match.segment.sharedServerId, null);
-                        } else {
-                            AdSkipLog.add(aid, "whole video is an ad, but the feed could not move on");
-                        }
-                    } catch (Throwable failure) {
-                        Logger.printException(() -> "Ad skip: could not move past an ad video", failure);
-                    }
-                }, 350);
+            PendingSkip attempt = new PendingSkip(playback, match, result.generation);
+            pending = attempt;
+            Utils.runOnMainThread(() -> applySkip(aid, attempt, whole));
+            return;
+        }
+    }
+
+    private static boolean eligible(AdMatcher.Match match) {
+        if (!AdSkipPlayback.canSkip(match.segment.enabled, SharedDb.myVote(match.segment.sharedServerId))) return false;
+        for (AdMatcher.Match watched : allowed) {
+            if (AdSkipPlayback.isWatchOverride(watched.segment.id, watched.startMs, watched.endMs,
+                    match.segment.id, match.startMs, match.endMs)) return false;
+        }
+        return true;
+    }
+
+    private static synchronized void applySkip(String aid, PendingSkip attempt, boolean whole) {
+        if (pending != attempt) return;
+        long position = positionMs;
+        AdMatcher.Match match = attempt.match;
+        long duration = durationMs;
+        long target = AdSkipPlayback.target(position, duration, match.startMs, match.endMs);
+        if (attempt.playback != playback || !active() || !aid.equals(playingAid)
+                || (startedAid != null && !aid.equals(startedAid))
+                || attempt.generation != AdScanner.stamp() || target < 0 || !eligible(match)) {
+            pending = null;
+            return;
+        }
+        attempt.target = target;
+        attempt.from = Math.max(position, match.startMs);
+        attempt.duration = duration;
+        attempt.issuedAt = android.os.SystemClock.uptimeMillis();
+        try {
+            if (whole && Settings.AD_SKIP_WHOLE_VIDEO.get() && advance()) {
+                attempt.advanced = true;
+                AdSegmentStore.recordSkip(match.segment, Math.max(0, duration - position));
+                AdSkipLog.add(aid, "whole video is " + match.segment.name + ", moved on");
+                notice(match.segment.name, match.segment.sharedServerId, null);
                 return;
             }
-            seekPast(aid, match, end, duration, result.generation);
-            return;
+            attempt.seekAccepted = seekTo(target, duration);
+            if (!attempt.seekAccepted) AdSkipLog.add(aid, "could not seek; will retry inside the ad");
+        } catch (Throwable failure) {
+            Logger.printException(() -> "Ad skip: could not skip ad", failure);
         }
     }
 
-    private static void seekPast(String aid, AdMatcher.Match match, long target, long duration, int generation) {
-        // Keep END_GUARD_MS before the end of the track to avoid overlapping player completion.
-        long landing = Math.min(target, duration - END_GUARD_MS);
-        if (landing <= positionMs + 500) {
-            AdSkipLog.add(aid, "ad runs to the end, nothing to seek past");
-            return;
-        }
-        if (seekInFlight) return;
-        seekInFlight = true;
-        seeksThisPlay++;
-        seekTarget = landing;
-        seekAt = android.os.SystemClock.uptimeMillis();
-        long from = Math.max(positionMs, match.startMs);
-        Object session = playback;
-        Utils.runOnMainThread(() -> {
-            try {
-                if (!canApply(session, aid, generation, match) || positionMs >= landing) return;
-                if (!seekTo(landing, duration)) {
-                    AdSkipLog.add(aid, "could not seek");
-                    return;
-                }
-                skippedOnce(aid, match, landing - from, duration);
-            } finally {
-                seekInFlight = false;
-            }
-        });
-    }
-
-    private static boolean canApply(Object session, String aid, int generation, AdMatcher.Match match) {
-        long position = positionMs;
-        return session == playback && active() && aid.equals(playingAid)
-                && (startedAid == null || aid.equals(startedAid))
-                && generation == AdScanner.stamp()
-                && position >= match.startMs - LEAD_MS && position < match.endMs;
-    }
-
-    private static void skippedOnce(String aid, AdMatcher.Match match, long savedMs, long duration) {
+    private static synchronized void skippedOnce(Object session, String aid, PendingSkip attempt) {
+        AdMatcher.Match match = attempt.match;
+        if (session != videoSession || !aid.equals(playingAid) || !eligible(match)) return;
+        skipped.add(match.startMs); // For the bar only; never prevents another skip.
+        long savedMs = attempt.target - attempt.from;
         AdSegmentStore.recordSkip(match.segment, savedMs);
         AdSkipLog.add(aid, "skipped " + match.segment.name + ", saved " + savedMs + "ms");
         notice(match.segment.name, match.segment.sharedServerId, () -> {
-            // Only the video the ad was skipped in: after a swipe the notice is stale.
-            if (!aid.equals(playingAid)) return;
-            long back = Math.max(0, match.startMs);
             synchronized (AdSkip.class) {
-                allowed.add(match.startMs);
-                seekTarget = back;
-                seekAt = android.os.SystemClock.uptimeMillis();
+                if (session != videoSession || !aid.equals(playingAid)
+                        || (startedAid != null && !aid.equals(startedAid))) return;
+                allowed.add(match);
+                pending = null;
+                seekTo(Math.max(0, match.startMs), attempt.duration);
             }
-            seekTo(back, duration);
         });
     }
 
@@ -302,10 +287,6 @@ public final class AdSkip {
             if (method == null) return false;
             long target = Math.max(0, Math.min(duration - 1, targetMs));
             method.invoke(manager, (float) target / duration * 100f);
-            positionMs = target;
-            synchronized (AdSkip.class) {
-                lastTick = target;
-            }
             return true;
         } catch (Exception failure) {
             Logger.printException(() -> "Ad skip: could not seek", failure);
