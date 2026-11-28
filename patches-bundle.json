@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-11-28T15:40:42",
+  "created_at": "2026-11-28T15:44:24",
   "description": "## [0.18.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.18.1...v0.18.2) (2026-11-28)\n\n\n### Performance Improvements\n\n* **adskip:** stop obsolete scans and reuse cached work ([#9](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/9)) ([2e9e97d](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/2e9e97dafc69e2380947be51f4944bbb4b9a295f))\n\n\n\n\n\n## 0.18.2",
   "download_url": "https://github.com/MidTano/metra-tiktok-sponsorblock/releases/download/v0.18.2/patches-0.18.2.mpp",
   "signature_download_url": "",
