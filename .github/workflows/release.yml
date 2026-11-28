@@ -41,7 +41,8 @@ jobs:
       - name: Verify settings translations and AdSkip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: "$GRADLE_BIN" :extensions:tiktok:testDebugUnitTest --tests app.morphe.extension.tiktok.settings.SettingsL10nTest --tests "app.morphe.extension.tiktok.adskip.*" --console=plain
+        run: |
+          "$GRADLE_BIN" :extensions:tiktok:testDebugUnitTest --tests app.morphe.extension.tiktok.settings.SettingsL10nTest --tests "app.morphe.extension.tiktok.adskip.*" --console=plain
 
       - name: Build
         env:
