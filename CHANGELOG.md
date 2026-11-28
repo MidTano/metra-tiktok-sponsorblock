@@ -1,3 +1,16 @@
+## [0.18.2](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.18.1...v0.18.2) (2026-11-28)
+
+
+### Performance Improvements
+
+* **adskip:** stop obsolete scans and reuse cached work ([#9](https://github.com/MidTano/metra-tiktok-sponsorblock/issues/9)) ([2e9e97d](https://github.com/MidTano/metra-tiktok-sponsorblock/commit/2e9e97dafc69e2380947be51f4944bbb4b9a295f))
+
+
+
+
+
+## 0.18.2
+
 ## [0.18.1](https://github.com/MidTano/metra-tiktok-sponsorblock/compare/v0.18.0...v0.18.1) (2026-11-28)
 
 
